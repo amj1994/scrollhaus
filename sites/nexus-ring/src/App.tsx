@@ -1,4 +1,5 @@
 import { motion } from "framer-motion";
+import { useSmoothScroll } from "@/lib/useSmoothScroll";
 
 const fadeUp = {
   initial: { opacity: 0, y: 28 },
@@ -26,8 +27,10 @@ const COMPONENTS = [
 ];
 
 export default function App() {
+  useSmoothScroll();
+
   return (
-    <div className="relative min-h-screen bg-[#050505] text-[#f2f2f2] overflow-x-hidden">
+    <div className="relative min-h-screen bg-[#050505] text-[#f2f2f2]">
       {/* Nav */}
       <header className="fixed inset-x-0 top-0 z-30 flex items-center justify-between px-6 py-5 md:px-12">
         <span
