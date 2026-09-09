@@ -2,11 +2,21 @@ import { useMemo, useState } from 'react'
 import { SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import Creative from '@/components/Creative'
+import Pricing from '@/components/Pricing'
 
 const BRAND = 'Scrollhaus'
 
+const AI_TOOLS = [
+  { name: 'Claude', logo: '/logos/claude.webp' },
+  { name: 'Codex', logo: '/logos/openai.webp' },
+  { name: 'Lovable', logo: '/logos/lovable.webp' },
+  { name: 'Bolt', logo: '/logos/bolt.webp' },
+  { name: 'Replit', logo: '/logos/replit.webp' },
+  { name: 'Readdy', logo: '/logos/readdy.webp' },
+]
+
 export default function App() {
-  const [view, setView] = useState<'library' | 'creative'>('library')
+  const [view, setView] = useState<'library' | 'creative' | 'pricing'>('library')
   const [active, setActive] = useState<string>('All')
   const [q, setQ] = useState('')
 
@@ -47,6 +57,13 @@ export default function App() {
             >
               Creative
             </button>
+            <button
+              type="button"
+              onClick={() => setView('pricing')}
+              className={`shine-text text-[13px] font-semibold transition-opacity ${view === 'pricing' ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
+            >
+              Pricing
+            </button>
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
@@ -84,22 +101,43 @@ export default function App() {
                 style={{ background: 'linear-gradient(90deg,#050505 0%,rgba(5,5,5,0.9) 24%,rgba(5,5,5,0.55) 46%,rgba(5,5,5,0.12) 70%,rgba(5,5,5,0) 88%)' }}
               />
 
-              <div className="relative flex min-h-[230px] flex-col justify-center gap-4 p-6 sm:min-h-[290px] sm:p-10">
-                <span className="w-fit rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70 backdrop-blur-sm">
-                  New drops weekly
-                </span>
-                <h1 className="max-w-2xl text-[28px] font-bold leading-[1.08] tracking-[-0.03em] text-white sm:text-[42px]">
-                  Scroll-driven sites,<br />
-                  <span className="text-white/45">with the spec to rebuild them.</span>
-                </h1>
-                <p className="max-w-md text-[13px] leading-relaxed text-white/55">
-                  Every entry ships with the complete build spec — stack, classes, animation constants,
-                  asset requirements, and the bugs that bite. Hit copy, paste it into Claude, ship it.
-                </p>
-                <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-white/40">
-                  <span><span className="font-semibold text-white/80">{SITES.length}</span> in the library</span>
-                  <span className="h-3 w-px bg-white/15" />
-                  <span>3D websites, powered by AI</span>
+              <div className="relative flex min-h-[230px] items-center justify-between gap-8 p-6 sm:min-h-[290px] sm:p-10">
+                <div className="flex flex-col gap-4">
+                  <span className="w-fit rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70 backdrop-blur-sm">
+                    New drops weekly
+                  </span>
+                  <h1 className="max-w-2xl text-[28px] font-bold leading-[1.08] tracking-[-0.03em] text-white sm:text-[42px]">
+                    Scroll-driven sites,<br />
+                    <span className="text-white/45">with the spec to rebuild them.</span>
+                  </h1>
+                  <p className="max-w-md text-[13px] leading-relaxed text-white/55">
+                    Every entry ships with the complete build spec — stack, classes, animation constants,
+                    asset requirements, and the bugs that bite. Hit copy, paste it into Claude, ship it.
+                  </p>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-white/40">
+                    <span><span className="font-semibold text-white/80">{SITES.length}</span> in the library</span>
+                    <span className="h-3 w-px bg-white/15" />
+                    <span>3D websites, powered by AI</span>
+                  </div>
+                </div>
+
+                <div className="hidden max-w-[220px] shrink-0 flex-col items-end gap-3 text-right lg:flex">
+                  <p className="text-[12px] leading-relaxed text-white/45">
+                    Every spec is plain prompt text — paste it into any of these and ship.
+                  </p>
+                  <div className="flex flex-wrap items-center justify-end gap-2.5">
+                    {AI_TOOLS.map(t => (
+                      <img
+                        key={t.name}
+                        src={t.logo}
+                        alt={t.name}
+                        title={t.name}
+                        width={22}
+                        height={22}
+                        className="h-[22px] w-[22px] rounded-md bg-white/[0.06] p-[3px] ring-1 ring-white/10"
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -137,8 +175,10 @@ export default function App() {
             )}
           </main>
         </>
-      ) : (
+      ) : view === 'creative' ? (
         <Creative />
+      ) : (
+        <Pricing />
       )}
 
       <footer className="mt-10 border-t border-white/[0.07]">

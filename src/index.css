@@ -34,3 +34,18 @@ body {
   background-clip: text;
   color: transparent;
 }
+
+/* Pricing nav link: a soft gold sweep drifts across the label on a loop so it
+   reads as "worth a look" against the flat Library/Creative tabs beside it. */
+.shine-text {
+  background: linear-gradient(100deg, rgba(255,255,255,0.55) 30%, #ffe9a8 44%, #fff6dc 50%, #ffe9a8 56%, rgba(255,255,255,0.55) 70%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: shine-sweep 3.2s ease-in-out infinite;
+}
+@keyframes shine-sweep {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
