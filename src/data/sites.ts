@@ -40,4 +40,5 @@ export const SITES: Site[] = [
   { id: 'voyages', title: 'Voyages & Chapters', category: 'Travel', added: '2026-09-08' },
   { id: 'cryptowave', title: 'CryptoWave', category: 'Fintech', added: '2026-09-09' },
   { id: 'lafys', title: 'Lafys', category: 'Portfolio', added: '2026-09-09' },
+  { id: 'third-time', title: 'The Third Time', category: 'Landing Page', added: '2026-09-09' },
 ]
