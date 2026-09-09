@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { background: #080808; }
+body {
+  font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: #080808;
+  color: #fff;
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: #080808; }
+::-webkit-scrollbar-thumb { background: #262626; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+/* Offscreen cards are skipped by the renderer entirely — no style, layout or
+   paint work for anything not on screen. This is what keeps a thousand-card
+   grid scrolling at full rate. It is NOT lazy loading: every card is in the DOM
+   from the first paint, the scrollbar is correct, and Cmd-F still finds them.
+   contain-intrinsic-size: auto ... makes the browser remember each card's real
+   height once measured, so nothing jumps as you scroll back up. */
+.card-cv {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
+/* Chrome wordmark, matched to the brand mark. Pure CSS — costs nothing. */
+.brandmark {
+  background: linear-gradient(180deg, #ffffff 0%, #e6ecf4 38%, #9fb0c4 72%, #ffffff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
