@@ -3,33 +3,21 @@
 // cached forever by the browser, and never bloats the JS bundle the way
 // inlining ~800 records would.
 
-// hasRealContent marks whether /creative/skills-content/<slug>.md exists — a real,
-// fetched SKILL.md, not the generic templated instruction. Monthly API quota limits
-// how many of the 94 skills have one at any given time.
-export type CreativeSkill = { name: string; slug: string; preview: string; hasRealContent?: boolean }
+// skills.json only ever contains skills with a real, fetched SKILL.md — see
+// scripts/notes in git history if you need to re-add more once TypeUI quota resets.
+export type CreativeSkill = { name: string; slug: string; preview: string }
 // promptText is real, fetched content — the exact spec a paste-ready prompt sends to an
-// AI coding tool. Not every catalog item has one yet (design skills are fetched
-// separately, and TypeUI quota limits how much can be pulled per month).
+// AI coding tool. Every item in prompts.json has one; there is no generic fallback.
 export type PromptItem = { name: string; slug: string; promptText: string }
 export type PromptCategory = { name: string; slug: string; items: PromptItem[] }
 export type PromptGroup = { group: string; categories: PromptCategory[] }
-export type Animation = { name: string; category: string }
 
 export type Catalog = {
   skills: { skills: CreativeSkill[] }
   prompts: { groups: PromptGroup[] }
-  animations: { animations: Animation[] }
 }
 
-export const SECTIONS = [
-  { id: 'skills', label: 'Design Skills', count: 94 },
-  { id: 'prompts', label: 'UI Prompts', count: 449 },
-  { id: 'animations', label: 'UI Animations', count: 281 },
-  { id: 'brandkit', label: 'Brand Kit Creator' },
-  { id: 'audit', label: 'UI/UX Audit' },
-] as const
-
-export type SectionId = (typeof SECTIONS)[number]['id']
+export type SectionId = 'skills' | 'prompts'
 
 let catalogPromise: Promise<Catalog> | null = null
 export function loadCatalog(): Promise<Catalog> {
@@ -37,8 +25,7 @@ export function loadCatalog(): Promise<Catalog> {
     catalogPromise = Promise.all([
       fetch('/creative/prompts.json').then(r => r.json()),
       fetch('/creative/skills.json').then(r => r.json()),
-      fetch('/creative/animations.json').then(r => r.json()),
-    ]).then(([prompts, skills, animations]) => ({ prompts, skills, animations }))
+    ]).then(([prompts, skills]) => ({ prompts, skills }))
   }
   return catalogPromise
 }
