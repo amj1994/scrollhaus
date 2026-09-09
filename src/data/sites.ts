@@ -41,4 +41,5 @@ export const SITES: Site[] = [
   { id: 'cryptowave', title: 'CryptoWave', category: 'Fintech', added: '2026-09-09' },
   { id: 'lafys', title: 'Lafys', category: 'Portfolio', added: '2026-09-09' },
   { id: 'third-time', title: 'The Third Time', category: 'Landing Page', added: '2026-09-09' },
+  { id: 'tenth-hvac', title: 'Tenth Heating & Air', category: 'Landing Page', added: '2026-09-09' },
 ]
