@@ -227,10 +227,11 @@ export default function Creative() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredPrompts.map((p, i) => (
               <div key={`${p.categorySlug}-${p.slug}`} className="group card-cv" style={{ ...cardRise, animationDelay: `${Math.min(i, 12) * 30}ms` }}>
-                <div className="relative flex aspect-video flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 text-center ring-1 ring-white/10">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_-10%,rgba(232,116,42,0.14),transparent_60%)]" />
-                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{p.categoryName}</span>
-                  <span className="line-clamp-2 max-w-[92%] text-[14px] font-semibold leading-snug tracking-tight text-white">{p.name}</span>
+                <div className="relative flex aspect-video flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 text-center ring-1 ring-white/10 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.02] group-hover:ring-white/25">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_-10%,rgba(232,116,42,0.14),transparent_60%)] transition-opacity duration-500 group-hover:opacity-0" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_-10%,rgba(232,116,42,0.32),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                  <span className="relative rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{p.categoryName}</span>
+                  <span className="relative line-clamp-2 max-w-[92%] text-[14px] font-semibold leading-snug tracking-tight text-white">{p.name}</span>
                   <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <CopyButton
                       ariaLabel={`Copy the real build prompt for the ${p.name} layout`}
@@ -254,10 +255,11 @@ export default function Creative() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredAnimations.map((a, i) => (
               <div key={a.name} className="group card-cv" style={{ ...cardRise, animationDelay: `${Math.min(i, 12) * 30}ms` }}>
-                <div className="relative flex aspect-video flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-gradient-to-br from-white/[0.07] to-white/[0.02] ring-1 ring-white/10">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_110%,rgba(232,116,42,0.14),transparent_60%)]" />
-                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{a.category.replace(/-/g, ' ')}</span>
-                  <span className="max-w-[80%] truncate text-center text-[15px] font-semibold tracking-tight text-white">{a.name}</span>
+                <div className="relative flex aspect-video flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-gradient-to-br from-white/[0.07] to-white/[0.02] ring-1 ring-white/10 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.02] group-hover:ring-white/25">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_110%,rgba(232,116,42,0.14),transparent_60%)] transition-opacity duration-500 group-hover:opacity-0" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_110%,rgba(232,116,42,0.32),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                  <span className="relative rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{a.category.replace(/-/g, ' ')}</span>
+                  <span className="relative max-w-[80%] truncate text-center text-[15px] font-semibold tracking-tight text-white">{a.name}</span>
                   <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <CopyButton
                       ariaLabel={`Copy a prompt for the ${a.name} animation`}
@@ -280,8 +282,9 @@ export default function Creative() {
 
         {catalog && section === 'brandkit' && (
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#241108] via-[#160d06] to-[#0b0b0b] p-8 ring-1 ring-white/10 sm:p-10">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#241108] via-[#160d06] to-[#0b0b0b] p-8 ring-1 ring-white/10 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:ring-white/25 sm:p-10">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_80%_0%,rgba(232,116,42,0.2),transparent_60%)]" />
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_80%_0%,rgba(232,116,42,0.38),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="relative flex flex-col gap-4">
                 <span className="w-fit rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Brand Kit Creator</span>
                 <h2 className="max-w-md text-[26px] font-bold leading-tight tracking-[-0.02em] text-white sm:text-[32px]">Give every project an identity before it has a pixel.</h2>
@@ -309,8 +312,9 @@ export default function Creative() {
 
         {catalog && section === 'audit' && (
           <div className="grid gap-4 lg:grid-cols-2">
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#071a1f] via-[#08120f] to-[#0b0b0b] p-8 ring-1 ring-white/10 sm:p-10">
+            <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#071a1f] via-[#08120f] to-[#0b0b0b] p-8 ring-1 ring-white/10 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:ring-white/25 sm:p-10">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_80%_0%,rgba(34,224,255,0.12),transparent_60%)]" />
+              <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(60%_80%_at_80%_0%,rgba(34,224,255,0.26),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
               <div className="relative flex flex-col gap-4">
                 <span className="w-fit rounded-full border border-white/15 bg-white/[0.06] px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">UI/UX Audit</span>
                 <h2 className="max-w-md text-[26px] font-bold leading-tight tracking-[-0.02em] text-white sm:text-[32px]">Audit any page like a senior designer.</h2>
