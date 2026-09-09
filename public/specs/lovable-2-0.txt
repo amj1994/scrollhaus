@@ -1,0 +1,44 @@
+LOVABLE 2.0 — Build something Lovable
+1:1 recreation of the real Lovable.dev marketing hero. TanStack Start v1 + React 19 +
+Vite 8 + Tailwind v4 + Framer Motion + lucide-react.
+
+STACK
+- A real third-party WebGL runtime, not a substitute: the hero background is driven by
+  the actual `CoreRenderer` engine and `hero-project` scene data, fetched at runtime and
+  executed in the page (not reimplemented, not swapped for CSS/canvas/video/Three.js/a
+  generated image, per the source prompt's explicit requirement).
+- Framer Motion for the prompt-box entrance, send-button hover/arrow-swap, and the
+  scroll-in reveals on the trusted-by section.
+- No backend, no database, no auth, single `/` route.
+
+ASSETS — none swapped, all fetched verbatim from the original CDN
+This build has no photo/video hero image to swap — the hero is 100% procedural WebGL.
+Per the source prompt's own "Asset manifest," every static asset (the renderer script,
+the scene data, the three back-gl PNGs the scene references, the logo/arrow/dots/
+ai-select SVGs, and the six trusted-by brand logos) was fetched byte-for-byte from
+qclay.design/lovable/webgl/ into public/vendor/ and referenced at the exact paths the
+scene data expects (hero-project.js hardcodes `/vendor/back-gl-3.png`). Nothing was
+redrawn, recompressed, or converted.
+One asset in the manifest — `announcement.jpg`, the Resources-dropdown thumbnail — 404s
+on the source CDN; it does not exist there to fetch. The component already handles this
+via an `onError` handler that hides the broken image, so the dropdown still renders
+correctly with just the gradient placeholder behind the (missing) thumbnail.
+
+NOTABLE IMPLEMENTATION DETAILS
+- The WebGL container starts at opacity 0 / translateY(40px) and only fades/slides in
+  250ms after `CoreRenderer.init()` resolves, so the shader never pops in half-loaded.
+- The headline's gradient sweep is a single 1.2s background-position animation on
+  `background-clip: text`, not a repeating shimmer — it runs once on mount.
+- The prompt box's placeholder text is a real typewriter effect cycling five phrases
+  (22–47ms/char typing, 1.4s pause, 14ms/char deleting), not a CSS animation.
+- The send button's rotating conic-gradient ring only spins up to speed on hover
+  (exponential ease toward a target angular speed, tau 250ms in / 700ms out) and keeps
+  coasting to a stop rather than snapping — driven by its own rAF loop, independent of
+  Framer Motion.
+- The trusted-by carousel computes real 3D depth per logo every frame (rotateY, scale,
+  translateZ, opacity, blur — a cosine "bulge" curve keyed to each logo's distance from
+  viewport center) rather than using a canned marquee keyframe; it measures actual
+  rendered logo widths to keep the seamless loop distance exact regardless of transforms,
+  and pauses on hover.
+
+Added 2026-09-10.
