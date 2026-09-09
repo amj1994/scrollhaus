@@ -8,6 +8,12 @@ export type Site = {
   category: string
   /** ISO date, newest first in the grid */
   added: string
+  /** bump (any new string) whenever /previews/<id>.mp4 is recaptured in place.
+   *  Hostinger's edge CDN caches that path indefinitely with no revalidation —
+   *  without a cache-busting query param a re-uploaded video keeps serving the
+   *  old cut to real visitors even though the origin file is correct. Omit for
+   *  a site whose preview has never been recaptured after its first deploy. */
+  previewV?: string
 }
 
 const REPO = 'https://github.com/amj1994/scrollhaus'
@@ -22,7 +28,7 @@ const REPO = 'https://github.com/amj1994/scrollhaus'
 // entries already cost 75 KB of JavaScript; a thousand would cost ~25 MB and the
 // library would stop loading. This registry stays about 100 bytes per entry.
 export const thumbOf = (id: string) => `/thumbs/${id}.webp`
-export const previewOf = (id: string) => `/previews/${id}.mp4`
+export const previewOf = (id: string, v?: string) => `/previews/${id}.mp4${v ? `?v=${v}` : ''}`
 export const specOf = (id: string) => `/specs/${id}.txt`
 export const githubOf = (id: string) => `${REPO}/tree/main/sites/${id}`
 
@@ -42,6 +48,6 @@ export const SITES: Site[] = [
   { id: 'lafys', title: 'Lafys', category: 'Portfolio', added: '2026-09-09' },
   { id: 'third-time', title: 'The Third Time', category: 'Landing Page', added: '2026-09-09' },
   { id: 'tenth-hvac', title: 'Tenth Heating & Air', category: 'Landing Page', added: '2026-09-09' },
-  { id: 'solv-finance', title: 'Solv', category: 'Fintech', added: '2026-09-09' },
+  { id: 'solv-finance', title: 'Solv', category: 'Fintech', added: '2026-09-09', previewV: '2' },
   { id: 'glass-solution', title: 'ai/SmartSolution', category: 'Ai', added: '2026-09-09' },
 ]

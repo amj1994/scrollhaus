@@ -107,7 +107,7 @@ export default function SiteCard({ site }: { site: Site }) {
         {near && (
           <video
             ref={videoRef}
-            src={previewOf(site.id)}
+            src={previewOf(site.id, site.previewV)}
             autoPlay
             muted
             loop
