@@ -79,7 +79,13 @@ export default function Creative() {
 
   const filteredSkills = useMemo(() => {
     if (!catalog) return []
-    return catalog.skills.skills.filter(s => !q || s.name.toLowerCase().includes(q))
+    // Real SKILL.md files first — TypeUI's monthly quota means most of the catalog is
+    // still on the generic placeholder, and burying the ones that actually work at the
+    // bottom of an alphabetical list is what made that invisible.
+    return catalog.skills.skills
+      .filter(s => !q || s.name.toLowerCase().includes(q))
+      .slice()
+      .sort((a, b) => Number(!!b.hasRealContent) - Number(!!a.hasRealContent))
   }, [catalog, q])
 
   const filteredAnimations = useMemo(() => {
@@ -186,23 +192,29 @@ export default function Creative() {
                   <img src={s.preview} alt={`${s.name} design skill preview`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="absolute right-2 top-2 flex items-center gap-1.5">
-                    <CopyButton
-                      ariaLabel={s.hasRealContent
-                        ? `Copy the real SKILL.md for the ${s.name} design skill`
-                        : `Copy a prompt card for the ${s.name} design skill`}
-                      getText={() =>
-                        s.hasRealContent
-                          ? loadSkillContent(s.slug)
-                          : `Build my next page using the "${s.name}" design skill.\n\nApply its visual direction — typography, color, spacing, and component detailing — to my project. Keep my content, follow the skill's aesthetic system faithfully.\n\nRequirements: semantic HTML, responsive, accessible (contrast, focus states, prefers-reduced-motion), polished micro-interactions and hover states.`
-                      }
-                    />
+                    {s.hasRealContent ? (
+                      <CopyButton
+                        ariaLabel={`Copy the real SKILL.md for the ${s.name} design skill`}
+                        getText={() => loadSkillContent(s.slug)}
+                      />
+                    ) : (
+                      <span
+                        title="TypeUI hasn't been fetched for this skill yet — nothing to copy"
+                        aria-label={`No real SKILL.md yet for the ${s.name} design skill`}
+                        className="rounded-md bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-white/40 backdrop-blur-sm ring-1 ring-white/10"
+                      >
+                        Not ready
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="mt-2.5 flex items-baseline justify-between gap-3 px-0.5">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold tracking-tight text-white">{s.name}</div>
                     <div className="mt-0.5 text-[11px] text-white/35">
-                      Design skill{s.hasRealContent && <span className="ml-1.5 text-emerald-400/70">· real SKILL.md</span>}
+                      {s.hasRealContent
+                        ? <>Design skill <span className="text-emerald-400/70">· real SKILL.md</span></>
+                        : <>Design skill <span className="text-white/25">· not fetched yet</span></>}
                     </div>
                   </div>
                 </div>
