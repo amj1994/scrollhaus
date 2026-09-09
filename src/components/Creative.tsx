@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { loadCatalog, loadSkillContent, SECTIONS, type Catalog, type SectionId } from '@/data/creative'
+import { CATEGORY_DEMOS, CATEGORY_DESCRIPTIONS, CATEGORY_LABELS, CATEGORY_ORDER } from '@/components/AnimationDemos'
 
 async function copyText(text: string) {
   try {
@@ -94,6 +95,21 @@ export default function Creative() {
       a => !q || a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q),
     )
   }, [catalog, q])
+
+  // Grouped by category, in a fixed display order, for the section-header layout —
+  // one real interactive demo per category rather than 281 individual ones.
+  const groupedAnimations = useMemo(() => {
+    const byCategory = new Map<string, typeof filteredAnimations>()
+    for (const a of filteredAnimations) {
+      const list = byCategory.get(a.category) ?? []
+      list.push(a)
+      byCategory.set(a.category, list)
+    }
+    const ordered = CATEGORY_ORDER.filter(c => byCategory.has(c)).map(c => ({ category: c, items: byCategory.get(c)! }))
+    const rest = Array.from(byCategory.keys()).filter(c => !(CATEGORY_ORDER as readonly string[]).includes(c))
+      .map(c => ({ category: c, items: byCategory.get(c)! }))
+    return [...ordered, ...rest]
+  }, [filteredAnimations])
 
   const selectCls =
     'rounded-md border border-white/10 bg-white/[0.04] py-1.5 px-2.5 text-[12px] text-white outline-none transition-colors focus:border-white/25'
@@ -252,31 +268,37 @@ export default function Creative() {
         )}
 
         {catalog && section === 'animations' && (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredAnimations.map((a, i) => (
-              <div key={a.name} className="group card-cv" style={{ ...cardRise, animationDelay: `${Math.min(i, 12) * 30}ms` }}>
-                <div className="relative flex aspect-video flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-gradient-to-br from-white/[0.07] to-white/[0.02] ring-1 ring-white/10 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.02] group-hover:ring-white/25">
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_110%,rgba(232,116,42,0.14),transparent_60%)] transition-opacity duration-500 group-hover:opacity-0" />
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_110%,rgba(232,116,42,0.32),transparent_60%)] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
-                  <span className="relative rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{a.category.replace(/-/g, ' ')}</span>
-                  <span className="relative max-w-[80%] truncate text-center text-[15px] font-semibold tracking-tight text-white">{a.name}</span>
-                  <div className="absolute right-2 top-2 flex items-center gap-1.5">
-                    <CopyButton
-                      ariaLabel={`Copy a prompt for the ${a.name} animation`}
-                      getText={() =>
-                        `Add a "${a.name}" micro-interaction to my UI (${a.category.replace(/-/g, ' ')}).\n\nImplement it with the platform's native animation tools (CSS transitions, Web Animations API, or a spring library), respecting prefers-reduced-motion. Keep it subtle, quick, and interruptible.`
-                      }
-                    />
+          <div className="flex flex-col">
+            {groupedAnimations.map(({ category, items }, gi) => {
+              const Demo = CATEGORY_DEMOS[category]
+              return (
+                <section key={category} className={gi > 0 ? 'border-t border-white/[0.07] pt-8 pb-8' : 'pb-8'}>
+                  <h2 className="text-[20px] font-bold tracking-tight text-white">{CATEGORY_LABELS[category] ?? category.replace(/-/g, ' ')}</h2>
+                  {CATEGORY_DESCRIPTIONS[category] && (
+                    <p className="mt-1.5 max-w-xl text-[13px] leading-relaxed text-white/50">{CATEGORY_DESCRIPTIONS[category]}</p>
+                  )}
+                  {Demo && (
+                    <div className="mt-5 max-w-sm">
+                      <Demo />
+                    </div>
+                  )}
+                  <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {items.map(a => (
+                      <div key={a.name} className="flex items-center justify-between gap-3 rounded-md border border-white/[0.07] bg-white/[0.02] px-3 py-2">
+                        <span className="truncate text-[12px] text-white/80">{a.name}</span>
+                        <CopyButton
+                          ariaLabel={`Copy a prompt for the ${a.name} animation`}
+                          getText={() =>
+                            `Add a "${a.name}" micro-interaction to my UI (${category.replace(/-/g, ' ')}).\n\nImplement it with the platform's native animation tools (CSS transitions, Web Animations API, or a spring library), respecting prefers-reduced-motion. Keep it subtle, quick, and interruptible.`
+                          }
+                        />
+                      </div>
+                    ))}
                   </div>
-                </div>
-                <div className="mt-2.5 flex items-baseline justify-between gap-3 px-0.5">
-                  <div className="min-w-0">
-                    <div className="truncate text-[13px] font-semibold tracking-tight text-white">{a.name}</div>
-                    <div className="mt-0.5 text-[11px] text-white/35">{a.category.replace(/-/g, ' ')}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+                </section>
+              )
+            })}
+            {groupedAnimations.length === 0 && <p className="py-24 text-center text-[13px] text-white/30">Nothing here yet.</p>}
           </div>
         )}
 
