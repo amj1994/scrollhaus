@@ -54,4 +54,5 @@ export const SITES: Site[] = [
   { id: 'pictura', title: 'Pictura', category: 'Portfolio', added: '2026-09-09' },
   { id: 'nexus-ring', title: 'Nexus Ring', category: 'Ecommerce', added: '2026-09-09' },
   { id: 'nixole', title: 'Nixole', category: 'Saas', added: '2026-09-09' },
+  { id: 'e-endless', title: 'E-Endless', category: 'Saas', added: '2026-09-10' },
 ]
