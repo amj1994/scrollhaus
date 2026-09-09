@@ -121,11 +121,11 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="hidden max-w-[280px] shrink-0 flex-col items-end gap-4 text-right lg:flex">
-                  <p className="text-[13px] leading-relaxed text-white/45">
+                <div className="hidden shrink-0 flex-col items-end gap-4 text-right lg:flex">
+                  <p className="max-w-[360px] text-[13px] leading-relaxed text-white/45">
                     Every spec is plain prompt text — paste it into any of these and ship.
                   </p>
-                  <div className="flex flex-wrap items-center justify-end gap-3">
+                  <div className="flex flex-nowrap items-center justify-end gap-3">
                     {AI_TOOLS.map(t => (
                       <img
                         key={t.name}
