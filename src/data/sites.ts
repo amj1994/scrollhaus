@@ -52,4 +52,5 @@ export const SITES: Site[] = [
   { id: 'glass-solution', title: 'ai/SmartSolution', category: 'Ai', added: '2026-09-09' },
   { id: 'glair-glasses', title: 'Glair', category: 'Technology', added: '2026-09-09' },
   { id: 'pictura', title: 'Pictura', category: 'Portfolio', added: '2026-09-09' },
+  { id: 'nexus-ring', title: 'Nexus Ring', category: 'Ecommerce', added: '2026-09-09' },
 ]
