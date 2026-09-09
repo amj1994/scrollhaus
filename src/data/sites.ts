@@ -58,4 +58,5 @@ export const SITES: Site[] = [
   { id: 'vanguard', title: 'Vanguard', category: 'Fintech', added: '2026-09-10', previewV: '2' },
   { id: 'shyen', title: 'Shyen', category: 'Ai', added: '2026-09-10', previewV: '2' },
   { id: 'cirform', title: 'Cirform', category: 'Fintech', added: '2026-09-10' },
+  { id: 'animated-loader', title: 'Animated Loader', category: 'Hero', added: '2026-09-10' },
 ]
