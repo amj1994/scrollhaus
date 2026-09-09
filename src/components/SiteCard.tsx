@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { previewOf, specOf, thumbOf, type Site } from '@/data/sites'
+import { githubOf, previewOf, specOf, thumbOf, type Site } from '@/data/sites'
 import { observe } from '@/lib/inview'
 
 // Specs are fetched once and kept for the session. Copying the same card twice
@@ -122,24 +122,25 @@ export default function SiteCard({ site }: { site: Site }) {
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
         <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0">
-          {site.live && (
-            <a
-              href={site.live}
-              target="_blank"
-              rel="noreferrer"
-              className="rounded-md bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-white/80 backdrop-blur-sm ring-1 ring-white/15 transition-colors hover:bg-black/90 hover:text-white"
-              title={site.local ? 'Runs on your machine' : 'Open live site'}
-            >
-              {site.local ? 'Local' : 'Live'}
-            </a>
-          )}
+          <a
+            href={githubOf(site.id)}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1.5 rounded-md bg-black/70 px-2.5 py-1.5 text-[11px] font-medium text-white/80 backdrop-blur-sm ring-1 ring-white/15 transition-colors hover:bg-black/90 hover:text-white"
+            title={`View the source for ${site.title} on GitHub`}
+          >
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.49c-2.01.44-2.43-.97-2.43-.97-.33-.83-.8-1.05-.8-1.05-.66-.45.05-.44.05-.44.72.05 1.1.74 1.1.74.64 1.1 1.68.78 2.1.6.06-.47.25-.78.46-.96-1.6-.18-3.29-.8-3.29-3.57 0-.79.28-1.43.74-1.93-.07-.18-.32-.92.07-1.92 0 0 .61-.2 1.99.73a6.9 6.9 0 0 1 3.62 0c1.38-.93 1.99-.73 1.99-.73.39 1 .14 1.74.07 1.92.46.5.74 1.14.74 1.93 0 2.78-1.69 3.39-3.3 3.57.26.22.49.66.49 1.33l-.01 1.97c0 .21.14.45.55.38A8 8 0 0 0 8 0Z" />
+            </svg>
+            GitHub
+          </a>
           <button
             type="button"
             onClick={copy}
             onPointerEnter={warm}
             onPointerDown={warm}
             onFocus={warm}
-            aria-label={`Copy the build spec for ${site.title}`}
+            aria-label={`Copy the build code for ${site.title}`}
             className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[11px] font-semibold text-black transition-colors hover:bg-white/85"
           >
             {copied === 'ok' ? (
