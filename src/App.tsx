@@ -121,20 +121,20 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="hidden max-w-[220px] shrink-0 flex-col items-end gap-3 text-right lg:flex">
-                  <p className="text-[12px] leading-relaxed text-white/45">
+                <div className="hidden max-w-[280px] shrink-0 flex-col items-end gap-4 text-right lg:flex">
+                  <p className="text-[13px] leading-relaxed text-white/45">
                     Every spec is plain prompt text — paste it into any of these and ship.
                   </p>
-                  <div className="flex flex-wrap items-center justify-end gap-2.5">
+                  <div className="flex flex-wrap items-center justify-end gap-3">
                     {AI_TOOLS.map(t => (
                       <img
                         key={t.name}
                         src={t.logo}
                         alt={t.name}
                         title={t.name}
-                        width={22}
-                        height={22}
-                        className="h-[22px] w-[22px] rounded-md bg-white/[0.06] p-[3px] ring-1 ring-white/10"
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 rounded-lg bg-white/[0.06] p-1.5 ring-1 ring-white/10"
                       />
                     ))}
                   </div>
