@@ -185,7 +185,7 @@ export default function Creative() {
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-white ring-1 ring-white/10">
                   <img src={s.preview} alt={`${s.name} design skill preview`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0">
+                  <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <CopyButton
                       ariaLabel={s.hasRealContent
                         ? `Copy the real SKILL.md for the ${s.name} design skill`
@@ -219,7 +219,7 @@ export default function Creative() {
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_-10%,rgba(232,116,42,0.14),transparent_60%)]" />
                   <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{p.categoryName}</span>
                   <span className="line-clamp-2 max-w-[92%] text-[14px] font-semibold leading-snug tracking-tight text-white">{p.name}</span>
-                  <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0">
+                  <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <CopyButton
                       ariaLabel={`Copy the real build prompt for the ${p.name} layout`}
                       getText={() => p.promptText}
@@ -246,7 +246,7 @@ export default function Creative() {
                   <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_110%,rgba(232,116,42,0.14),transparent_60%)]" />
                   <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{a.category.replace(/-/g, ' ')}</span>
                   <span className="max-w-[80%] truncate text-center text-[15px] font-semibold tracking-tight text-white">{a.name}</span>
-                  <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0">
+                  <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <CopyButton
                       ariaLabel={`Copy a prompt for the ${a.name} animation`}
                       getText={() =>

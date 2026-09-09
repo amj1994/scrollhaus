@@ -32,7 +32,7 @@ export default function App() {
                  width={109} height={30} className="h-[30px] w-auto shrink-0" />
           </a>
 
-          <nav className="hidden items-center gap-5 md:flex">
+          <nav className="flex shrink-0 items-center gap-3 sm:gap-5">
             <button
               type="button"
               onClick={() => setView('library')}
