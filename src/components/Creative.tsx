@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { loadCatalog, SECTIONS, type Catalog, type SectionId } from '@/data/creative'
+import { loadCatalog, loadSkillContent, SECTIONS, type Catalog, type SectionId } from '@/data/creative'
 
 async function copyText(text: string) {
   try {
@@ -15,11 +15,15 @@ async function copyText(text: string) {
   }
 }
 
-function CopyButton({ getText, ariaLabel }: { getText: () => string; ariaLabel: string }) {
-  const [state, setState] = useState<'idle' | 'ok'>('idle')
+function CopyButton({ getText, ariaLabel }: { getText: () => string | Promise<string>; ariaLabel: string }) {
+  const [state, setState] = useState<'idle' | 'ok' | 'err'>('idle')
   const run = async () => {
-    await copyText(getText())
-    setState('ok')
+    try {
+      await copyText(await getText())
+      setState('ok')
+    } catch {
+      setState('err')
+    }
     window.setTimeout(() => setState('idle'), 1600)
   }
   return (
@@ -29,7 +33,7 @@ function CopyButton({ getText, ariaLabel }: { getText: () => string; ariaLabel: 
       aria-label={ariaLabel}
       className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[11px] font-semibold text-black transition-colors hover:bg-white/85"
     >
-      {state === 'ok' ? 'Copied' : 'Copy'}
+      {state === 'ok' ? 'Copied' : state === 'err' ? 'Retry' : 'Copy'}
     </button>
   )
 }
@@ -183,9 +187,13 @@ export default function Creative() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0">
                     <CopyButton
-                      ariaLabel={`Copy a prompt card for the ${s.name} design skill`}
+                      ariaLabel={s.hasRealContent
+                        ? `Copy the real SKILL.md for the ${s.name} design skill`
+                        : `Copy a prompt card for the ${s.name} design skill`}
                       getText={() =>
-                        `Build my next page using the "${s.name}" design skill.\n\nApply its visual direction — typography, color, spacing, and component detailing — to my project. Keep my content, follow the skill's aesthetic system faithfully.\n\nRequirements: semantic HTML, responsive, accessible (contrast, focus states, prefers-reduced-motion), polished micro-interactions and hover states.`
+                        s.hasRealContent
+                          ? loadSkillContent(s.slug)
+                          : `Build my next page using the "${s.name}" design skill.\n\nApply its visual direction — typography, color, spacing, and component detailing — to my project. Keep my content, follow the skill's aesthetic system faithfully.\n\nRequirements: semantic HTML, responsive, accessible (contrast, focus states, prefers-reduced-motion), polished micro-interactions and hover states.`
                       }
                     />
                   </div>
@@ -193,7 +201,9 @@ export default function Creative() {
                 <div className="mt-2.5 flex items-baseline justify-between gap-3 px-0.5">
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold tracking-tight text-white">{s.name}</div>
-                    <div className="mt-0.5 text-[11px] text-white/35">Design skill</div>
+                    <div className="mt-0.5 text-[11px] text-white/35">
+                      Design skill{s.hasRealContent && <span className="ml-1.5 text-emerald-400/70">· real SKILL.md</span>}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -204,16 +214,15 @@ export default function Creative() {
         {catalog && section === 'prompts' && (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredPrompts.map((p, i) => (
-              <div key={`${p.categorySlug}-${p.name}`} className="group card-cv" style={{ ...cardRise, animationDelay: `${Math.min(i, 12) * 30}ms` }}>
-                <div className="relative aspect-video overflow-hidden rounded-lg bg-white ring-1 ring-white/10">
-                  <img src={p.preview} alt={`${p.name} layout preview`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <div key={`${p.categorySlug}-${p.slug}`} className="group card-cv" style={{ ...cardRise, animationDelay: `${Math.min(i, 12) * 30}ms` }}>
+                <div className="relative flex aspect-video flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-gradient-to-br from-white/[0.07] to-white/[0.02] p-5 text-center ring-1 ring-white/10">
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(70%_90%_at_50%_-10%,rgba(232,116,42,0.14),transparent_60%)]" />
+                  <span className="rounded-full border border-white/10 bg-white/[0.05] px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/50">{p.categoryName}</span>
+                  <span className="line-clamp-2 max-w-[92%] text-[14px] font-semibold leading-snug tracking-tight text-white">{p.name}</span>
                   <div className="absolute right-2 top-2 flex items-center gap-1.5 opacity-0 translate-y-1 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0 focus-within:opacity-100 focus-within:translate-y-0">
                     <CopyButton
-                      ariaLabel={`Copy a build prompt for the ${p.name} layout`}
-                      getText={() =>
-                        `Build a ${p.categoryName} section using the "${p.name}" layout.\n\nFollow the layout's composition — content order, column rhythm, spacing hierarchy — then adapt copy and branding to my project.\n\nRequirements: semantic HTML, responsive, accessible (contrast, focus states, prefers-reduced-motion), consistent spacing scale, refined hover and focus states.`
-                      }
+                      ariaLabel={`Copy the real build prompt for the ${p.name} layout`}
+                      getText={() => p.promptText}
                     />
                   </div>
                 </div>
