@@ -51,4 +51,5 @@ export const SITES: Site[] = [
   { id: 'solv-finance', title: 'Solv', category: 'Fintech', added: '2026-09-09', previewV: '2' },
   { id: 'glass-solution', title: 'ai/SmartSolution', category: 'Ai', added: '2026-09-09' },
   { id: 'glair-glasses', title: 'Glair', category: 'Technology', added: '2026-09-09' },
+  { id: 'pictura', title: 'Pictura', category: 'Portfolio', added: '2026-09-09' },
 ]
