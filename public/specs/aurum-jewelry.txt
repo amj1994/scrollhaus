@@ -1,0 +1,55 @@
+Aurum — "Sculpted By Time" luxury jewelry scroll experience (original build)
+
+Stack: React 19 + TypeScript + Tailwind CSS v4 + framer-motion + lucide-react.
+
+ORIGIN OF THIS SITE
+Started from a pasted "SCULPTED BY TIME" spec: a 650vh scroll-driven
+cinematic jewelry landing page — two background videos scrubbed by scroll
+position, editorial headline/copy that fades-blurs-and-lifts away as you
+scroll, and two product panels that slide in from the left at specific
+scroll thresholds. The spec named five exact Cloudinary-hosted asset URLs
+(two background videos, three product images) belonging to whoever wrote
+it. Per explicit direction to treat the spec as inspiration and generate
+fresh imagery, this build:
+- Requested two original background videos via Higgsfield (a macro shot
+  of molten gold swirling in black space for the first 40% of scroll,
+  and a rotating faceted black-onyx gemstone for the back half) in place
+  of the source's hosted MP4s. Generation ran unusually long, so this
+  entry ships first with a live CSS gradient wash standing in for each
+  video (matched to the same scroll-driven crossfade), and will be
+  swapped for the real footage the moment it's ready — the <video>
+  elements are already wired to the final asset paths, so no code
+  changes are needed for that swap.
+- Generated three original product photographs via Higgsfield (the hero
+  ring, background-removed to a true transparent PNG for the "object
+  contain" hero card; the pink-sapphire earrings; the sculptural silver
+  ring) in place of the source's hosted JPGs.
+- Named the brand "Aurum" (added a small wordmark next to the crest —
+  the source spec's header had an icon only, no name).
+
+WHAT WAS KEPT FAITHFUL (the mechanism, unchanged)
+- The double-lerp scroll-scrubbing engine: scroll position smoothed at
+  0.05, each video's currentTime smoothed at 0.08 toward a target ratio
+  derived from scroll phase, gated by `!video.seeking` on every seek so
+  the decoder never gets flooded.
+- The exact phase math: video 1 scrubs 0 -> 1 across scroll 0-40%, holds
+  at the first product panel (40-50%), video 2 scrubs across 50-90%, then
+  holds at the second panel past 90%.
+- The staggered fade/blur/lift-away treatment on every editorial element
+  (logo, subheader, nav, three headline lines, two manifesto paragraphs,
+  right-column caption/card/price), each on its own [start, end] window
+  mapped from scroll progress to opacity, translateY and blur.
+- The slide-in product panel: same open windows, same "BACK TO SERIES"
+  behavior (scrolls to 35% or 82% depending on which panel), same
+  quantity stepper and dynamic per-product pricing, same product-swap
+  logic (Aura earrings vs. the sculpture ring) tied to scroll position.
+- The bag icon jumping to the very end of the page; the top progress bar;
+  the color system (#020202 background, #FBFF8D accent, #FAF9F5 panel).
+- The frame-sequence canvas/JPG fallback described in the source spec
+  was explicitly noted there as unused dead code (the live page only
+  ever scrubs the two MP4s) — this build omits it rather than building
+  an inert fallback with no real assets behind it.
+
+DEVIATIONS
+Brand wordmark added; all five media assets are original generations,
+not the spec author's hosted files.

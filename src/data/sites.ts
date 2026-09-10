@@ -95,6 +95,7 @@ export const FREE_SITES: Site[] = [
   { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '2', free: true },
   { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10', free: true },
   { id: 'waypoint-about', title: 'Waypoint', category: 'Travel', added: '2026-09-10', free: true },
+  { id: 'aurum-jewelry', title: 'Aurum', category: 'Portfolio', added: '2026-09-11', free: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]
