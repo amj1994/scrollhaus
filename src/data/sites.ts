@@ -62,4 +62,5 @@ export const SITES: Site[] = [
   { id: 'brilliant-portfolio', title: 'Liquid', category: '3d Website', added: '2026-09-10' },
   { id: 'kubric', title: 'Kubric', category: 'Saas', added: '2026-09-10', previewV: '2' },
   { id: 'valmax', title: 'Valmax', category: 'Portfolio', added: '2026-09-10' },
+  { id: 'pelmatech', title: 'Pelmatech', category: 'Landing Page', added: '2026-09-10' },
 ]
