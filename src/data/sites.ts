@@ -77,5 +77,5 @@ export const SITES: Site[] = [
   { id: 'moneta', title: 'Moneta Key', category: 'Interactive', added: '2026-09-10', previewV: '4' },
   { id: 'pyra', title: 'Pyra', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
   { id: 'ember-footer', title: 'Ember', category: 'Interactive', added: '2026-09-10' },
-  { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10' },
+  { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10', previewV: '2' },
 ]
