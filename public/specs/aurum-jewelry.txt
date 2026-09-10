@@ -11,15 +11,10 @@ scroll thresholds. The spec named five exact Cloudinary-hosted asset URLs
 (two background videos, three product images) belonging to whoever wrote
 it. Per explicit direction to treat the spec as inspiration and generate
 fresh imagery, this build:
-- Requested two original background videos via Higgsfield (a macro shot
+- Generated two original background videos via Higgsfield (a macro shot
   of molten gold swirling in black space for the first 40% of scroll,
   and a rotating faceted black-onyx gemstone for the back half) in place
-  of the source's hosted MP4s. Generation ran unusually long, so this
-  entry ships first with a live CSS gradient wash standing in for each
-  video (matched to the same scroll-driven crossfade), and will be
-  swapped for the real footage the moment it's ready — the <video>
-  elements are already wired to the final asset paths, so no code
-  changes are needed for that swap.
+  of the source's hosted MP4s.
 - Generated three original product photographs via Higgsfield (the hero
   ring, background-removed to a true transparent PNG for the "object
   contain" hero card; the pink-sapphire earrings; the sculptural silver
