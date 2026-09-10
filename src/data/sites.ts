@@ -20,6 +20,9 @@ export type Site = {
 }
 
 const REPO = 'https://github.com/amj1994/scrollhaus'
+// Formerly-gated entries' full source lives in this repo instead — split out
+// during a since-abandoned private-repo paywall experiment, now public too.
+const VAULT_REPO = 'https://github.com/amj1994/scrollhaus-vault'
 
 // Asset paths are derived from `id`, never stored:
 //   /thumbs/<id>.webp        poster frame
@@ -33,7 +36,8 @@ const REPO = 'https://github.com/amj1994/scrollhaus'
 export const thumbOf = (id: string) => `/thumbs/${id}.webp`
 export const previewOf = (id: string, v?: string) => `/previews/${id}.mp4${v ? `?v=${v}` : ''}`
 export const specOf = (id: string) => `/specs/${id}.txt`
-export const githubOf = (id: string) => `${REPO}/tree/main/sites/${id}`
+export const githubOf = (id: string, free?: boolean) =>
+  `${free ? REPO : VAULT_REPO}/tree/main/sites/${id}`
 
 export const CATEGORIES = [
   'All', 'Hero', 'Landing Page', 'Agency', 'Portfolio', 'Ecommerce',

@@ -121,10 +121,6 @@ export default function Pricing() {
       <p className="mt-8 text-center text-[11px] text-white/30">
         Secure checkout via Stripe. Cancel a yearly plan anytime.
       </p>
-      <p className="mx-auto mt-3 max-w-md text-center text-[11px] leading-relaxed text-white/25">
-        Right after checkout we email the address you paid with a link to set a password —
-        log in with it up top and every locked card unlocks.
-      </p>
     </div>
   )
 }

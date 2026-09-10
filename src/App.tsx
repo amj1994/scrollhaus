@@ -214,11 +214,7 @@ export default function App() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {shown.map(s => (
-                  <SiteCard
-                    key={s.id}
-                    site={s}
-                    onLocked={() => (session ? setView('pricing') : setAuthOpen(true))}
-                  />
+                  <SiteCard key={s.id} site={s} onPremiumClick={() => setView('pricing')} />
                 ))}
               </div>
             )}
