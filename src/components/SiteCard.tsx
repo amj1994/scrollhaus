@@ -156,22 +156,9 @@ export default function SiteCard({ site, onLocked }: { site: Site; onLocked: () 
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-        {site.free ? (
+        {site.free && (
           <span className="absolute left-2 top-2 rounded-md bg-emerald-400 px-2 py-1 text-[11px] font-semibold text-black">
             Free
-          </span>
-        ) : (
-          <span
-            className={`absolute left-2 top-2 flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold ${
-              unlocked ? 'bg-white text-black' : 'bg-black/70 text-white/80 backdrop-blur-sm ring-1 ring-white/15'
-            }`}
-          >
-            {!unlocked && (
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
-              </svg>
-            )}
-            Premium
           </span>
         )}
 
