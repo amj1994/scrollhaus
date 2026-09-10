@@ -19,6 +19,8 @@ export function useLenis() {
       touchMultiplier: 1.5,
     });
 
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
+
     lenis.on("scroll", ScrollTrigger.update);
 
     const rafCallback = (time: number) => {
@@ -31,6 +33,7 @@ export function useLenis() {
     return () => {
       lenis.destroy();
       gsap.ticker.remove(rafCallback);
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
     };
   }, []);
 }

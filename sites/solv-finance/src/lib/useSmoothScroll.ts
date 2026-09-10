@@ -37,6 +37,8 @@ export function useSmoothScroll() {
       smoothWheel: true,
     });
 
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
+
     // Drive Lenis from GSAP's ticker for a single synced RAF loop.
     lenis.on("scroll", ScrollTrigger.update);
 
@@ -56,6 +58,7 @@ export function useSmoothScroll() {
       window.removeEventListener("load", refresh);
       gsap.ticker.remove(onTick);
       lenis.destroy();
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
     };
   }, []);
 }

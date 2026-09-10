@@ -13,6 +13,8 @@ export function useSmoothScroll() {
       smoothWheel: true,
     })
 
+    window.__lenis = lenis
+
     let raf = 0
     const tick = (time) => {
       lenis.raf(time)
@@ -23,6 +25,7 @@ export function useSmoothScroll() {
     return () => {
       cancelAnimationFrame(raf)
       lenis.destroy()
+      delete window.__lenis
     }
   }, [])
 }
