@@ -69,4 +69,5 @@ export const SITES: Site[] = [
   { id: 'pallet-ross', title: 'Pallet Ross', category: 'Ecommerce', added: '2026-09-10' },
   { id: 'pallet-bags', title: 'Bags Crafted', category: 'Ecommerce', added: '2026-09-10' },
   { id: 'moneta', title: 'Moneta Key', category: 'Interactive', added: '2026-09-10' },
+  { id: 'pyra', title: 'Pyra', category: 'Ecommerce', added: '2026-09-10' },
 ]
