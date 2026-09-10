@@ -80,3 +80,10 @@ export const SITES: Site[] = [
   { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10', previewV: '2' },
   { id: 'inner-circle', title: 'Inner Circle', category: 'Interactive', added: '2026-09-10' },
 ]
+
+// Free Resources — a separate section, kept entirely apart from the paid
+// library above. Entries here are original builds made specifically to be
+// free giveaways; paid library sites are never moved into this list.
+export const FREE_SITES: Site[] = [
+  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10' },
+]

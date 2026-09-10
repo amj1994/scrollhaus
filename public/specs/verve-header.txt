@@ -1,0 +1,34 @@
+Verve — Juice/hydration e-commerce hero header (original build)
+
+Stack: React 19 + TypeScript + Tailwind CSS v4 + framer-motion + lucide-react.
+
+ORIGIN OF THIS SITE
+This started from a fully-specced hero/header component ("Juice Header")
+pasted by the user, describing a full-screen dark juice-brand hero with a
+mix-blend-screen background video, a slide-in cart, a mobile drawer, a
+contact modal, and toast notifications. The spec named an exact hosted
+video URL on another company's CDN and used a demo brand name ("Strip")
+from that company's own component-library showcase.
+
+Per the standing rule this session — reworking a pasted spec into an
+original build rather than reusing someone else's live hosted assets —
+this build:
+- Generated an original hero video via Higgsfield (glowing amber liquid
+  swirling through black space, shot for mix-blend-screen compositing)
+  rather than linking the source spec's CDN-hosted clip.
+- Renamed the brand from "Strip" to "Verve" and the corner credit label
+  from "Veo" (a real third-party product name) to a neutral "V.01".
+
+WHAT WAS KEPT FAITHFUL (the structure and mechanism, unchanged)
+- Full navbar scroll-state transition, mobile drawer with staggered
+  slide-up nav links, cart slide-over (empty state / populated state /
+  stepper / free-shipping promo / checkout summary), contact modal, and
+  toast notification system — all per the original spec's exact layout,
+  spacing, copy, and animation timing (framer-motion spring drawers,
+  staggered ingredient card entrance, 12-column desktop hero grid with a
+  video "spacer" column).
+- The three default ingredient cards, headline copy, and nav labels.
+
+DEVIATIONS
+None from the spec's structure — only the proprietary asset URL and the
+demo brand identifiers described above were substituted.
