@@ -119,6 +119,15 @@ export default function App() {
                     <span className="h-3 w-px bg-white/15" />
                     <span>3D websites, powered by AI</span>
                   </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-1.5 text-[11px] font-medium text-white/50">
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">Browse</span>
+                    <span className="text-white/25">→</span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">Copy the spec</span>
+                    <span className="text-white/25">→</span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">Paste into your AI tool</span>
+                    <span className="text-white/25">→</span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-1">Ship</span>
+                  </div>
                 </div>
 
                 <div className="hidden shrink-0 flex-col items-end gap-4 text-right lg:flex">
@@ -181,10 +190,60 @@ export default function App() {
         <Pricing />
       )}
 
+      {view !== 'pricing' && (
+        <section className="mx-auto mt-10 max-w-[1600px] px-4 sm:px-6">
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-10 text-center sm:py-12">
+            <h2 className="text-[22px] font-bold tracking-[-0.02em] text-white sm:text-[28px]">
+              Stop prompting from a blank page.
+            </h2>
+            <p className="max-w-md text-[13px] leading-relaxed text-white/50">
+              Browse the library, copy a spec, paste it into your AI tool of choice — the hard part's done.
+            </p>
+            <button
+              type="button"
+              onClick={() => setView('pricing')}
+              className="rounded-full bg-white px-6 py-2.5 text-[13px] font-semibold text-black transition-colors hover:bg-white/85"
+            >
+              See plans
+            </button>
+          </div>
+        </section>
+      )}
+
       <footer className="mt-10 border-t border-white/[0.07]">
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-4 py-8 text-[11px] text-white/25 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span>&copy; {BRAND} MMXXV &middot; 3D websites, powered by AI</span>
-          <span>Built with Claude Code</span>
+        <div className="mx-auto max-w-[1600px] px-4 py-10 sm:px-6">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-4">
+            <div className="col-span-2 sm:col-span-1">
+              <img src="/scrollhaus-lockup.webp" alt="Scrollhaus" width={109} height={30} className="h-[26px] w-auto" />
+              <p className="mt-3 max-w-[220px] text-[11px] leading-relaxed text-white/35">
+                Scroll-driven sites, with the spec to rebuild them.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/40">Product</h3>
+              <ul className="mt-3 flex flex-col gap-2 text-[12px] text-white/50">
+                <li><button type="button" onClick={() => setView('library')} className="hover:text-white">Library</button></li>
+                <li><button type="button" onClick={() => setView('creative')} className="hover:text-white">Creative</button></li>
+                <li><button type="button" onClick={() => setView('pricing')} className="hover:text-white">Pricing</button></li>
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/40">Categories</h3>
+              <ul className="mt-3 flex flex-col gap-2 text-[12px] text-white/50">
+                {used.filter(c => c !== 'All').slice(0, 4).map(c => (
+                  <li key={c}>
+                    <button type="button" onClick={() => { setView('library'); setActive(c) }} className="hover:text-white">
+                      {c}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          <div className="mt-8 flex flex-col gap-3 border-t border-white/[0.07] pt-6 text-[11px] text-white/25 sm:flex-row sm:items-center sm:justify-between">
+            <span>&copy; {BRAND} MMXXV &middot; 3D websites, powered by AI</span>
+            <span>Built with Claude Code</span>
+          </div>
         </div>
       </footer>
     </div>
