@@ -171,7 +171,7 @@ export default function SiteCard({ site, onLocked }: { site: Site; onLocked: () 
                 <rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
             )}
-            {unlocked ? 'Premium' : 'Locked'}
+            Premium
           </span>
         )}
 
@@ -196,7 +196,7 @@ export default function SiteCard({ site, onLocked }: { site: Site; onLocked: () 
             onPointerEnter={warm}
             onPointerDown={warm}
             onFocus={warm}
-            aria-label={unlocked ? `Copy the build code for ${site.title}` : `Unlock ${site.title} to copy its build code`}
+            aria-label={unlocked ? `Copy the build code for ${site.title}` : `${site.title} is a Premium entry — sign in to copy its build code`}
             className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-[11px] font-semibold text-black transition-colors hover:bg-white/85"
           >
             {!unlocked ? (
@@ -204,7 +204,7 @@ export default function SiteCard({ site, onLocked }: { site: Site; onLocked: () 
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" />
                 </svg>
-                Unlock
+                Premium
               </>
             ) : copied === 'ok' ? (
               <>
