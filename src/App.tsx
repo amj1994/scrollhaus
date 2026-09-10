@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import Creative from '@/components/Creative'
 import Pricing from '@/components/Pricing'
+import AuthModal from '@/components/AuthModal'
+import { useAuth } from '@/lib/auth'
 
 const BRAND = 'Scrollhaus'
 
@@ -16,9 +18,15 @@ const AI_TOOLS = [
 ]
 
 export default function App() {
+  const { session, entitled, passwordRecovery, signOut } = useAuth()
   const [view, setView] = useState<'library' | 'creative' | 'pricing'>('library')
   const [active, setActive] = useState<string>('All')
   const [q, setQ] = useState('')
+  const [authOpen, setAuthOpen] = useState(false)
+
+  useEffect(() => {
+    if (passwordRecovery) setAuthOpen(true)
+  }, [passwordRecovery])
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -77,10 +85,36 @@ export default function App() {
                 className="w-32 rounded-md border border-white/10 bg-white/[0.04] py-1.5 pl-7 pr-2.5 text-[12px] text-white placeholder:text-white/25 outline-none transition-all focus:w-52 focus:border-white/25 sm:w-44 sm:focus:w-64"
               />
             </div>
-            <div className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-[10px] font-semibold text-white/70">AM</div>
+            {session ? (
+              <div className="flex items-center gap-2">
+                {entitled && (
+                  <span className="hidden rounded-full bg-emerald-400/15 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-300 sm:inline">
+                    Unlocked
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => signOut()}
+                  title={session.user.email}
+                  className="grid h-7 w-7 place-items-center rounded-full bg-white/10 text-[10px] font-semibold text-white/70 hover:bg-white/20"
+                >
+                  {(session.user.email ?? '?').slice(0, 2).toUpperCase()}
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setAuthOpen(true)}
+                className="rounded-full border border-white/10 px-3 py-1.5 text-[12px] font-medium text-white/70 hover:border-white/25 hover:text-white"
+              >
+                Log in
+              </button>
+            )}
           </div>
         </div>
       </header>
+
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
       {view === 'library' ? (
         <>
@@ -179,7 +213,13 @@ export default function App() {
               <p className="py-24 text-center text-[13px] text-white/30">Nothing here yet.</p>
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {shown.map(s => <SiteCard key={s.id} site={s} />)}
+                {shown.map(s => (
+                  <SiteCard
+                    key={s.id}
+                    site={s}
+                    onLocked={() => (session ? setView('pricing') : setAuthOpen(true))}
+                  />
+                ))}
               </div>
             )}
           </main>
