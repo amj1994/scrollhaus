@@ -1,0 +1,156 @@
+import { useRef, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
+import { Sparkle } from "lucide-react";
+
+const HEADLINE =
+  "Whether you crave summit air, coastal quiet, or the pulse of a new city, there's a route built for you.";
+
+const TABS = ["All", "Wildlife", "Relaxation", "Adventure", "Historical"];
+
+const IMAGES = [
+  "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1518495973542-4542c06a5843?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1464207687429-7505649dae38?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1533240332313-0db49b459ad6?auto=format&fit=crop&q=80&w=600",
+  "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&q=80&w=600",
+];
+const LOOP_IMAGES = [...IMAGES, ...IMAGES];
+
+function ScrollWord({
+  word,
+  index,
+  total,
+  progress,
+}: {
+  word: string;
+  index: number;
+  total: number;
+  progress: ReturnType<typeof useScroll>["scrollYProgress"];
+}) {
+  const range: [number, number] = [index / total, index / total + 1 / total];
+  const opacity = useTransform(progress, range, [0.1, 1]);
+  const color = useTransform(progress, range, ["#d1d4da", "#010000"]);
+  return (
+    <span className="relative mr-3 lg:mr-4 inline-block">
+      <motion.span style={{ opacity, color }}>{word}</motion.span>
+    </span>
+  );
+}
+
+export default function App() {
+  const [active, setActive] = useState("All");
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: headlineRef,
+    offset: ["start 0.85", "end 0.2"],
+  });
+  const words = HEADLINE.split(" ");
+
+  return (
+    <>
+      {/* Neutral scroll room — this section is normally preceded/followed by
+          other page sections; here it's the whole page, so it needs space
+          above and below for the scroll-linked word reveal to actually play. */}
+      <div className="flex h-screen w-full items-end justify-center bg-[#fefeff] pb-12" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+        <span className="animate-bounce text-[13px] text-black/30">Scroll down</span>
+      </div>
+      <section
+      className="relative w-full bg-[#fefeff] pt-[100px] pb-[100px] overflow-hidden"
+      style={{ fontFamily: "'DM Sans', sans-serif" }}
+    >
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+      />
+
+      <div
+        className="absolute inset-0 pointer-events-none opacity-[0.03]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 50% 120%, transparent 0%, transparent 20%, #000 21%, transparent 22%, transparent 40%, #000 41%, transparent 42%, transparent 60%, #000 61%, transparent 62%, transparent 80%, #000 81%, transparent 82%)",
+          backgroundSize: "2000px 2000px",
+          backgroundPosition: "center bottom",
+        }}
+      />
+
+      <div className="relative z-10 flex flex-col items-center text-center px-4">
+        <div className="flex items-center gap-1.5 mb-8">
+          <div className="w-[44px] h-[44px] rounded-full border border-[#e2e8f0] flex items-center justify-center bg-white overflow-hidden">
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+            >
+              <Sparkle size={18} className="text-[#0f172a] fill-[#0f172a]" />
+            </motion.div>
+          </div>
+          <div className="px-[12px] py-[12px] rounded-full border border-[#e2e8f0] flex items-center justify-center bg-white">
+            <span className="text-[16px] font-medium text-[#0f172a] px-3 whitespace-nowrap">
+              Our Trail Picks
+            </span>
+          </div>
+        </div>
+
+        <h2
+          ref={headlineRef}
+          className="text-[32px] sm:text-[44px] md:text-[58px] font-medium text-black leading-[1.1] max-w-[900px] mb-8 md:mb-[48px] tracking-tight flex flex-wrap justify-center text-center px-4 md:px-0"
+        >
+          {words.map((word, i) => (
+            <ScrollWord key={i} word={word} index={i} total={words.length} progress={scrollYProgress} />
+          ))}
+        </h2>
+
+        <div className="flex flex-wrap justify-center gap-2 mb-10 md:mb-[80px]">
+          {TABS.map(tab => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActive(tab)}
+              className={`px-[24px] py-[12px] rounded-full text-[14px] transition-all cursor-pointer ${
+                active === tab
+                  ? "bg-[#101010] text-white font-bold shadow-[0_4px_12px_rgba(17,17,17,0.15)]"
+                  : "bg-[#F5F5F4] text-[#101010] font-medium hover:bg-[#101010] hover:text-white"
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative w-full">
+          <motion.div
+            className="flex gap-[16px] w-max select-none"
+            animate={{ x: [0, -2484] }}
+            transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+          >
+            {LOOP_IMAGES.map((src, i) => {
+              const mod = i % 3;
+              const heightClass = mod === 0 ? "h-[240px]" : mod === 1 ? "h-[320px]" : "h-[280px]";
+              const alignClass = mod === 0 ? "self-start mt-10" : mod === 1 ? "self-center" : "self-end mb-10";
+              return (
+                <div
+                  key={i}
+                  className={`flex-shrink-0 w-[260px] rounded-[32px] overflow-hidden shadow-lg ${heightClass} ${alignClass}`}
+                >
+                  <img
+                    src={src}
+                    alt=""
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-cover transition-all duration-700 hover:scale-110"
+                  />
+                </div>
+              );
+            })}
+          </motion.div>
+        </div>
+      </div>
+      </section>
+      <div className="h-screen w-full bg-[#fefeff]" />
+    </>
+  );
+}

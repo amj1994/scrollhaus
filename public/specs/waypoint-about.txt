@@ -1,0 +1,39 @@
+Waypoint — About / tour-activities section (original build)
+
+Stack: React 19 + TypeScript + Tailwind CSS v4 + framer-motion + lucide-react.
+
+ORIGIN OF THIS SITE
+Started from a pasted "About us 01 Blaze" spec — a scroll-driven,
+word-by-word gray-to-black headline reveal over a staggered-height,
+infinitely-looping photo marquee. Given explicit direction to change it
+a little, this build:
+- Named the brand "Waypoint" and rewrote the headline and label-pill
+  copy in the same spirit as the original, rather than reusing it
+  verbatim.
+- Kept the nine Unsplash photo URLs from the source as-is — these are
+  freely-licensed stock photography hosted on Unsplash's own CDN, not
+  a proprietary asset belonging to whoever wrote the spec, so there was
+  nothing here that needed substituting.
+
+WHAT WAS KEPT FAITHFUL (the mechanism, unchanged)
+- The scroll-linked word reveal: `useScroll` targeting the headline,
+  per-word opacity (0.1 -> 1) and color (#d1d4da -> #010000) transforms
+  over an even [i/n, (i+1)/n] range.
+- The rotating Sparkle badge (360deg / 6s / linear / infinite).
+- The infinite photo marquee: images doubled to 18, the exact
+  -2484px/40s loop, and the index%3 staggered card heights
+  (240/320/280) with alternating self-start/self-center/self-end
+  alignment.
+- The filter-tab row (All/Wildlife/Relaxation/Adventure/Historical) as
+  decorative state only, not wired to real filtering, per the source
+  spec's own instruction.
+- The concentric-ring background pattern and overall editorial
+  black-on-white design language.
+
+DEVIATIONS
+Brand name and headline/label copy only — the interaction mechanism,
+layout, timing constants, and photo set are otherwise faithful to the
+spec. This page also wraps the section with two plain spacer screens
+(top and bottom) purely so the scroll-linked reveal has room to play,
+since the source spec is one section meant to sit inside a larger page
+and this gallery entry is that section alone.
