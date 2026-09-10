@@ -1,0 +1,46 @@
+Kelo — AI customer-support hero (original build)
+
+Stack: React 19 + TypeScript + Tailwind CSS v4 + framer-motion.
+
+ORIGIN OF THIS SITE
+This started from a fully-specced hero component ("AI Customer Support
+Hero Kelo") pasted by the user: a full-bleed dark hero for an AI chatbot
+product, with a looping background video, a floating glass nav pill, and
+a fading logo row. The spec named an exact hosted video URL and an exact
+logo SVG on another company's CDN, and used nine REAL, trademarked
+company logos (Google, Amazon, Microsoft, Netflix, Spotify, Meta, Apple,
+Airbnb, Slack) presented as Kelo's customers — implying partnerships
+that don't exist.
+
+Per explicit user direction for this Free Resources section — build
+straight from the given spec/code without generating replacement media —
+this build does NOT call out to any video/image generation tool. Instead:
+- The hosted background video was replaced with a CSS-only animated
+  gradient (three blurred, slowly-drifting color fields over a faint
+  grid), since a real generated replacement was explicitly off the table
+  for this section and directly hotlinking another company's CDN-hosted
+  video isn't something this build does either.
+- The nine real company logos were replaced with nine invented wordmarks
+  (Solstice, Northline, Meridian, Ashgrove, Ridgeline, Vaultic, Cardinal,
+  Halcyon, Fenwick) — the faded, staggered "trusted by" mechanic is kept,
+  but it no longer implies false partnerships with real, trademarked
+  companies.
+- The hotlinked Kelo wordmark SVG was replaced with a plain text
+  lockup ("Kelo") built directly in the nav markup.
+
+WHAT WAS KEPT FAITHFUL (structure, copy, and mechanism, unchanged)
+- Floating glass nav pill, desktop links + Log in/Get Started, and the
+  animated hamburger -> mobile drawer menu, exact spacing and timing.
+- Headline copy ("The Future of / The Next-Gen Chatbot", italic
+  "Chatbot"), subheadline copy, and CTA copy ("Get 14 Days Free Trial" /
+  "No Credit Card Required"), exact classes and the CTA's inline
+  boxShadow.
+- All entrance-animation timing: nav slide-down (0.8s), headline/subhead/
+  CTA staggered fade-up (0.1s/0.2s/0.3s delays), logo-wall stagger
+  (0.1s children, 0.5s delay), mobile menu 0.25s enter/exit.
+- Brand name "Kelo" — not asked to change, and not a real company.
+
+DEVIATIONS
+None from the spec's structure, copy, or timing — only the hosted
+proprietary video/logo assets and the real trademarked customer logos
+were substituted, per the reasons above.

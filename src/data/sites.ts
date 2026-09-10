@@ -85,5 +85,6 @@ export const SITES: Site[] = [
 // library above. Entries here are original builds made specifically to be
 // free giveaways; paid library sites are never moved into this list.
 export const FREE_SITES: Site[] = [
+  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10' },
   { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10' },
 ]
