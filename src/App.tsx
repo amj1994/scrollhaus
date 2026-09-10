@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SITES, FREE_SITES, CATEGORIES } from '@/data/sites'
+import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import Creative from '@/components/Creative'
 import Pricing from '@/components/Pricing'
@@ -16,20 +16,20 @@ const AI_TOOLS = [
 ]
 
 export default function App() {
-  const [view, setView] = useState<'library' | 'creative' | 'free' | 'pricing'>('library')
+  const [view, setView] = useState<'library' | 'creative' | 'pricing'>('library')
   const [active, setActive] = useState<string>('All')
   const [q, setQ] = useState('')
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    return SITES
+    return ALL_SITES
       .filter(s => active === 'All' || s.category === active)
       .filter(s => !needle || s.title.toLowerCase().includes(needle) || s.category.toLowerCase().includes(needle))
       .sort((a, b) => b.added.localeCompare(a.added))
   }, [active, q])
 
   const used = useMemo(() => {
-    const set = new Set(SITES.map(s => s.category))
+    const set = new Set(ALL_SITES.map(s => s.category))
     return CATEGORIES.filter(c => c === 'All' || set.has(c))
   }, [])
 
@@ -56,16 +56,6 @@ export default function App() {
               className={`text-[13px] transition-colors ${view === 'creative' ? 'text-white' : 'text-white/45 hover:text-white'}`}
             >
               Creative
-            </button>
-            <button
-              type="button"
-              onClick={() => setView('free')}
-              className={`flex items-center gap-1.5 text-[13px] transition-colors ${view === 'free' ? 'text-white' : 'text-white/45 hover:text-white'}`}
-            >
-              Free
-              <span className="rounded-full bg-emerald-400/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-300">
-                {FREE_SITES.length}
-              </span>
             </button>
             <button
               type="button"
@@ -125,7 +115,7 @@ export default function App() {
                     asset requirements, and the bugs that bite. Hit copy, paste it into Claude, ship it.
                   </p>
                   <div className="mt-1 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] text-white/40">
-                    <span><span className="font-semibold text-white/80">{SITES.length}</span> in the library</span>
+                    <span><span className="font-semibold text-white/80">{ALL_SITES.length}</span> in the library</span>
                     <span className="h-3 w-px bg-white/15" />
                     <span>3D websites, powered by AI</span>
                   </div>
@@ -196,28 +186,6 @@ export default function App() {
         </>
       ) : view === 'creative' ? (
         <Creative />
-      ) : view === 'free' ? (
-        <main className="mx-auto max-w-[1600px] px-4 py-10 sm:px-6">
-          <div className="mb-8 flex flex-col gap-3">
-            <span className="w-fit rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.14em] text-emerald-300">
-              Free Resources
-            </span>
-            <h1 className="max-w-2xl text-[26px] font-bold leading-[1.15] tracking-[-0.02em] text-white sm:text-[34px]">
-              Original builds, free to use.
-            </h1>
-            <p className="max-w-lg text-[13px] leading-relaxed text-white/50">
-              No plan required — copy the spec and ship it. Built the same way as everything
-              else here, just given away instead of gated.
-            </p>
-          </div>
-          {FREE_SITES.length === 0 ? (
-            <p className="py-24 text-center text-[13px] text-white/30">Nothing here yet.</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {FREE_SITES.map(s => <SiteCard key={s.id} site={s} />)}
-            </div>
-          )}
-        </main>
       ) : (
         <Pricing />
       )}
@@ -256,7 +224,6 @@ export default function App() {
               <ul className="mt-3 flex flex-col gap-2 text-[12px] text-white/50">
                 <li><button type="button" onClick={() => setView('library')} className="hover:text-white">Library</button></li>
                 <li><button type="button" onClick={() => setView('creative')} className="hover:text-white">Creative</button></li>
-                <li><button type="button" onClick={() => setView('free')} className="hover:text-white">Free</button></li>
                 <li><button type="button" onClick={() => setView('pricing')} className="hover:text-white">Pricing</button></li>
               </ul>
             </div>

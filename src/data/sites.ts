@@ -14,6 +14,9 @@ export type Site = {
    *  old cut to real visitors even though the origin file is correct. Omit for
    *  a site whose preview has never been recaptured after its first deploy. */
   previewV?: string
+  /** true = a free giveaway build, shown with a "Free" badge in the main
+   *  grid instead of gated behind a plan. Never set on paid inventory. */
+  free?: boolean
 }
 
 const REPO = 'https://github.com/amj1994/scrollhaus'
@@ -81,10 +84,12 @@ export const SITES: Site[] = [
   { id: 'inner-circle', title: 'Inner Circle', category: 'Interactive', added: '2026-09-10' },
 ]
 
-// Free Resources — a separate section, kept entirely apart from the paid
-// library above. Entries here are original builds made specifically to be
-// free giveaways; paid library sites are never moved into this list.
+// Free giveaway builds — mixed into the main grid (via ALL_SITES below)
+// with a "Free" badge rather than a separate tab. Original builds made
+// specifically to be free; paid library sites above are never marked free.
 export const FREE_SITES: Site[] = [
-  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '2' },
-  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10' },
+  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '2', free: true },
+  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10', free: true },
 ]
+
+export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]
