@@ -121,12 +121,6 @@ export default function SiteCard({ site }: { site: Site }) {
 
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
 
-        {site.free && (
-          <span className="absolute left-2 top-2 rounded-md bg-emerald-400 px-2 py-1 text-[11px] font-semibold text-black">
-            Free
-          </span>
-        )}
-
         <div className="absolute right-2 top-2 flex items-center gap-1.5">
           <a
             href={githubOf(site.id)}
