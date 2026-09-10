@@ -14,6 +14,10 @@ export type Site = {
    *  old cut to real visitors even though the origin file is correct. Omit for
    *  a site whose preview has never been recaptured after its first deploy. */
   previewV?: string
+  /** true = usable without a paid plan. A deliberate subset spread across
+   *  categories, not a separate/lesser catalog — same build quality, same
+   *  full spec on Copy. Omit (falsy) for the paid-tier majority. */
+  free?: boolean
 }
 
 const REPO = 'https://github.com/amj1994/scrollhaus'
@@ -44,12 +48,12 @@ export const CATEGORIES = [
 // holding each frame — looked like a slideshow for any continuous scroll
 // motion, not video). See gallery commit history for the capture-tool fix.
 export const SITES: Site[] = [
-  { id: 'juniper-path', title: 'Juniper Path', category: 'Wellness', added: '2026-09-07', previewV: '4' },
-  { id: 'argent', title: 'Argent', category: 'Hero', added: '2026-09-07', previewV: '4' },
+  { id: 'juniper-path', title: 'Juniper Path', category: 'Wellness', added: '2026-09-07', previewV: '4', free: true },
+  { id: 'argent', title: 'Argent', category: 'Hero', added: '2026-09-07', previewV: '4', free: true },
   { id: 'ltv12', title: 'LTV-12', category: 'Technology', added: '2026-09-07', previewV: '5' },
   { id: 'anula', title: 'Anula', category: 'Ecommerce', added: '2026-09-08', previewV: '4' },
-  { id: 'botnest', title: 'BotNest', category: 'Ai', added: '2026-09-08', previewV: '5' },
-  { id: 'voyages', title: 'Voyages & Chapters', category: 'Travel', added: '2026-09-08', previewV: '4' },
+  { id: 'botnest', title: 'BotNest', category: 'Ai', added: '2026-09-08', previewV: '5', free: true },
+  { id: 'voyages', title: 'Voyages & Chapters', category: 'Travel', added: '2026-09-08', previewV: '4', free: true },
   { id: 'cryptowave', title: 'CryptoWave', category: 'Fintech', added: '2026-09-09', previewV: '4' },
   { id: 'lafys', title: 'Lafys', category: 'Portfolio', added: '2026-09-09', previewV: '5' },
   { id: 'third-time', title: 'The Third Time', category: 'Landing Page', added: '2026-09-09', previewV: '5' },
@@ -66,14 +70,14 @@ export const SITES: Site[] = [
   { id: 'cirform', title: 'Cirform', category: 'Fintech', added: '2026-09-10', previewV: '4' },
   { id: 'animated-loader', title: 'Animated Loader', category: 'Hero', added: '2026-09-10', previewV: '4' },
   { id: 'brilliant-portfolio', title: 'Liquid', category: '3d Website', added: '2026-09-10', previewV: '4' },
-  { id: 'kubric', title: 'Kubric', category: 'Saas', added: '2026-09-10', previewV: '4' },
+  { id: 'kubric', title: 'Kubric', category: 'Saas', added: '2026-09-10', previewV: '4', free: true },
   { id: 'valmax', title: 'Valmax', category: 'Portfolio', added: '2026-09-10', previewV: '4' },
   { id: 'pelmatech', title: 'Pelmatech', category: 'Landing Page', added: '2026-09-10', previewV: '4' },
   { id: 'groundai', title: 'GroundAI', category: 'Ai', added: '2026-09-10', previewV: '4' },
   { id: 'sixsense', title: 'Sixsense', category: 'Ai', added: '2026-09-10', previewV: '4' },
   { id: 'bancuip', title: 'Bancuip', category: 'Fintech', added: '2026-09-10', previewV: '4' },
   { id: 'pallet-ross', title: 'Pallet Ross', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
-  { id: 'pallet-bags', title: 'Bags Crafted', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
+  { id: 'pallet-bags', title: 'Bags Crafted', category: 'Ecommerce', added: '2026-09-10', previewV: '4', free: true },
   { id: 'moneta', title: 'Moneta Key', category: 'Interactive', added: '2026-09-10', previewV: '4' },
   { id: 'pyra', title: 'Pyra', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
   { id: 'ember-footer', title: 'Ember', category: 'Interactive', added: '2026-09-10' },

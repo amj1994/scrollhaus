@@ -18,15 +18,19 @@ const AI_TOOLS = [
 export default function App() {
   const [view, setView] = useState<'library' | 'creative' | 'pricing'>('library')
   const [active, setActive] = useState<string>('All')
+  const [freeOnly, setFreeOnly] = useState(false)
   const [q, setQ] = useState('')
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase()
     return SITES
       .filter(s => active === 'All' || s.category === active)
+      .filter(s => !freeOnly || s.free)
       .filter(s => !needle || s.title.toLowerCase().includes(needle) || s.category.toLowerCase().includes(needle))
       .sort((a, b) => b.added.localeCompare(a.added))
-  }, [active, q])
+  }, [active, freeOnly, q])
+
+  const freeCount = useMemo(() => SITES.filter(s => s.free).length, [])
 
   const used = useMemo(() => {
     const set = new Set(SITES.map(s => s.category))
@@ -67,6 +71,22 @@ export default function App() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            {view === 'library' && (
+              <button
+                type="button"
+                onClick={() => setFreeOnly(v => !v)}
+                aria-pressed={freeOnly}
+                title={`${freeCount} free sites`}
+                className={`hidden shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12px] font-medium transition-colors sm:flex ${
+                  freeOnly
+                    ? 'border-emerald-400/40 bg-emerald-400/15 text-emerald-300'
+                    : 'border-white/10 text-white/50 hover:border-white/25 hover:text-white'
+                }`}
+              >
+                <span className={`h-1.5 w-1.5 rounded-full ${freeOnly ? 'bg-emerald-400' : 'bg-white/30'}`} />
+                Free only
+              </button>
+            )}
             <div className="relative">
               <svg className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-white/30" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.2-3.2" /></svg>
               <input
