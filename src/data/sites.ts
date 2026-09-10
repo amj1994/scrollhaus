@@ -65,4 +65,5 @@ export const SITES: Site[] = [
   { id: 'pelmatech', title: 'Pelmatech', category: 'Landing Page', added: '2026-09-10' },
   { id: 'groundai', title: 'GroundAI', category: 'Ai', added: '2026-09-10' },
   { id: 'sixsense', title: 'Sixsense', category: 'Ai', added: '2026-09-10' },
+  { id: 'bancuip', title: 'Bancuip', category: 'Fintech', added: '2026-09-10' },
 ]
