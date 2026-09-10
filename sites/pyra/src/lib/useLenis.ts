@@ -9,6 +9,11 @@ export function useLenis() {
       smoothWheel: true,
     });
 
+    // Exposed so capture/QA tooling can drive scroll directly via
+    // lenis.scrollTo(pos, { immediate: true }) instead of synthetic wheel
+    // events, which double up with Lenis's own easing and overshoot.
+    (window as unknown as { __lenis?: Lenis }).__lenis = lenis;
+
     function raf(time: number) {
       lenis.raf(time);
       frame = requestAnimationFrame(raf);
@@ -18,6 +23,7 @@ export function useLenis() {
     return () => {
       cancelAnimationFrame(frame);
       lenis.destroy();
+      delete (window as unknown as { __lenis?: Lenis }).__lenis;
     };
   }, []);
 }
