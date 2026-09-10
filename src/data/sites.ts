@@ -79,7 +79,7 @@ export const SITES: Site[] = [
   { id: 'pallet-bags', title: 'Bags Crafted', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
   { id: 'moneta', title: 'Moneta Key', category: 'Interactive', added: '2026-09-10', previewV: '4' },
   { id: 'pyra', title: 'Pyra', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
-  { id: 'ember-footer', title: 'Ember', category: 'Interactive', added: '2026-09-10' },
+  { id: 'ember-footer', title: 'Ember', category: 'Interactive', added: '2026-09-10', previewV: '2' },
   { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10', previewV: '2' },
   { id: 'inner-circle', title: 'Inner Circle', category: 'Interactive', added: '2026-09-10' },
 ]
