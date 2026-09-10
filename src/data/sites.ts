@@ -64,4 +64,5 @@ export const SITES: Site[] = [
   { id: 'valmax', title: 'Valmax', category: 'Portfolio', added: '2026-09-10' },
   { id: 'pelmatech', title: 'Pelmatech', category: 'Landing Page', added: '2026-09-10' },
   { id: 'groundai', title: 'GroundAI', category: 'Ai', added: '2026-09-10' },
+  { id: 'sixsense', title: 'Sixsense', category: 'Ai', added: '2026-09-10' },
 ]
