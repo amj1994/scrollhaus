@@ -1,5 +1,90 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+
+// Original, live-drawn motion background — not a hosted video asset, not
+// generated media. A slow particle field in the same indigo/fuchsia/cyan
+// palette the hero already used, reading as continuous motion the way a
+// looping hero clip would, without pulling in anyone else's footage.
+function ParticleField() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const colors = ["99,102,241", "217,70,239", "34,211,238"];
+    let raf = 0;
+    let w = 0;
+    let h = 0;
+    let particles: { x: number; y: number; vx: number; vy: number; r: number; c: string }[] = [];
+
+    const resize = () => {
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = w * devicePixelRatio;
+      canvas.height = h * devicePixelRatio;
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      const count = Math.round((w * h) / 22000);
+      particles = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.15,
+        vy: (Math.random() - 0.5) * 0.15,
+        r: 1 + Math.random() * 1.8,
+        c: colors[Math.floor(Math.random() * colors.length)],
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of particles) {
+        p.x += p.vx;
+        p.y += p.vy;
+        if (p.x < 0) p.x = w;
+        if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h;
+        if (p.y > h) p.y = 0;
+      }
+      for (let i = 0; i < particles.length; i++) {
+        const a = particles[i];
+        for (let j = i + 1; j < particles.length; j++) {
+          const b = particles[j];
+          const dx = a.x - b.x;
+          const dy = a.y - b.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist < 140) {
+            ctx.strokeStyle = `rgba(${a.c},${0.12 * (1 - dist / 140)})`;
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+        }
+      }
+      for (const p of particles) {
+        ctx.fillStyle = `rgba(${p.c},0.55)`;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (!reduced) raf = requestAnimationFrame(draw);
+    };
+
+    resize();
+    draw();
+    window.addEventListener("resize", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />;
+}
 
 const NAV_LINKS = ["Features", "Solutions", "Pricing", "About"];
 
@@ -37,14 +122,15 @@ export default function App() {
 
   return (
     <section className="relative min-h-[110vh] w-full flex flex-col bg-black">
-      {/* CSS-only ambient background in place of a hosted hero video. */}
+      {/* Live-drawn motion background in place of a hosted hero video. */}
       <div className="absolute inset-0 z-0 overflow-hidden">
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:64px_64px]" />
-        <div className="kelo-orb kelo-orb-a absolute w-[60vw] h-[60vw] rounded-full bg-indigo-500/30 blur-[120px]" />
-        <div className="kelo-orb kelo-orb-b absolute w-[45vw] h-[45vw] rounded-full bg-fuchsia-500/20 blur-[120px]" />
-        <div className="kelo-orb kelo-orb-c absolute w-[35vw] h-[35vw] rounded-full bg-cyan-400/15 blur-[110px]" />
+        <div className="kelo-orb kelo-orb-a absolute w-[60vw] h-[60vw] rounded-full bg-indigo-500/25 blur-[120px]" />
+        <div className="kelo-orb kelo-orb-b absolute w-[45vw] h-[45vw] rounded-full bg-fuchsia-500/15 blur-[120px]" />
+        <div className="kelo-orb kelo-orb-c absolute w-[35vw] h-[35vw] rounded-full bg-cyan-400/10 blur-[110px]" />
+        <ParticleField />
       </div>
-      <div className="absolute inset-0 bg-black/40 z-[1]" />
+      <div className="absolute inset-0 bg-black/30 z-[1]" />
 
       {/* Nav */}
       <motion.nav

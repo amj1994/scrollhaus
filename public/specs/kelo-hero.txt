@@ -15,11 +15,13 @@ that don't exist.
 Per explicit user direction for this Free Resources section — build
 straight from the given spec/code without generating replacement media —
 this build does NOT call out to any video/image generation tool. Instead:
-- The hosted background video was replaced with a CSS-only animated
-  gradient (three blurred, slowly-drifting color fields over a faint
-  grid), since a real generated replacement was explicitly off the table
-  for this section and directly hotlinking another company's CDN-hosted
-  video isn't something this build does either.
+- The hosted background video was replaced with a live-drawn canvas
+  particle field (a slow-drifting network of connected dots in the
+  hero's indigo/fuchsia/cyan palette, over the same blurred gradient
+  orbs and faint grid), rather than either generating a replacement clip
+  or hotlinking Jiro's CDN-hosted video into a competing product's live
+  site. It's original code, not media, so it satisfies "the hero has
+  real motion" without either off-the-table option.
 - The nine real company logos were replaced with nine invented wordmarks
   (Solstice, Northline, Meridian, Ashgrove, Ridgeline, Vaultic, Cardinal,
   Halcyon, Fenwick) — the faded, staggered "trusted by" mechanic is kept,
