@@ -43,6 +43,7 @@ export default function SendButton() {
   }, [hovered]);
 
   return (
+    <div style={{ transform: "translateY(10%)" }}>
     <motion.div
       onHoverStart={() => {
         setArrowToggle((v) => v + 1);
@@ -58,7 +59,6 @@ export default function SendButton() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        transform: "translateY(10%)",
         cursor: "pointer",
       }}
     >
@@ -166,5 +166,6 @@ export default function SendButton() {
         </div>
       </div>
     </motion.div>
+    </div>
   );
 }
