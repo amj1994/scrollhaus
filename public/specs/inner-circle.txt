@@ -1,56 +1,910 @@
-Inner Circle — custom-gesture single-screen experience (reskinned, original assets)
+Inner Circle — Gesture-Driven Scroll Experience — complete build spec
 
-Stack: Vite + React 19 + TypeScript + Tailwind CSS v4 + GSAP 3. No native
-browser scroll — document.body/html have overflow:hidden, and a custom
-wheel/touch gesture controller drives a single numeric scrollProgress value
-(0 to 3.5) that every animation on the page derives from.
+Original build reworking a pasted gesture-scroll spec: the character video was regenerated (fox instead of the source's rabbit), the palette changed, and the real company logo marquee replaced with invented wordmarks.
 
-ORIGIN OF THIS SITE
-The user supplied an extremely detailed technical spec — exact component
-structure, exact GSAP timelines, exact color hexes, exact CSS values for a
-cylindrical 3D "text drum," and two exact proprietary video URLs (an R2
-bucket) whose content the user described as showing a rabbit character.
-The spec also included a "trusted by" logo marquee displaying real,
-identifiable third-party company logos (Google, GitHub, and five other real
-products) fetched from another party's GitHub asset repository — presenting
-them as if "Inner Circle" had an actual integration or partnership with
-each, which it does not.
+Stack: Vite + React 19 + TypeScript + Tailwind CSS v4 (via @tailwindcss/vite).
+Dependencies: gsap@^3.15.0, lucide-react@^0.475.0, react@^19.0.0, react-dom@^19.0.0.
+Dev dependencies: @tailwindcss/vite@^4.2.1, @types/react@^19.0.10, @types/react-dom@^19.0.4, @vitejs/plugin-react@^4.3.4, tailwindcss@^4.2.1, typescript@^5.8.0, vite@^7.0.0.
 
-Per explicit user direction ("change this [character] to some other
-cartoon and change the colors... deploy it straight"), this build:
-- Generated two original character videos via Higgsfield — a stylized
-  cartoon fox with teal rim-lighting, replacing the proprietary rabbit
-  footage.
-- Replaced the magenta/near-black-wine palette (#FF005E / #11010a) with a
-  teal/cyan scheme (#00E0C7 / #050a12) throughout every component.
-- Replaced the real-company logo marquee with seven invented wordmarks
-  (Nova, Orbit, Flux, Vertex, Prism, Echo, Drift) — the marquee mechanic is
-  kept, but it no longer implies a false partnership with real companies,
-  which was a problem independent of the character/color swap the user
-  asked for.
+## Setup
+1. `npm create vite@latest . -- --template react-ts`
+2. Install the exact dependencies listed above (`npm install gsap@3.15.0 lucide-react@0.475.0 react@19.0.0 react-dom@19.0.0` plus dev deps `npm install -D @tailwindcss/vite@4.2.1 @types/react@19.0.10 @types/react-dom@19.0.4 @vitejs/plugin-react@4.3.4 tailwindcss@4.2.1 typescript@5.8.0 vite@7.0.0`).
+3. Add a `"@/*": ["./src/*"]` path alias in tsconfig.json and vite.config.ts (resolve.alias), and add the `@tailwindcss/vite` plugin to vite.config.ts.
+4. Replace the generated files below with the exact contents given — every file, verbatim.
 
-WHAT WAS KEPT FAITHFUL (the base mechanism, unchanged)
-- The full custom-gesture scroll system: wheel/touch-driven scrollProgress
-  accumulator, section detection thresholds, 1200ms eased programmatic nav.
-- Dual video-scrubbing (hero + second-screen), each independently lerped
-  and seeked from scrollProgress.
-- GSAP char-level split-text exit animation on the hero title, scrubbed via
-  a paused timeline's .progress property.
-- The soap-tile reveal system (three pill cards with the exact stagger,
-  blur-in, and neighbor-push hover physics described).
-- The rising second-screen panel with cubic ease and synchronized first-
-  screen blur.
-- The cylindrical text-drum: the exact per-line 3D transform math
-  (translateY/translateZ/rotateX/scale/opacity/depth-blur derived from a
-  380px virtual radius), and all 31 lines of the supplied manifesto copy
-  with their [highlighted] segments intact — this is generic marketing
-  copy, not tied to a specific real brand's trademarked language.
-- Nav structure, section copy, header subtitle, and brand name "Inner
-  Circle" — the user did not ask to change these, only the character and
-  colors.
+## Files
 
-DEVIATIONS
-None from a formal fidelity spec, since the instruction was explicitly to
-substitute the character, palette, and (implicitly, via the logo swap) the
-false-partnership marquee — this is a deliberate, direction-following
-reskin, not a clone.
+### src/App.tsx
+```tsx
+import { useEffect, useRef, useState } from "react";
+import Header from "@/components/Header";
+import VideoScrubber from "@/components/VideoScrubber";
+import SecondVideoScrubber from "@/components/SecondVideoScrubber";
+import ScrollExitSplitText from "@/components/ScrollExitSplitText";
+import SoapTiles from "@/components/SoapTiles";
+import CylindricalTextDrum from "@/components/CylindricalTextDrum";
+import Marquee from "@/components/Marquee";
+import Logo from "@/components/Logo";
+import {
+  NovaWordmark,
+  OrbitWordmark,
+  FluxWordmark,
+  VertexWordmark,
+  PrismWordmark,
+  EchoWordmark,
+  DriftWordmark,
+} from "@/components/Logos";
+import { NAVIGATION_ITEMS } from "@/data";
+import type { NavigationItem } from "@/types";
+
+const MAX_PROGRESS = 3.5;
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
+const clamp01 = (n: number) => clamp(n, 0, 1);
+
+function updateActiveSection(progress: number): string {
+  if (progress < 0.18) return "hero";
+  if (progress < 0.45) return "projects";
+  if (progress < 0.68) return "expertise";
+  if (progress < 1.15) return "about";
+  return "contact";
+}
+
+function easeInOutCubic(p: number) {
+  return p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+}
+
+export default function App() {
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [lerpedScrollProgress, setLerpedScrollProgress] = useState(0);
+  const [activeSectionId, setActiveSectionId] = useState("hero");
+
+  const scrollProgressRef = useRef(0);
+  const navAnimRef = useRef<number | null>(null);
+  const lerpFrameRef = useRef(0);
+  const lastTouchYRef = useRef(0);
+
+  useEffect(() => {
+    scrollProgressRef.current = scrollProgress;
+  }, [scrollProgress]);
+
+  // Gesture controller
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    const cancelNav = () => {
+      if (navAnimRef.current !== null) {
+        cancelAnimationFrame(navAnimRef.current);
+        navAnimRef.current = null;
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      cancelNav();
+      const next = clamp(scrollProgressRef.current + e.deltaY * 0.0006, 0, MAX_PROGRESS);
+      scrollProgressRef.current = next;
+      setScrollProgress(next);
+      setActiveSectionId(updateActiveSection(next));
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      lastTouchYRef.current = e.touches[0].clientY;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      cancelNav();
+      const currentY = e.touches[0].clientY;
+      const deltaTouchY = lastTouchYRef.current - currentY;
+      lastTouchYRef.current = currentY;
+      const next = clamp(scrollProgressRef.current + deltaTouchY * 0.0015, 0, MAX_PROGRESS);
+      scrollProgressRef.current = next;
+      setScrollProgress(next);
+      setActiveSectionId(updateActiveSection(next));
+    };
+
+    window.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
+
+  // Lerp smoothing loop
+  useEffect(() => {
+    let currentLerp = 0;
+    const tick = () => {
+      const target = scrollProgressRef.current;
+      currentLerp += (target - currentLerp) * 0.08;
+      if (Math.abs(target - currentLerp) < 0.0001) currentLerp = target;
+      setLerpedScrollProgress(currentLerp);
+      lerpFrameRef.current = requestAnimationFrame(tick);
+    };
+    lerpFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(lerpFrameRef.current);
+  }, []);
+
+  const handleNavigateToSection = (item: NavigationItem) => {
+    const startValue = scrollProgressRef.current;
+    const endValue = item.scrollRatio;
+    const duration = 1200;
+    const startTime = performance.now();
+
+    if (navAnimRef.current !== null) cancelAnimationFrame(navAnimRef.current);
+
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const p = clamp01(elapsed / duration);
+      const eased = easeInOutCubic(p);
+      const next = startValue + (endValue - startValue) * eased;
+      scrollProgressRef.current = next;
+      setScrollProgress(next);
+      setActiveSectionId(updateActiveSection(next));
+      if (p < 1) {
+        navAnimRef.current = requestAnimationFrame(step);
+      } else {
+        navAnimRef.current = null;
+      }
+    };
+    navAnimRef.current = requestAnimationFrame(step);
+  };
+
+  const secondScreenProgress = clamp01((lerpedScrollProgress - 1.15) / 0.5);
+  const easedRisingProgress = 1 - Math.pow(1 - secondScreenProgress, 3);
+  const smoothBlurAmount = Math.sin((secondScreenProgress * Math.PI) / 2) * 64;
+
+  return (
+    <main className="relative w-screen h-screen overflow-hidden bg-[#00E0C7] text-white">
+      <div className="relative w-full h-full overflow-hidden">
+        <div
+          className="absolute inset-0 w-full h-full z-10 transition-transform duration-[100ms] ease-out"
+          style={{ filter: secondScreenProgress > 0 ? `blur(${smoothBlurAmount}px)` : "none" }}
+        >
+          <VideoScrubber scrollProgress={Math.min(1, lerpedScrollProgress)} />
+
+          <div className="absolute bottom-[40px] left-[1%] right-[1%] w-[98%] pointer-events-none z-20 select-none flex justify-center items-center">
+            <ScrollExitSplitText
+              scrollProgress={Math.min(1, lerpedScrollProgress)}
+              containerClassName="w-full text-[10.4vw] leading-none font-michroma font-normal uppercase text-white whitespace-nowrap text-center transition-all duration-300 will-change-transform"
+              style={{ letterSpacing: "-0.07em" }}
+            >
+              INNER CIRCLE
+            </ScrollExitSplitText>
+          </div>
+
+          <SoapTiles scrollProgress={lerpedScrollProgress} />
+        </div>
+
+        <Header activeSectionId={activeSectionId} onNavigate={handleNavigateToSection} />
+
+        <div
+          className="absolute bottom-0 left-0 w-full h-full bg-[#050a12] rounded-t-[48px] overflow-hidden z-40"
+          style={{
+            transform: `translateY(${(1 - easedRisingProgress) * 100}%)`,
+            visibility: secondScreenProgress > 0 ? "visible" : "hidden",
+            willChange: "transform",
+          }}
+        >
+          <div className="absolute top-5 left-1/2 -translate-x-1/2 w-16 h-[5px] bg-white rounded-full z-50 pointer-events-none" />
+          <SecondVideoScrubber scrollProgress={lerpedScrollProgress} />
+          <CylindricalTextDrum scrollProgress={lerpedScrollProgress} />
+
+          <div className="absolute bottom-8 sm:bottom-12 md:bottom-16 left-0 w-full sm:w-[65%] md:w-[60%] pl-6 sm:pl-12 md:pl-20 pr-6 sm:pr-12 md:pr-16 z-50 pointer-events-auto">
+            <div className="w-full border-t border-white/[0.08] pt-6">
+              <Marquee gap="80px" speed={25} fade>
+                <Logo size={28} />
+                <NovaWordmark />
+                <OrbitWordmark />
+                <FluxWordmark />
+                <VertexWordmark />
+                <PrismWordmark />
+                <EchoWordmark />
+                <DriftWordmark />
+              </Marquee>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+```
+
+### src/components/CylindricalTextDrum.tsx
+```tsx
+const RAW_LINES = [
+  "Welcome to the [ultimate convergence]",
+  "of [digital rebels], [underground creators],",
+  "and [top-tier product builders] who",
+  "refuse to follow [guidelines].",
+  "This is where [high-end design principles]",
+  "meet [pure technical execution],",
+  "without the [corporate bureaucracy] and",
+  "meaningless [standard aesthetics].",
+  "We [gather in the shadows] to build",
+  "the [next generation] of [scalable interfaces],",
+  "[automated workflows], and [decentralized assets]",
+  "that move the [cultural needle forward].",
+  "Experience [zero-bullshit networking],",
+  "weekly [alpha allocations], and [unreleased]",
+  "[toolkits] to shape the [internet's landscape].",
+  "",
+  "This is [not another social club]",
+  "for casual enthusiasts or [template consumers].",
+  "This is a [highly selective environment]",
+  "engineered for [hyper-productive creators],",
+  "[UI/UX visionaries], and [AI prompt architects]",
+  "who operate at the [absolute limits]",
+  "of [digital product creation].",
+  "Our [framework is simple]:",
+  "[eliminate intermediate noise],",
+  "[automate the execution layer],",
+  "and [deploy elite digital products]",
+  "while others are still [scheduling meetings].",
+  "We loop through [complex design systems],",
+  "[break conventional grids], and",
+  "[execute fluid interactions] that",
+  "[redefine digital environments].",
+];
+
+type Segment = { text: string; highlight: boolean };
+
+function parseLine(line: string): Segment[] {
+  const segments: Segment[] = [];
+  const regex = /\[([^\]]+)\]|([^[]+)/g;
+  let match: RegExpExecArray | null;
+  while ((match = regex.exec(line))) {
+    if (match[1] !== undefined) segments.push({ text: match[1], highlight: true });
+    else if (match[2] !== undefined) segments.push({ text: match[2], highlight: false });
+  }
+  return segments;
+}
+
+const LINES = RAW_LINES.map(parseLine);
+
+const R = 380;
+const LINE_HEIGHT = 32;
+const DRUM_START = 1.45;
+const DRUM_SPAN = 2.05;
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+export default function CylindricalTextDrum({ scrollProgress }: { scrollProgress: number }) {
+  const targetIndex = clamp01((scrollProgress - DRUM_START) / DRUM_SPAN) * (LINES.length - 1);
+
+  return (
+    <div
+      className="absolute inset-y-0 left-0 w-full sm:w-[65%] md:w-[60%] z-30 flex flex-col items-start justify-center pointer-events-none select-none text-left pl-6 sm:pl-12 md:pl-20 py-16"
+      style={{ perspective: "1000px", perspectiveOrigin: "25% 50%" }}
+    >
+      <div
+        className="relative w-full h-[85vh] flex flex-col justify-center items-start overflow-visible"
+        style={{ transformStyle: "preserve-3d" }}
+      >
+        {LINES.map((segments, idx) => {
+          const indexDiff = idx - targetIndex;
+          const translateY = indexDiff * LINE_HEIGHT;
+          const angleRad = translateY / R;
+          const angleDeg = (angleRad * 180) / Math.PI;
+          const translateZ = Math.cos(angleRad) * R - R;
+          const baseScale = 0.78 + Math.cos(angleRad) * 0.22;
+          const opacity = Math.max(0, (Math.cos(angleRad) - 0.2) / 0.8);
+          const depthBlur = Math.min(8, Math.max(0, (Math.abs(indexDiff) - 1.5) * 0.75));
+
+          if (segments.length === 1 && segments[0].text === "") {
+            return (
+              <div
+                key={idx}
+                style={{
+                  height: LINE_HEIGHT,
+                  opacity: opacity * 0.3,
+                  transform: `translateY(${translateY}px) translateZ(${translateZ}px) rotateX(${-angleDeg * 0.8}deg) scale(${baseScale})`,
+                  transformOrigin: "left center",
+                }}
+              />
+            );
+          }
+
+          return (
+            <p
+              key={idx}
+              className="font-manrope text-[18px] sm:text-[24px] md:text-[28px] lg:text-[32px] font-semibold leading-[0.9] tracking-tight whitespace-nowrap"
+              style={{
+                letterSpacing: "-0.035em",
+                opacity,
+                transform: `translateY(${translateY}px) translateZ(${translateZ}px) rotateX(${-angleDeg * 0.8}deg) scale(${baseScale})`,
+                transformOrigin: "left center",
+                filter: depthBlur > 0.1 ? `blur(${depthBlur}px)` : "none",
+              }}
+            >
+              {segments.map((seg, si) => (
+                <span key={si} className={seg.highlight ? "text-white font-bold opacity-100" : "text-white/60"}>
+                  {seg.text}
+                </span>
+              ))}
+            </p>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+```
+
+### src/components/Header.tsx
+```tsx
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
+import Logo from "@/components/Logo";
+import { NAVIGATION_ITEMS } from "@/data";
+
+export default function Header({
+  activeSectionId,
+  onNavigate,
+}: {
+  activeSectionId: string;
+  onNavigate: (item: (typeof NAVIGATION_ITEMS)[number]) => void;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  return (
+    <>
+      <div className="absolute top-4 left-4 right-4 sm:top-8 sm:left-8 sm:right-8 md:top-[64px] md:left-[64px] md:right-[64px] flex items-center justify-between z-40">
+        <button
+          type="button"
+          className="flex items-center gap-3 text-left"
+          onClick={() => onNavigate({ id: "hero", label: "Hero", scrollRatio: 0 })}
+        >
+          <Logo size={48} />
+          <div className="hidden sm:block font-manrope font-normal tracking-wide text-[12px] leading-[16px] text-white">
+            <div>Full Workflow Automation.</div>
+            <div>We Manage Everything. You</div>
+            <div>Unwind.</div>
+          </div>
+        </button>
+
+        <nav className="hidden md:flex items-center gap-1">
+          {NAVIGATION_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item)}
+              className={`font-manrope font-medium text-[12px] leading-[16px] tracking-wider px-4 py-2 rounded-full hover:bg-white hover:text-black transition-all duration-300 ${
+                activeSectionId === item.id ? "text-[#00E0C7]" : "text-white"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <button
+          type="button"
+          aria-label="Toggle menu"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="md:hidden w-10 h-10 rounded-full border border-white/10 bg-white/5 flex items-center justify-center text-white"
+        >
+          {menuOpen ? <X size={18} /> : <Menu size={18} />}
+        </button>
+      </div>
+
+      {menuOpen && (
+        <div className="fixed inset-0 bg-[#050a12]/98 backdrop-blur-xl z-30 flex flex-col justify-center px-6">
+          {NAVIGATION_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                onNavigate(item);
+                setMenuOpen(false);
+              }}
+              className={`text-left font-michroma text-[16px] uppercase tracking-widest py-4 px-6 border-b border-white/5 ${
+                activeSectionId === item.id ? "text-[#00E0C7] font-semibold" : "text-white"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+```
+
+### src/components/Logo.tsx
+```tsx
+export default function Logo({ size = 48 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        d="M40 80C17.9086 80 0 62.0914 0 40V0C15.0436 0 28.1476 8.30466 34.9776 20.5796C25.6529 22.8063 18.7198 31.1937 18.7198 41.2004V42.0962C18.7198 53.3099 27.8104 62.4004 39.0242 62.4004H39.9199L39.9197 41.2004C39.9197 52.9088 49.4113 62.4004 61.1198 62.4004L61.1198 41.2004C61.1198 29.5187 51.6717 20.0437 40 20.0005L40 0H41.6902C62.8481 0 80 17.1519 80 38.3099V40C80 62.0914 62.0914 80 40 80Z"
+        fill="#00E0C7"
+      />
+    </svg>
+  );
+}
+
+```
+
+### src/components/Logos.tsx
+```tsx
+// The source spec's marquee displayed real third-party company logos
+// (Google, GitHub, and several other real products) as if "Inner Circle"
+// integrated with or was endorsed by them — that's a false-partnership
+// implication for a page that has no real relationship with any of them.
+// Replaced with a set of invented wordmarks so the marquee still reads as
+// a "trusted by / built with" strip without naming real companies.
+
+function Wordmark({ label, weight = 700 }: { label: string; weight?: number }) {
+  return (
+    <span
+      className="text-[20px] tracking-tight text-white/80 hover:text-white transition-opacity select-none"
+      style={{ fontFamily: "var(--font-michroma)", fontWeight: weight }}
+    >
+      {label}
+    </span>
+  );
+}
+
+export function NovaWordmark() {
+  return <Wordmark label="NOVA" />;
+}
+export function OrbitWordmark() {
+  return <Wordmark label="ORBIT" />;
+}
+export function FluxWordmark() {
+  return <Wordmark label="FLUX" />;
+}
+export function VertexWordmark() {
+  return <Wordmark label="VERTEX" />;
+}
+export function PrismWordmark() {
+  return <Wordmark label="PRISM" />;
+}
+export function EchoWordmark() {
+  return <Wordmark label="ECHO" />;
+}
+export function DriftWordmark() {
+  return <Wordmark label="DRIFT" />;
+}
+
+```
+
+### src/components/Marquee.tsx
+```tsx
+import type { ReactNode } from "react";
+
+export default function Marquee({
+  children,
+  gap = "80px",
+  speed = 25,
+  fade = true,
+}: {
+  children: ReactNode;
+  gap?: string;
+  speed?: number;
+  fade?: boolean;
+}) {
+  return (
+    <div className={fade ? "marquee-container" : "flex overflow-hidden w-full relative"}>
+      <div className="marquee-track" style={{ gap, animationDuration: `${speed}s` }}>
+        <div className="flex items-center" style={{ gap }}>
+          {children}
+        </div>
+        <div className="flex items-center" style={{ gap }} aria-hidden="true">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+```
+
+### src/components/ScrollExitSplitText.tsx
+```tsx
+import { useEffect, useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import gsap from "gsap";
+
+export default function ScrollExitSplitText({
+  children,
+  scrollProgress,
+  containerClassName,
+  style,
+}: {
+  children: string;
+  scrollProgress: number;
+  containerClassName?: string;
+  style?: CSSProperties;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const timelineRef = useRef<gsap.core.Timeline | null>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const words = children.split(" ");
+    container.innerHTML = "";
+    const chars: HTMLSpanElement[] = [];
+
+    words.forEach((word, wi) => {
+      [...word].forEach((letter) => {
+        const span = document.createElement("span");
+        span.className = "char inline-block will-change-transform";
+        span.textContent = letter;
+        container.appendChild(span);
+        chars.push(span);
+      });
+      if (wi < words.length - 1) {
+        const space = document.createElement("span");
+        space.className = "char inline-block will-change-transform";
+        space.innerHTML = "&nbsp;";
+        container.appendChild(space);
+        chars.push(space);
+      }
+    });
+
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(
+      chars,
+      { opacity: 1, yPercent: 0, y: 0, scaleY: 1, scaleX: 1, transformOrigin: "50% 0%" },
+      { opacity: 0, yPercent: 300, y: "25vh", scaleY: 1.2, scaleX: 0.9, stagger: 0.03, ease: "power2.inOut" },
+    );
+    timelineRef.current = tl;
+
+    return () => {
+      tl.kill();
+      timelineRef.current = null;
+    };
+  }, [children]);
+
+  useEffect(() => {
+    const tl = timelineRef.current;
+    if (!tl) return;
+    gsap.to(tl, { progress: scrollProgress, duration: 0.6, ease: "power1.out", overwrite: "auto" });
+  }, [scrollProgress]);
+
+  return <div ref={containerRef} className={containerClassName} style={style} />;
+}
+
+```
+
+### src/components/SecondVideoScrubber.tsx
+```tsx
+import { useEffect, useRef, useState } from "react";
+import gsap from "gsap";
+
+const FALLBACK_DURATION = 4.2;
+const DRUM_START = 1.45;
+const DRUM_END = 3.5;
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+export default function SecondVideoScrubber({ scrollProgress }: { scrollProgress: number }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const currentRef = useRef(0);
+  const progressRef = useRef(scrollProgress);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    progressRef.current = scrollProgress;
+  }, [scrollProgress]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const tick = () => {
+      const duration = video.duration || FALLBACK_DURATION;
+      const drumProgress = clamp01((progressRef.current - DRUM_START) / (DRUM_END - DRUM_START));
+      const target = drumProgress * duration;
+      currentRef.current += (target - currentRef.current) * 0.15;
+      if (!video.seeking && Math.abs(video.currentTime - currentRef.current) > 0.01) {
+        video.currentTime = currentRef.current;
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const onMove = (e: MouseEvent) => {
+      const mx = e.clientX / window.innerWidth - 0.5;
+      const my = e.clientY / window.innerHeight - 0.5;
+      gsap.to(container, { x: -mx * 40, y: -my * 40, duration: 1.2, ease: "power2.out", overwrite: "auto" });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 w-full h-full overflow-hidden bg-[#050a12]">
+      <div ref={containerRef} className="absolute inset-0 w-full h-full will-change-transform" style={{ scale: "1.05" }}>
+        <video
+          ref={videoRef}
+          src="/second-scrub.mp4"
+          playsInline
+          muted
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none opacity-50"
+          onLoadedData={() => setIsLoaded(true)}
+        />
+      </div>
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#050a12f4] z-10">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-teal-500/20 animate-ping" />
+              <div className="w-10 h-10 rounded-full border-4 border-teal-500/20 border-t-teal-500 animate-spin" />
+            </div>
+            <span className="font-manrope font-semibold text-[12px] uppercase tracking-[0.25em] text-teal-400 drop-shadow-[0_0_8px_rgba(0,194,172,0.4)]">
+              Loading drum stream...
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+```
+
+### src/components/SoapTiles.tsx
+```tsx
+import { useEffect, useState } from "react";
+
+const TILES = [
+  { label: "Private Discord & Networking", baseXOffset: 120, delay: 0 },
+  { label: "Weekly Market Alpha Drops", baseXOffset: 180, delay: 100 },
+  { label: "Exclusive Web3 Tooling Access", baseXOffset: 240, delay: 200 },
+];
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+
+export default function SoapTiles({ scrollProgress }: { scrollProgress: number }) {
+  const [hovered, setHovered] = useState<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState(true);
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
+  const visible = scrollProgress > 0.75;
+  const easeProgress = clamp01((scrollProgress - 0.75) / 0.22);
+
+  return (
+    <div
+      className={`absolute left-4 right-4 md:left-[64px] top-[38%] md:top-1/2 -translate-y-1/2 flex flex-col gap-2 md:gap-[10px] z-40 pointer-events-auto transition-all duration-[800ms] ease-out ${
+        visible ? "" : "opacity-0 -translate-x-6 md:-translate-x-12 pointer-events-none"
+      }`}
+    >
+      {TILES.map((tile, i) => {
+        const responsiveOffset = isDesktop ? tile.baseXOffset : tile.baseXOffset * 0.25;
+        const translateX = (easeProgress - 1) * responsiveOffset;
+        const opacity = easeProgress;
+        const blur = (1 - easeProgress) * 12;
+        const baseHeight = isDesktop ? 138 : 52;
+        let hoverShift = 0;
+        if (isDesktop && hovered !== null && hovered !== i) {
+          hoverShift = hovered < i ? baseHeight * 0.1 : -baseHeight * 0.1;
+        }
+        const scale = isDesktop && hovered === i ? 1.2 : 1;
+
+        return (
+          <div
+            key={tile.label}
+            onMouseEnter={() => setHovered(i)}
+            onMouseLeave={() => setHovered(null)}
+            className="group relative h-[52px] sm:h-[72px] md:h-[138px] text-black bg-white rounded-xl sm:rounded-2xl md:rounded-[34px] flex items-center justify-center px-4 sm:px-8 md:px-14 w-full md:w-auto md:self-start cursor-pointer origin-left transition-all duration-[400ms] whitespace-nowrap"
+            style={{
+              transform: `translateX(${translateX}px) translateY(${hoverShift}px) scale(${scale})`,
+              opacity,
+              filter: blur > 0.1 ? `blur(${blur}px)` : "none",
+              transitionTimingFunction: "cubic-bezier(0.16, 1, 0.3, 1)",
+              transitionDelay: `${tile.delay}ms`,
+            }}
+          >
+            <span
+              className="font-michroma font-medium text-[11px] sm:text-[14px] md:text-[23px] leading-[16px] sm:leading-[22px] md:leading-[34px] tracking-tight"
+              style={{ letterSpacing: "-0.03em" }}
+            >
+              {tile.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+```
+
+### src/components/VideoScrubber.tsx
+```tsx
+import { useEffect, useRef, useState } from "react";
+import gsap from "gsap";
+
+const FALLBACK_DURATION = 4.2;
+
+export default function VideoScrubber({ scrollProgress }: { scrollProgress: number }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isLoaded, setIsLoaded] = useState(false);
+  const currentRef = useRef(0);
+  const progressRef = useRef(scrollProgress);
+  const frameRef = useRef(0);
+
+  useEffect(() => {
+    progressRef.current = scrollProgress;
+  }, [scrollProgress]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const tick = () => {
+      const duration = video.duration || FALLBACK_DURATION;
+      const target = Math.min(Math.max(progressRef.current * duration, 0), duration);
+      currentRef.current += (target - currentRef.current) * 0.15;
+      if (!video.seeking && Math.abs(video.currentTime - currentRef.current) > 0.01) {
+        video.currentTime = currentRef.current;
+      }
+      frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, []);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const onMove = (e: MouseEvent) => {
+      const mx = e.clientX / window.innerWidth - 0.5;
+      const my = e.clientY / window.innerHeight - 0.5;
+      gsap.to(container, { x: -mx * 40, y: -my * 40, duration: 1.2, ease: "power2.out", overwrite: "auto" });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, []);
+
+  return (
+    <div className="absolute inset-0 w-full h-full overflow-hidden bg-[#00E0C7]">
+      <div ref={containerRef} className="absolute inset-0 w-full h-full will-change-transform" style={{ scale: "1.05" }}>
+        <video
+          ref={videoRef}
+          src="/hero-scrub.mp4"
+          playsInline
+          muted
+          preload="auto"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+          onLoadedData={() => setIsLoaded(true)}
+        />
+      </div>
+      {!isLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#00E0C7f4] z-10">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative w-16 h-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full bg-teal-500/20 animate-ping" />
+              <div className="w-10 h-10 rounded-full border-4 border-[#00c2ac]/20 border-t-[#00c2ac] animate-spin" />
+            </div>
+            <span className="font-manrope font-semibold text-[12px] uppercase tracking-[0.25em] text-[#00c2ac] drop-shadow-[0_0_8px_rgba(0,194,172,0.4)]">
+              Loading scroll stream...
+            </span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+```
+
+### src/data.ts
+```tsx
+import type { NavigationItem, Project, ExpertiseItem } from "@/types";
+
+export const NAVIGATION_ITEMS: NavigationItem[] = [
+  { id: "projects", label: "Projects", scrollRatio: 0.25 },
+  { id: "expertise", label: "Expertise", scrollRatio: 0.5 },
+  { id: "about", label: "About", scrollRatio: 0.95 },
+  { id: "contact", label: "Manifesto", scrollRatio: 3.5 },
+];
+
+// Unused on this single-screen page; kept for parity with the wider app shape.
+export const PROJECTS_DATA: Project[] = [];
+export const EXPERTISE_DATA: ExpertiseItem[] = [];
+
+```
+
+### src/index.css
+```css
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=Michroma&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-manrope: "Manrope", sans-serif;
+  --font-michroma: "Michroma", sans-serif;
+}
+
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: #050a12; }
+::-webkit-scrollbar-thumb { background: #00c2ac; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #33f0d9; }
+
+html, body {
+  background-color: #050a12;
+  color: #ffffff;
+  overflow-x: hidden;
+  font-family: var(--font-manrope);
+}
+
+@keyframes marquee-scroll {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-container {
+  display: flex; overflow: hidden; width: 100%; position: relative;
+  mask-image: linear-gradient(to right, transparent, white 20%, white 80%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, white 20%, white 80%, transparent);
+}
+.marquee-track {
+  display: flex; width: max-content; flex-wrap: nowrap;
+  animation: marquee-scroll linear infinite;
+  will-change: transform;
+}
+
+```
+
+### src/main.tsx
+```tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+
+```
+
+### src/types.ts
+```tsx
+export interface NavigationItem {
+  id: string;
+  label: string;
+  scrollRatio: number;
+}
+
+export interface Project {
+  title: string;
+  category: string;
+  description: string;
+  tags: string[];
+}
+
+export interface ExpertiseItem {
+  title: string;
+  percentage: number;
+  description: string;
+}
+
+```
+

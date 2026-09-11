@@ -1,81 +1,406 @@
-Ember — Footer (original design, not from a prompt file)
+Ember — Cursor-Gaze Footer — complete build spec
 
-Stack: Vite + React 18 + TypeScript + plain CSS (no Tailwind — matches the
-brief's own "ordinary CSS" spec). Fonts: DM Sans (body), Epilogue Black
-(headlines), both real webfont files served locally.
+Original design and original character video (Higgsfield), inspired by a reverse-engineered clone spec the user supplied — the real commercial studio's logo, copy, and hosted video were replaced throughout.
 
-ORIGIN OF THIS SITE
-The user supplied an extremely detailed "fidelity task" specification for a
-single-page footer — exact CSS, exact copy, exact SVG logo path, exact
-CloudFront video URL, and a hand-calibrated 66-point cursor-gaze lookup
-table — that was, on inspection, a reverse-engineered clone of a real
-commercial studio's actual live website, including an explicit instruction
-to scrub all trace of the original company's name from the output. Rather
-than reproduce someone else's proprietary logo and hosted video asset
-verbatim, the user's own final instruction was followed instead: build the
-same layout and interaction *mechanism* as inspiration, with original
-colors, copy, and a freshly generated character video (Higgsfield), and no
-traced logo.
+Stack: Vite + React 19 + TypeScript + Tailwind CSS v4 (via @tailwindcss/vite).
+Dependencies: react@^18.3.1, react-dom@^18.3.1.
+Dev dependencies: @types/react@^18.3.12, @types/react-dom@^18.3.1, @vitejs/plugin-react@^4.3.4, typescript@^5.8.0, vite@^7.0.0.
 
-WHAT WAS KEPT FAITHFUL (general technique, not owned content)
-- The exact vw-based CSS layout system: three-column desktop layout (left
-  info column, centered logo, right contact-style column), same breakpoint
-  and stacking rules at max-width:700px.
-- The cursor-driven gaze-scrubbing algorithm: object-fit:cover scale math,
-  8px dead-zone, atan2 angle computation, nearest-angle table lookup with a
-  1/240s seek offset, rAF-coalesced seeking, mobile-loop vs desktop-paused
-  switching via matchMedia, prefers-reduced-motion handling.
-- Footer-only scope: no header, hero, cards, forms, or extra sections. No
-  real navigation destinations — all nav/social/contact elements are static
-  display text, not links.
+## Setup
+1. `npm create vite@latest . -- --template react-ts`
+2. Install the exact dependencies listed above (`npm install react@18.3.1 react-dom@18.3.1` plus dev deps `npm install -D @types/react@18.3.12 @types/react-dom@18.3.1 @vitejs/plugin-react@4.3.4 typescript@5.8.0 vite@7.0.0`).
+3. Add a `"@/*": ["./src/*"]` path alias in tsconfig.json and vite.config.ts (resolve.alias), and add the `@tailwindcss/vite` plugin to vite.config.ts.
+4. Replace the generated files below with the exact contents given — every file, verbatim.
 
-WHAT WAS CHANGED (per explicit user direction)
-- Brand: "ember", with an original four-point spark mark drawn from scratch
-  (not tracing the source logo's path data).
-- Palette: warm coral/peach/cream instead of the source's lavender.
-- Copy: original throughout ("curiosity built well", "start something with
-  us today", etc.) — not the source's exact lines.
-- Video: generated via Higgsfield — a coral fuzzy creature holding a gold
-  heart, pale sage-cream background.
+## Files
 
-THE CURSOR-GAZE CALIBRATION — the real engineering problem
-Since the video is original, there was no existing hand-calibrated gaze
-table for it. Two Higgsfield generations were made asking for the
-character's eyes to trace one full continuous circular loop; both stopped
-short, each tracing only ~200-220 degrees of the circle before reversing or
-plateauing rather than completing the loop — apparently a real limitation
-of how the current video model interprets sustained mechanical motion
-instructions, not something reliably fixable by re-prompting.
+### src/App.tsx
+```tsx
+import FooterBackground from "@/components/FooterBackground";
+import BrandLogo from "@/components/BrandLogo";
 
-A frame-by-frame pupil detector was written (pixel-cluster centroid,
-filtered against the character's fur tone) to extract real (time, angle)
-pairs from the video, with outlier smoothing (angle-unwrapped median +
-moving-average filter) to remove blink/motion-noise glitches. This produced
-genuine calibration data for ~213 degrees of the circle (roughly right,
-through down, to left).
+export default function App() {
+  return (
+    <footer className="footer" aria-label="Footer">
+      <FooterBackground />
+      <div className="jobs">
+        <span className="tag">got a spark?</span>
+        <span className="headline job-title">
+          curiosity
+          <br />
+          built well
+        </span>
+        <div className="footer-nav">
+          <span>Work</span>
+          <span>About</span>
+          <span>Journal</span>
+          <span>Contact</span>
+        </div>
+      </div>
+      <div className="logo" role="img" aria-label="Studio logo">
+        <BrandLogo />
+      </div>
+      <div className="contact">
+        <span className="tag">let's talk</span>
+        <div className="headline contact-links">
+          <span>start something</span>
+          <span>with us today</span>
+        </div>
+        <p className="note">every great idea starts as a small spark. let's tend yours.</p>
+        <div className="socials">
+          <span aria-label="LinkedIn">
+            <img src="/linkedin.svg" alt="" width="35" height="35" />
+          </span>
+          <span aria-label="Instagram">
+            <img src="/instagram.svg" alt="" width="35" height="35" />
+          </span>
+          <span aria-label="TikTok">
+            <img src="/tiktok.svg" alt="" width="35" height="35" />
+          </span>
+        </div>
+      </div>
+    </footer>
+  );
+}
 
-For the remaining ~145-degree arc (left, through up, to right) where no
-real footage exists, a hybrid technique was built: the real video is used
-whenever the cursor angle falls in the covered arc; for the uncovered arc,
-the video freezes on a fixed, colour-sampled neutral frame, a small
-sclera-matched patch (blurred radial fill, colour sampled directly from that
-frame) hides the frame's own small real pupil offset, and a drawn pupil dot
-(colour also sampled from the real footage) is positioned via the same
-polar-coordinate math, with its orbit radius interpolated between the two
-real boundary frames' actual measured radii so the handoff at each boundary
-is not visible. A short angular crossfade (~7 degrees each side) blends
-between real-video mode and overlay mode. Verified with a full 360-degree
-cursor sweep in 10-degree steps — continuous motion throughout, no
-double-pupil artifacts, no snapping.
+```
 
-DEVIATIONS
-None from a formal spec, since the literal source spec was not followed
-(see above) — this is an original design and original video built around
-the same layout/interaction pattern, per explicit user direction.
+### src/components/BrandLogo.tsx
+```tsx
+export default function BrandLogo() {
+  return (
+    <svg
+      aria-hidden="true"
+      width="169"
+      height="40"
+      viewBox="0 0 169 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Original four-point spark mark — not traced from any reference. */}
+      <path
+        d="M18 4C18.8 12 20 17.2 28 20C20 22.8 18.8 28 18 36C17.2 28 16 22.8 8 20C16 17.2 17.2 12 18 4Z"
+        fill="currentColor"
+      />
+      <text
+        x="42"
+        y="29"
+        fontFamily="Epilogue, Arial, sans-serif"
+        fontWeight="900"
+        fontSize="30"
+        letterSpacing="-0.5"
+        fill="currentColor"
+      >
+        ember
+      </text>
+    </svg>
+  );
+}
 
-PREVIEW CAPTURE NOTE
-This page has no scroll (a single min-height:100vh footer) — the compelling
-motion is the cursor interaction, not scroll-driven reveals. The gallery
-preview was captured with a cursor sweep (two full circles around the
-character's eyes) rather than the usual scroll-timeline capture used for
-every other site in this gallery.
+```
+
+### src/components/FooterBackground.tsx
+```tsx
+import { useEffect, useRef } from "react";
+import gazeFrames from "@/gaze-frames.json";
+
+// Eye midpoint and per-eye rest positions in source video pixel space
+// (1920x1080), measured from the actual generated clip.
+const SOURCE_W = 1920;
+const SOURCE_H = 1080;
+const EYE_X = 1040;
+const EYE_Y = 460;
+const LEFT_EYE_SRC = { x: 893, y: 471 };
+const RIGHT_EYE_SRC = { x: 1210, y: 440 };
+const SCLERA_COLOR = "rgb(190,186,185)";
+const PUPIL_COLOR = "rgb(38,34,32)";
+const PUPIL_RADIUS_SRC = 19; // approx pupil radius in source px
+
+const TAU = Math.PI * 2;
+const wrappedAngle = (angle: number) => ((angle % TAU) + TAU) % TAU;
+
+// The captured clip's eyes only trace a real, continuous arc from
+// GAP_END (wrapping through 0) to GAP_START — roughly right -> down -> left.
+// The remaining arc (left -> up -> right) has no real footage: two separate
+// Higgsfield generations both stopped short of a full loop. Rather than
+// snapping cursor positions in that arc to whichever real boundary frame is
+// angularly closest (which reads as the gaze "getting stuck"), that arc is
+// covered by a small drawn pupil overlay, radius-matched to the real
+// boundary frames so the handoff is not visible.
+const GAP_START = 3.7182; // last real angle (213 deg), at ~57px offset
+const GAP_END = 6.24195; // first real angle (357.6 deg), at ~11px offset
+const GAP_START_RADIUS = 57.3;
+const GAP_END_RADIUS = 10.9;
+const FADE = 0.12; // radians of crossfade at each boundary
+// The exact frame the patch/pupil colors were sampled from — its real pupil
+// sits at GAP_END_RADIUS, which is what the patch is sized to cover. The
+// video must be pinned here whenever the overlay is showing; freezing on
+// whatever frame the cursor last scrubbed to would leave a real pupil at a
+// different, uncovered offset underneath the synthetic one.
+const NEUTRAL_TIME = 0.1667;
+
+function timeForAngle(angle: number) {
+  const target = wrappedAngle(angle);
+  let nearestTime = gazeFrames[0][1];
+  let nearestDistance = Infinity;
+  for (const [sampleAngle, time] of gazeFrames as [number, number][]) {
+    const difference = Math.abs(target - sampleAngle);
+    const distance = Math.min(difference, TAU - difference);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestTime = time;
+    }
+  }
+  return nearestTime + 1 / 240;
+}
+
+// How far into the synthetic gap this angle is, 0 at GAP_START, 1 at GAP_END,
+// and the corresponding interpolated orbit radius at that point.
+function gapProgress(angle: number) {
+  const span = GAP_END - GAP_START;
+  const t = Math.max(0, Math.min(1, (angle - GAP_START) / span));
+  const radius = GAP_START_RADIUS + (GAP_END_RADIUS - GAP_START_RADIUS) * t;
+  return { t, radius };
+}
+
+export default function FooterBackground() {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const leftPupilRef = useRef<HTMLDivElement>(null);
+  const rightPupilRef = useRef<HTMLDivElement>(null);
+  const leftPatchRef = useRef<HTMLDivElement>(null);
+  const rightPatchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const video = videoRef.current!;
+    let frame = 0;
+    let desiredTime = 0;
+    let pointer: { x: number; y: number } | null = null;
+    let disposed = false;
+    const mobile = window.matchMedia("(max-width: 700px)");
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const applyOverlay = (angle: number) => {
+      const rawOpacity =
+        angle <= GAP_START - FADE || angle >= GAP_END + FADE
+          ? 0
+          : angle < GAP_START + FADE
+            ? (angle - (GAP_START - FADE)) / FADE
+            : angle > GAP_END - FADE
+              ? ((GAP_END + FADE) - angle) / FADE
+              : 1;
+      const overlayOpacity = Math.max(0, Math.min(1, rawOpacity));
+      const { radius } = gapProgress(Math.max(GAP_START, Math.min(GAP_END, angle)));
+      const dx = radius * Math.cos(angle);
+      const dy = radius * Math.sin(angle);
+      const rect = video.getBoundingClientRect();
+      const scale = Math.max(rect.width / SOURCE_W, rect.height / SOURCE_H);
+      for (const [eye, pupilRef, patchRef] of [
+        [LEFT_EYE_SRC, leftPupilRef, leftPatchRef],
+        [RIGHT_EYE_SRC, rightPupilRef, rightPatchRef],
+      ] as const) {
+        const baseX = rect.left + rect.width / 2 + (eye.x - SOURCE_W / 2) * scale;
+        const baseY = rect.top + rect.height / 2 + (eye.y - SOURCE_H / 2) * scale;
+        const px = baseX + dx * scale;
+        const py = baseY + dy * scale;
+        const size = PUPIL_RADIUS_SRC * 2 * scale;
+        const patchSize = size * 1.7;
+        if (pupilRef.current) {
+          pupilRef.current.style.opacity = String(overlayOpacity);
+          pupilRef.current.style.width = `${size}px`;
+          pupilRef.current.style.height = `${size}px`;
+          pupilRef.current.style.transform = `translate(${px - size / 2}px, ${py - size / 2}px)`;
+        }
+        if (patchRef.current) {
+          patchRef.current.style.opacity = String(overlayOpacity);
+          patchRef.current.style.width = `${patchSize}px`;
+          patchRef.current.style.height = `${patchSize}px`;
+          patchRef.current.style.transform = `translate(${baseX - patchSize / 2}px, ${baseY - patchSize / 2}px)`;
+        }
+      }
+    };
+
+    const seek = () => {
+      frame = 0;
+      if (disposed || mobile.matches) return;
+      const inGap = desiredAngle > GAP_START && desiredAngle < GAP_END;
+      applyOverlay(desiredAngle);
+      if (video.readyState < 2 || video.seeking) return;
+      const target = inGap ? NEUTRAL_TIME : desiredTime;
+      if (Math.abs(video.currentTime - target) > 1 / 48) {
+        video.currentTime = Math.min(target, video.duration - 1 / 24);
+      }
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(seek);
+    };
+    let desiredAngle = GAP_END; // resting angle, near the neutral frame
+    const updateTarget = () => {
+      if (mobile.matches || !pointer) return;
+      const rect = video.getBoundingClientRect();
+      const scale = Math.max(rect.width / SOURCE_W, rect.height / SOURCE_H);
+      const eyeX = rect.left + rect.width / 2 + (EYE_X - SOURCE_W / 2) * scale;
+      const eyeY = rect.top + rect.height / 2 + (EYE_Y - SOURCE_H / 2) * scale;
+      const dx = pointer.x - eyeX;
+      const dy = pointer.y - eyeY;
+      if (Math.hypot(dx, dy) > 8) {
+        desiredAngle = Math.atan2(dy, dx);
+        if (desiredAngle < 0) desiredAngle += TAU;
+        desiredTime = timeForAngle(desiredAngle);
+        schedule();
+      }
+    };
+    const move = (event: PointerEvent) => {
+      pointer = { x: event.clientX, y: event.clientY };
+      updateTarget();
+    };
+    const ready = () => {
+      video.loop = mobile.matches;
+      if (mobile.matches && !reducedMotion.matches) {
+        void video.play().catch(() => {});
+      } else {
+        video.pause();
+        if (!mobile.matches) {
+          updateTarget();
+          schedule();
+        }
+      }
+    };
+    video.addEventListener("seeked", schedule);
+    video.addEventListener("loadeddata", ready);
+    mobile.addEventListener("change", ready);
+    reducedMotion.addEventListener("change", ready);
+    window.addEventListener("pointermove", move, { passive: true });
+    window.addEventListener("resize", updateTarget);
+    window.addEventListener("scroll", updateTarget, { passive: true });
+    if (video.readyState >= 2) ready();
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      video.removeEventListener("seeked", schedule);
+      video.removeEventListener("loadeddata", ready);
+      mobile.removeEventListener("change", ready);
+      reducedMotion.removeEventListener("change", ready);
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("resize", updateTarget);
+      window.removeEventListener("scroll", updateTarget);
+    };
+  }, []);
+
+  return (
+    <div className="footer-background" aria-hidden="true">
+      <video ref={videoRef} muted playsInline preload="auto" src="/footer-scrub.mp4" />
+      {(["left", "right"] as const).map((side) => {
+        const patchRef = side === "left" ? leftPatchRef : rightPatchRef;
+        const pupilRef = side === "left" ? leftPupilRef : rightPupilRef;
+        return (
+          <div key={side}>
+            <div
+              ref={patchRef}
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                zIndex: 0,
+                borderRadius: "50%",
+                background: SCLERA_COLOR,
+                filter: "blur(6px)",
+                opacity: 0,
+                pointerEvents: "none",
+                willChange: "transform, opacity",
+              }}
+            />
+            <div
+              ref={pupilRef}
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                zIndex: 0,
+                borderRadius: "50%",
+                background: PUPIL_COLOR,
+                opacity: 0,
+                pointerEvents: "none",
+                willChange: "transform, opacity",
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+```
+
+### src/gaze-frames.json
+```json
+[[6.202225, 0.0], [6.21385, 0.0833], [6.24195, 0.1667], [0.014076, 0.25], [0.095138, 0.3333], [0.213, 0.4167], [0.332633, 0.5], [0.492433, 0.5833], [0.683967, 0.6667], [0.886133, 0.75], [1.045033, 0.8333], [1.1599, 0.9167], [1.263267, 1.0], [1.377133, 1.0833], [1.5049, 1.1667], [1.6416, 1.25], [1.7846, 1.3333], [1.929333, 1.4167], [2.0749, 1.5], [2.212767, 1.5833], [2.329167, 1.6667], [2.417933, 1.75], [2.486767, 1.8333], [2.524333, 1.9167], [2.5439, 2.0], [2.5314, 2.0833], [2.5189, 2.1667], [2.5064, 2.25], [2.510167, 2.3333], [2.514867, 2.4167], [2.519667, 2.5], [2.5225, 2.5833], [2.531333, 2.6667], [2.5509, 2.75], [2.5785, 2.8333], [2.604467, 2.9167], [2.6256, 3.0], [2.644967, 3.0833], [2.664167, 3.1667], [2.681833, 3.25], [2.6943, 3.3333], [2.702733, 3.4167], [2.712667, 3.5], [2.719733, 3.5833], [2.7257, 3.6667], [2.518633, 3.75], [2.311567, 3.8333], [2.1045, 3.9167], [2.107433, 4.0], [2.113233, 4.0833], [2.119033, 4.1667], [2.1219, 4.25], [2.1229, 4.3333], [2.125833, 4.4167], [2.3211, 4.5], [2.519433, 4.5833], [2.7346, 4.6667], [2.7656, 4.75], [2.800233, 4.8333], [2.816533, 4.9167], [3.004867, 5.0], [3.1917, 5.0833], [3.4113, 5.1667], [3.475467, 5.25], [3.558767, 5.3333], [3.6338, 5.4167], [3.6866, 5.5], [3.714867, 5.5833], [3.7182, 5.6667], [3.7182, 5.75], [3.6956, 5.8333], [3.634833, 5.9167], [3.541333, 6.0], [3.456233, 6.0833], [3.390867, 6.1667], [3.338033, 6.25], [3.2986, 6.3333], [3.2776, 6.4167], [3.282333, 6.5], [3.2913, 6.5833], [3.31, 6.6667], [3.3287, 6.75], [3.343417, 6.8333], [3.34865, 6.9167], [3.349025, 7.0]]
+```
+
+### src/index.css
+```css
+@font-face{font-family:'DM Sans';src:url('/fonts/DMSans-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:Epilogue;src:url('/fonts/Epilogue-Black.woff2') format('woff2');font-weight:900;font-style:normal;font-display:swap}
+:root{--background:#f4ded1;--foreground:#1c1310;font-family:'DM Sans',Arial,sans-serif;font-weight:400;color:var(--foreground);background:var(--background);font-synthesis:none}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh}
+a{color:inherit;text-decoration:none}
+a:focus-visible{outline:2px solid currentColor;outline-offset:6px}
+
+.footer{position:relative;min-height:100vh;padding-top:6.54vw;isolation:isolate;overflow:hidden}
+.jobs{margin-left:8.65vw;width:25vw}
+.tag{display:inline-flex;align-items:center;border-radius:100px;background:#fdf6f0;padding:.39vw .61vw;font-size:.88vw;line-height:1.2;height:1.9vw;white-space:nowrap}
+.headline{font-family:Epilogue,Arial,sans-serif;font-weight:900;font-size:1.66vw;line-height:1.2;letter-spacing:0}
+.job-title{display:block;margin-top:1.45vw}
+.footer-nav{display:flex;flex-direction:column;align-items:flex-start;gap:.93vw;margin-top:1.3vw;font-size:1.075vw;line-height:1.35}
+.logo{position:absolute;left:40.33vw;top:7.7vw;width:17vw}
+.logo svg{display:block;width:100%;height:auto}
+.contact{position:absolute;left:74.3vw;top:6.54vw}
+.contact-links{display:flex;flex-direction:column;align-items:flex-start;margin-top:1.45vw;white-space:nowrap}
+.note{margin:1.05vw 0 0;font-size:.733vw;line-height:1.4;white-space:nowrap}
+.socials{display:flex;align-items:center;gap:1.43vw;margin-top:1.61vw}
+.socials span,.socials img{display:block;width:1.71vw;height:1.71vw}
+
+.footer-background{position:absolute;inset:0;z-index:-1;pointer-events:none}
+.footer-background video{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+
+@media(max-width:700px){
+  :root{--background:#f7e6d8;background:var(--background)}
+  body{background:var(--background)}
+  .footer{display:flex;flex-direction:column;gap:36px;min-height:100svh;padding:40px 24px 0;background:var(--background)}
+  .logo{position:static;order:0;align-self:flex-start;width:150px;max-width:75%;margin-bottom:4px}
+  .jobs{order:1;margin:0;width:100%}
+  .tag{height:30px;padding:6px 11px;font-size:14px}
+  .headline{font-size:clamp(22px,6.3vw,30px);line-height:1.25}
+  .job-title,.contact-links{margin-top:19px}
+  .footer-nav{display:grid;grid-template-columns:1fr 1fr;gap:0 24px;margin-top:20px;font-size:17px;line-height:1.4}
+  .footer-nav span{display:flex;align-items:center;min-height:44px}
+  .contact{position:static;order:2;width:100%}
+  .contact-links{gap:4px;white-space:normal}
+  .note{max-width:34ch;margin:16px 0 0;font-size:14px;line-height:1.5;white-space:normal}
+  .socials{gap:18px;margin-top:20px}
+  .socials span{display:flex;align-items:center;justify-content:center;width:44px;height:44px}
+  .socials img{width:30px;height:30px}
+  .socials span:first-child{margin-left:-7px}
+  .footer-background{position:relative;inset:auto;order:3;z-index:auto;flex:none;align-self:center;width:calc(100% + 48px);aspect-ratio:4/3;margin-top:-16px}
+  .footer-background video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center}
+}
+
+```
+
+### src/main.tsx
+```tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+
+```
+
