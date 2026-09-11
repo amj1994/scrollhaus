@@ -1,59 +1,700 @@
-Moneta — Interactive Loader (prompt 39)
+Moneta Key — Interactive Loader — complete build spec
 
-Stack: Vite + React 18 + TypeScript + Tailwind v4 + framer-motion, plain scaffold
-(no TanStack Start — not requested by the prompt). Assets fetched live from
-https://qclay.design/lovable/moneta (CDN base specified by the prompt; nothing
-self-hosted, no hero asset generation — the prompt is a full-bleed animated
-preloader with no photographic hero to swap).
+Original interactive preloader built from a supplied prompt describing the animation composition.
 
-WHAT THIS PAGE IS
-A single full-screen animated "MONETA KEY" preloader composition: layered blooms,
-a 30-particle ambient field, orbiting-line SVG ornaments, a breathing sphere image
-(mix-blend-mode: color-dodge), a dashed animated orbit path drawn with a moving
-gradient mask, a logo mark whose two triangle cutouts animate through a looping
-wipe sequence, a canvas-based curved "number arc" readout that scrolls through
-0-100 as a synthetic progress value advances, and four bouncing dots. The page
-never exits or transitions to further content — there is no completion/exit
-sequence specified in the prompt, so once progress reaches 100 the composition
-just idles in its finished state. This matches the prompt's scope: it describes
-only the loader itself.
+Stack: Vite + React 19 + TypeScript + Tailwind CSS v4 (via @tailwindcss/vite).
+Dependencies: framer-motion@^11.18.2, react@^18.3.1, react-dom@^18.3.1.
+Dev dependencies: @tailwindcss/vite@^4.2.1, @types/react@^18.3.12, @types/react-dom@^18.3.1, @vitejs/plugin-react@^4.3.4, tailwindcss@^4.2.1, typescript@^5.8.0, vite@^7.0.0.
 
-RECONSTRUCTION NOTES
-- OrbitDot: the prompt's pseudocode for this helper had garbled operators in the
-  angle/offset math. Reconstructed as `startOffset * Math.PI * 2 + (elapsed /
-  duration) * Math.PI * 2` for a full 2*PI revolution per `duration` seconds,
-  offset by the dot's start phase. The component is kept exported but unused in
-  the render tree, per the prompt's own instruction that it's a helper not
-  currently wired into the composition.
-- Progress driver (Preloader.tsx): implemented literally from the prompt's
-  pseudocode — a set of random 0-100 segments, each with its own random start
-  delay and eased duration, driven by local closure variables (`let cancelled`,
-  `let current`) scoped inside the effect rather than component-level refs, so
-  each effect invocation owns its own independent, self-contained animation run.
+## Setup
+1. `npm create vite@latest . -- --template react-ts`
+2. Install the exact dependencies listed above (`npm install framer-motion@11.18.2 react@18.3.1 react-dom@18.3.1` plus dev deps `npm install -D @tailwindcss/vite@4.2.1 @types/react@18.3.12 @types/react-dom@18.3.1 @vitejs/plugin-react@4.3.4 tailwindcss@4.2.1 typescript@5.8.0 vite@7.0.0`).
+3. Add a `"@/*": ["./src/*"]` path alias in tsconfig.json and vite.config.ts (resolve.alias), and add the `@tailwindcss/vite` plugin to vite.config.ts.
+4. Replace the generated files below with the exact contents given — every file, verbatim.
 
-BUG FOUND AND FIXED — genuine runtime bug, not a build-time issue
-PreloaderNumberArc.tsx originally had two separate effects sharing one
-`frameRef`: an effect keyed on `[progress]` that starts a `requestAnimationFrame`
-smoothing loop (`tick`) only if `frameRef.current` is null, and a separate
-mount-only (`[]`) effect that sized the canvas and, in its cleanup, called
-`cancelAnimationFrame(frameRef.current)` unconditionally. Under React 18
-StrictMode's dev-only double-invoke (every effect's cleanup runs once, then
-every effect re-runs, on the very first commit), the mount-only effect's
-cleanup fired during that synthetic pass and cancelled the *other* effect's
-just-scheduled frame before it ever ran — and because nothing reset
-`frameRef.current` back to null, the null-check permanently blocked all future
-scheduling. Net effect: the number-arc canvas rendered its one initial
-`draw(0)` call and then never updated again, freezing the readout at "0 1 2"
-for the life of the component, while every other layer (WAAPI-driven framer
-motion animations) continued animating normally — a very specific, easy-to-miss
-symptom (verified live with an injected requestAnimationFrame counter showing
-zero `tick()` invocations across seconds of real elapsed time). Fixed by
-removing the stray cross-effect cancellation and giving the `[progress]`
-effect its own self-owned cleanup that cancels *and nulls* its own frame
-before every re-run, so it correctly reschedules regardless of StrictMode's
-double-invoke behavior. Verified after the fix: the readout now climbs
-smoothly from 0 to 100 and holds, matching the prompt's design.
+## Files
 
-DEVIATIONS
-None beyond the OrbitDot pseudocode reconstruction above and the bug fix
-(which restores intended behavior, not a deviation from it).
+### src/components/Preloader.tsx
+```tsx
+import { useEffect, useMemo, useState } from "react";
+import { motion } from "framer-motion";
+import PreloaderNumberArc from "@/components/PreloaderNumberArc";
+
+const BG = "#080B14";
+const DESIGN_WIDTH = 1394;
+const DESIGN_HEIGHT = 938;
+const ASSET = "https://qclay.design/lovable/moneta";
+
+function triPath(t: { width: number; height: number; offsetY: number }) {
+  const x1 = 24 - t.width / 2;
+  const x2 = 24 + t.width / 2;
+  const yTop = t.offsetY;
+  const yTip = t.offsetY + t.height;
+  return `M${x1} ${yTop}L24 ${yTip}L${x2} ${yTop}L${x1} ${yTop}Z`;
+}
+
+function OrbitDot({
+  rx,
+  ry,
+  rotateDeg,
+  duration,
+  size,
+  opacity,
+  trailOpacity,
+  startOffset = 0,
+}: {
+  rx: number;
+  ry: number;
+  rotateDeg: number;
+  duration: number;
+  size: number;
+  opacity: number;
+  trailOpacity: number;
+  startOffset?: number;
+}) {
+  const [angle, setAngle] = useState(startOffset * Math.PI * 2);
+
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const tick = (t: number) => {
+      const elapsed = (t - start) / 1000;
+      const a = startOffset * Math.PI * 2 + (elapsed / duration) * Math.PI * 2;
+      setAngle(a);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [duration, startOffset]);
+
+  const x = Math.cos(angle) * rx;
+  const y = Math.sin(angle) * ry;
+  const rad = (rotateDeg * Math.PI) / 180;
+  const rotX = x * Math.cos(rad) - y * Math.sin(rad);
+  const rotY = x * Math.sin(rad) + y * Math.cos(rad);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: `translate(${rotX}px, ${rotY}px) translate(-50%, -50%)`,
+        pointerEvents: "none",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          inset: -10,
+          borderRadius: "50%",
+          background: `radial-gradient(circle, rgba(255,255,255,${trailOpacity}) 0%, transparent 70%)`,
+          filter: "blur(4px)",
+        }}
+      />
+      <div
+        style={{
+          width: size,
+          height: size,
+          borderRadius: "50%",
+          background: `rgba(255,255,255,${opacity})`,
+          boxShadow: `0 0 8px rgba(255,255,255,${opacity * 0.8})`,
+        }}
+      />
+    </div>
+  );
+}
+
+export default function Preloader() {
+  const [progress, setProgress] = useState(0);
+  const [runId] = useState(0);
+  const [scale, setScale] = useState(1);
+  const [tri1] = useState({ width: 22.8, height: 24.4, offsetY: 0.2 });
+  const [tri2] = useState({ width: 26.3, height: 25.51, offsetY: 23.5 });
+
+  useEffect(() => {
+    const update = () => setScale(Math.min(window.innerWidth / DESIGN_WIDTH, window.innerHeight / DESIGN_HEIGHT));
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+
+  const particles = useMemo(
+    () =>
+      Array.from({ length: 30 }, () => ({
+        top: Math.random() * 100,
+        left: Math.random() * 100,
+        opacity: 0.1 + Math.random() * 0.2,
+        duration: 3 + Math.random() * 4,
+        delay: Math.random() * 4,
+      })),
+    [],
+  );
+
+  useEffect(() => {
+    setProgress(0);
+    let cancelled = false;
+    let current = 0;
+
+    type Segment = { to: number; delay: number; duration: number };
+    const segments: Segment[] = [];
+    let acc = 0;
+    while (acc < 100) {
+      const r = Math.random();
+      let chunk: number;
+      if (r < 0.15) chunk = 1 + Math.random() * 3;
+      else if (r < 0.85) chunk = 4 + Math.random() * 12;
+      else chunk = 14 + Math.random() * 18;
+      acc = Math.min(100, acc + chunk);
+      const delay = 40 + Math.random() * 220;
+      const duration = 120 + Math.random() * 380;
+      segments.push({ to: acc, delay, duration });
+    }
+
+    const animateSegment = (i: number) => {
+      if (cancelled || i >= segments.length) return;
+      const seg = segments[i];
+      setTimeout(() => {
+        if (cancelled) return;
+        const from = current;
+        const start = performance.now();
+        const step = (t: number) => {
+          if (cancelled) return;
+          const k = Math.min(1, (t - start) / seg.duration);
+          const eased = 1 - Math.pow(1 - k, 2);
+          const value = from + (seg.to - from) * eased;
+          current = value;
+          setProgress(value);
+          if (k < 1) requestAnimationFrame(step);
+          else {
+            current = seg.to;
+            setProgress(seg.to);
+            animateSegment(i + 1);
+          }
+        };
+        requestAnimationFrame(step);
+      }, seg.delay);
+    };
+
+    animateSegment(0);
+    return () => {
+      cancelled = true;
+    };
+  }, [runId]);
+
+  return (
+    <motion.div
+      key="preloader"
+      initial={{ opacity: 1 }}
+      exit={{ opacity: 0, scale: 1.05, filter: "blur(8px)" }}
+      transition={{ duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
+      className="flex flex-col items-center justify-center"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: BG,
+        overflow: "hidden",
+        fontFamily: "'Inter Tight', sans-serif",
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: "50%",
+          width: DESIGN_WIDTH,
+          height: DESIGN_HEIGHT,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          transformOrigin: "center center",
+        }}
+      >
+        {/* Layer 1 — inner bloom */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 600,
+            height: 600,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(100,120,255,0.12) 0%, rgba(80,60,180,0.06) 40%, transparent 70%)",
+            pointerEvents: "none",
+          }}
+        />
+        {/* Layer 2 — outer bloom */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 900,
+            height: 900,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(60,80,200,0.06) 0%, transparent 65%)",
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Layer 3 — particle field */}
+        <div style={{ position: "absolute", inset: 0, zIndex: 0, pointerEvents: "none" }}>
+          {particles.map((p, i) => (
+            <motion.div
+              key={i}
+              animate={{ opacity: [0.05, 0.25, 0.05] }}
+              transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, ease: "easeInOut" }}
+              style={{
+                position: "absolute",
+                top: `${p.top}%`,
+                left: `${p.left}%`,
+                width: 1.5,
+                height: 1.5,
+                borderRadius: "50%",
+                background: `rgba(255,255,255,${p.opacity})`,
+              }}
+            />
+          ))}
+        </div>
+
+        {/* Layer 6 — circels.svg (behind sphere) */}
+        <img
+          src={`${ASSET}/circels.svg`}
+          alt=""
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            width: 766,
+            height: 766,
+            zIndex: -2,
+            pointerEvents: "none",
+          }}
+        />
+
+        {/* Layer 7 — line-c-1 */}
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1, pointerEvents: "none" }}>
+          <motion.img
+            src={`${ASSET}/line-c-1.svg`}
+            alt=""
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.3, ease: "easeOut" }}
+            style={{ display: "block" }}
+          />
+        </div>
+
+        {/* Layer 8 — line-c-2 */}
+        <div style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)", zIndex: -1, pointerEvents: "none" }}>
+          <motion.img
+            src={`${ASSET}/line-c-2.svg`}
+            alt=""
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.5, ease: "easeOut" }}
+            style={{ display: "block" }}
+          />
+        </div>
+
+        {/* Layer 9 — line-c-3 */}
+        <div style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", zIndex: -1, pointerEvents: "none" }}>
+          <motion.img
+            src={`${ASSET}/line-c-3.svg`}
+            alt=""
+            initial={{ opacity: 0, y: -30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.4, ease: "easeOut" }}
+            style={{ display: "block" }}
+          />
+        </div>
+
+        {/* Layer 4 — sphere */}
+        <motion.img
+          src={`${ASSET}/sphere-3.png`}
+          alt=""
+          initial={{ scale: 0.85, opacity: 0, filter: "blur(12px)" }}
+          animate={{ scale: [1, 1.025, 1], opacity: 0.7, filter: "blur(0px)" }}
+          transition={{
+            scale: { duration: 4, repeat: Infinity, ease: "easeInOut", delay: 1.4 },
+            opacity: { duration: 1.4, delay: 2, ease: "easeOut" },
+            filter: { duration: 1.4, delay: 2, ease: "easeOut" },
+          }}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: 433,
+            height: 394,
+            marginLeft: -216.5,
+            marginTop: -197,
+            objectFit: "contain",
+            zIndex: 1,
+            pointerEvents: "none",
+            mixBlendMode: "color-dodge",
+          }}
+        />
+
+        {/* Layer 5 — dashed orbit line */}
+        <div style={{ position: "absolute", top: "50%", left: "50%", width: 840, height: 420, marginLeft: -420, marginTop: -210, zIndex: 2, pointerEvents: "none" }}>
+          <svg viewBox="0 0 1044 356" preserveAspectRatio="none" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}>
+            <defs>
+              <linearGradient id="lineDrawGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0)" />
+                <stop offset="50%" stopColor="rgba(220,225,255,0.95)" />
+                <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+              </linearGradient>
+              <linearGradient id="lineFrontFadeGradient" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+                <stop offset="0%" stopColor="#000" />
+                <stop offset="40%" stopColor="#000" />
+                <stop offset="58%" stopColor="#fff" />
+                <stop offset="100%" stopColor="#fff" />
+              </linearGradient>
+              <mask id="lineFrontFadeMask" maskUnits="userSpaceOnUse" x={-200} y={-200} width={1444} height={800}>
+                <rect x={-200} y={-200} width={1444} height={800} fill="url(#lineFrontFadeGradient)" />
+              </mask>
+            </defs>
+            <g mask="url(#lineFrontFadeMask)">
+              <motion.path
+                key={`linepath-${runId}`}
+                d="M1042.76 35.8838C1058.87 95.0224 838.678 206.483 550.956 284.839C263.235 363.194 16.9353 378.772 0.830078 319.634C-15.2752 260.495 204.913 149.034 492.634 70.6789C780.355 -7.67647 1026.66 -23.2548 1042.76 35.8838Z"
+                fill="none"
+                stroke="url(#lineDrawGradient)"
+                strokeWidth={1}
+                strokeLinecap="round"
+                pathLength={1}
+                initial={{ strokeDashoffset: 0 }}
+                animate={{ strokeDashoffset: [0, -1.45] }}
+                transition={{ duration: 5, delay: 1.6, repeat: Infinity, repeatDelay: 0, ease: "linear" }}
+                style={{ strokeDasharray: "0.45 1", filter: "drop-shadow(0 0 4px rgba(200,210,255,0.6))" }}
+              />
+            </g>
+          </svg>
+        </div>
+
+        {/* Layer 10 — logo + wordmark */}
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -60%)",
+            zIndex: 3,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 16,
+          }}
+        >
+          <div style={{ position: "relative", width: 80, height: 80 }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              style={{
+                position: "absolute",
+                inset: -20,
+                borderRadius: "50%",
+                background: "radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 65%)",
+                zIndex: -1,
+                pointerEvents: "none",
+              }}
+            />
+            <motion.svg
+              viewBox="0 0 48 48"
+              preserveAspectRatio="xMidYMid meet"
+              initial={{ opacity: 0, y: -12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0, ease: "easeOut" }}
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", overflow: "visible" }}
+            >
+              <defs>
+                <mask id="logoCutMask" maskUnits="userSpaceOnUse" x={0} y={0} width={48} height={48}>
+                  <rect x={0} y={0} width={48} height={48} fill="white" />
+                  <motion.path
+                    key={`tri1-${tri1.width}-${tri1.height}-${tri1.offsetY}`}
+                    d={triPath(tri1)}
+                    fill="black"
+                    initial={{ y: -tri1.height, opacity: 0 }}
+                    animate={{
+                      y: [-tri1.height, -tri1.height, 0, 0, 60, 60, -tri1.height],
+                      opacity: [0, 1, 1, 1, 1, 0, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      times: [0, 0.02, 0.183, 0.617, 0.767, 0.787, 1],
+                      ease: ["linear", "easeInOut", "linear", "easeIn", "linear", "linear"],
+                      repeat: Infinity,
+                      repeatDelay: 0,
+                    }}
+                  />
+                  <motion.path
+                    key={`tri2-${tri2.width}-${tri2.height}-${tri2.offsetY}`}
+                    d={triPath(tri2)}
+                    fill="black"
+                    initial={{ y: -tri2.height, opacity: 0 }}
+                    animate={{
+                      y: [-tri2.height, -tri2.height, -tri2.height, 0, 0, 60, 60, -tri2.height],
+                      opacity: [0, 0, 1, 1, 1, 1, 0, 0],
+                    }}
+                    transition={{
+                      duration: 3,
+                      times: [0, 0.183, 0.203, 0.367, 0.617, 0.767, 0.787, 1],
+                      ease: ["linear", "linear", "easeInOut", "linear", "easeIn", "linear", "linear"],
+                      repeat: Infinity,
+                      repeatDelay: 0,
+                    }}
+                  />
+                </mask>
+              </defs>
+              <image href={`${ASSET}/full-logo.svg`} x={0} y={0} width={48} height={48} mask="url(#logoCutMask)" />
+            </motion.svg>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 8, filter: "blur(4px)" }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+            transition={{ duration: 0.6, delay: 0.8, ease: "easeOut" }}
+            style={{
+              fontFamily: "'Inter Tight', sans-serif",
+              fontSize: 13,
+              fontWeight: 400,
+              letterSpacing: "5px",
+              color: "rgba(255,255,255,0.75)",
+              textAlign: "center",
+            }}
+          >
+            MONETA KEY
+          </motion.div>
+        </div>
+
+        {/* Layer 11 — number arc */}
+        <PreloaderNumberArc key={runId} progress={progress} />
+
+        {/* Layer 12 — bouncing dots */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: 107,
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 4,
+            display: "flex",
+            alignItems: "center",
+            gap: 7,
+          }}
+        >
+          {["rgba(255,255,255,0.70)", "rgba(255,255,255,0.55)", "rgba(255,255,255,0.55)", "rgba(255,255,255,0.70)"].map((color, i) => (
+            <motion.div
+              key={i}
+              animate={{ y: [-7, 0, -7] }}
+              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut", delay: i * 0.18 }}
+              style={{ width: 7, height: 7, borderRadius: "50%", background: color }}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Layer 13 — edge-pinned ornaments (siblings of the scaled wrapper) */}
+      <motion.img
+        src={`${ASSET}/left.svg`}
+        alt=""
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.9, delay: 0.6, ease: "easeOut" }}
+        style={{ position: "absolute", bottom: 0, left: 0, zIndex: 4, pointerEvents: "none", display: "block" }}
+      />
+      <motion.img
+        src={`${ASSET}/right.svg`}
+        alt=""
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.9, delay: 0.6, ease: "easeOut" }}
+        style={{ position: "absolute", bottom: 0, right: 0, zIndex: 4, pointerEvents: "none", display: "block" }}
+      />
+    </motion.div>
+  );
+}
+
+// OrbitDot is kept as an exported helper for future use — not currently rendered.
+export { OrbitDot };
+
+```
+
+### src/components/PreloaderNumberArc.tsx
+```tsx
+import { useEffect, useRef } from "react";
+
+const CANVAS_WIDTH = 550;
+const CANVAS_HEIGHT = 70;
+const ARC_RADIUS = 310;
+const CENTER_X = CANVAS_WIDTH / 2;
+const CENTER_Y = 330;
+const ANGLE_STEP = Math.PI / 16;
+const FONT = `300 17px "Inter Tight", sans-serif`;
+const VISIBLE_DISTANCE = 5;
+
+export default function PreloaderNumberArc({ progress }: { progress: number }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const animatedProgressRef = useRef(0);
+  const targetProgressRef = useRef(0);
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    targetProgressRef.current = progress;
+    if (frameRef.current == null) {
+      frameRef.current = requestAnimationFrame(tick);
+    }
+    return () => {
+      if (frameRef.current != null) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [progress]);
+
+  const draw = (value: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const ratio = window.devicePixelRatio || 1;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(ratio, ratio);
+    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.clip();
+    ctx.font = FONT;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    for (let number = 0; number <= 100; number += 1) {
+      const distance = number - value;
+      const absDistance = Math.abs(distance);
+      if (absDistance > VISIBLE_DISTANCE) continue;
+      const angle = -Math.PI / 2 + distance * ANGLE_STEP;
+      const x = CENTER_X + Math.cos(angle) * ARC_RADIUS;
+      const y = CENTER_Y + Math.sin(angle) * ARC_RADIUS;
+      if (x < -80 || x > 630 || y < -20 || y > 90) continue;
+      const fade = Math.pow(1 - absDistance / VISIBLE_DISTANCE, 2.2);
+      const opacity = Math.max(0, 0.95 * fade);
+      const focal = Math.max(0, 1 - absDistance / 1.2);
+      const scale = 1 + focal * 0.35;
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(scale, scale);
+      if (focal > 0.05) {
+        ctx.shadowColor = `rgba(180, 200, 255, ${focal * 0.9})`;
+        ctx.shadowBlur = 18 * focal;
+      }
+      ctx.fillStyle = `rgba(255,255,255,${opacity})`;
+      ctx.fillText(String(number), 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+  };
+
+  const tick = () => {
+    const current = animatedProgressRef.current;
+    const target = targetProgressRef.current;
+    const delta = target - current;
+    if (Math.abs(delta) < 0.001) {
+      animatedProgressRef.current = target;
+      draw(target);
+      frameRef.current = null;
+      return;
+    }
+    animatedProgressRef.current = current + delta * 0.045;
+    draw(animatedProgressRef.current);
+    frameRef.current = requestAnimationFrame(tick);
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = CANVAS_WIDTH * ratio;
+    canvas.height = CANVAS_HEIGHT * ratio;
+    draw(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: "50%",
+        bottom: 123,
+        transform: "translateX(-50%)",
+        width: CANVAS_WIDTH,
+        height: CANVAS_HEIGHT,
+        zIndex: 4,
+        pointerEvents: "none",
+        overflow: "hidden",
+      }}
+      aria-hidden="true"
+    >
+      <canvas
+        ref={canvasRef}
+        style={{
+          display: "block",
+          width: CANVAS_WIDTH,
+          height: CANVAS_HEIGHT,
+          WebkitMaskImage:
+            "radial-gradient(ellipse 55% 100% at 50% 50%, black 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0.4) 65%, transparent 100%)",
+          maskImage:
+            "radial-gradient(ellipse 55% 100% at 50% 50%, black 0%, rgba(0,0,0,0.85) 35%, rgba(0,0,0,0.4) 65%, transparent 100%)",
+        }}
+      />
+    </div>
+  );
+}
+
+```
+
+### src/index.css
+```css
+@import "tailwindcss";
+
+html,
+body,
+#root {
+  font-family: "Inter Tight", sans-serif;
+}
+
+```
+
+### src/main.tsx
+```tsx
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import Index from "./pages/Index";
+
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <Index />
+  </StrictMode>,
+);
+
+```
+
+### src/pages/Index.tsx
+```tsx
+import Preloader from "@/components/Preloader";
+
+const Index = () => (
+  <div className="min-h-screen" style={{ backgroundColor: "#080B14" }}>
+    <Preloader />
+  </div>
+);
+
+export default Index;
+
+```
+
