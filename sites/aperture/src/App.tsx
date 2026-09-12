@@ -1,0 +1,163 @@
+import { ArrowRight, Facebook, Instagram, Youtube, Aperture as ApertureIcon, Sparkle, Compass, Gem, Hexagon, Target } from 'lucide-react';
+
+const BG_VIDEO =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_102305_3a7cab3b-7a86-46e8-a0f9-6937f035b087.mp4';
+
+const ACCENT = '#E8720C';
+const INK = '#111111';
+
+const NAV_LINKS = ['Studio', 'Work', 'Process', 'Journal', 'Contact'];
+
+const CLIENTS = [
+  { name: 'Lumen Co', Icon: ApertureIcon },
+  { name: 'Apex Grid', Icon: Compass },
+  { name: 'Nova Field', Icon: Sparkle },
+  { name: 'Vertex Labs', Icon: Hexagon },
+  { name: 'Clear Studio', Icon: Gem },
+  { name: 'North Line', Icon: Target },
+];
+
+export default function App() {
+  return (
+    <div
+      className="h-screen overflow-hidden flex flex-col bg-white"
+      style={{ fontFamily: 'Manrope, sans-serif' }}
+    >
+      <video
+        src={BG_VIDEO}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover pointer-events-none"
+        style={{ zIndex: 0 }}
+      />
+
+      <header className="relative px-6 lg:px-12 py-4 lg:py-6 flex-shrink-0" style={{ zIndex: 10 }}>
+        <nav className="flex items-center justify-between">
+          <span className="font-display text-2xl lg:text-3xl italic" style={{ color: INK }}>
+            Aperture
+          </span>
+
+          <div className="hidden md:flex items-center gap-8 text-base lg:text-lg" style={{ color: INK }}>
+            {NAV_LINKS.map((link) => (
+              <a key={link} href="#">
+                {link}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="px-4 lg:px-6 py-2 text-base lg:text-lg transition hover:opacity-70"
+              style={{ color: INK }}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              className="px-4 lg:px-6 py-2 text-white text-base lg:text-lg transition hover:opacity-90"
+              style={{ backgroundColor: ACCENT }}
+            >
+              Log In
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <main className="relative px-6 lg:px-12 py-6 lg:py-8 flex-1 flex flex-col justify-between" style={{ zIndex: 10 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          <div>
+            <h1
+              className="font-display text-5xl sm:text-6xl lg:text-6xl xl:text-7xl font-medium leading-[0.92] tracking-tight mb-4 lg:mb-5"
+              style={{ color: INK }}
+            >
+              Shaping
+              <br />
+              how the world
+              <br />
+              <em className="italic" style={{ color: ACCENT }}>
+                sees you
+              </em>
+            </h1>
+            <p className="text-lg lg:text-xl mb-4 lg:mb-5 max-w-md" style={{ color: INK }}>
+              Clarity-driven brand design for companies ready to be seen differently.
+            </p>
+            <button
+              type="button"
+              className="flex items-center gap-3 pl-8 pr-1.5 py-1.5 rounded-full text-white transition hover:opacity-90"
+              style={{ backgroundColor: INK }}
+            >
+              Begin the shift
+              <span
+                className="flex items-center justify-center w-9 h-9 rounded-full"
+                style={{ backgroundColor: ACCENT }}
+              >
+                <ArrowRight className="w-4 h-4 text-white" />
+              </span>
+            </button>
+          </div>
+
+          <div className="text-right">
+            <h2
+              className="font-display text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-medium leading-[0.95] tracking-tight mb-3"
+              style={{ color: INK }}
+            >
+              40+
+              <br />
+              <span style={{ color: ACCENT }}>visions realized</span>
+            </h2>
+            <p className="text-sm lg:text-base max-w-sm ml-auto" style={{ color: INK }}>
+              From first sketch to full identity, we help ambitious teams find a look the market
+              can't unsee.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          <div>
+            <p className="text-sm lg:text-base max-w-sm mb-4" style={{ color: INK }}>
+              Aperture is a small studio built around one idea: focus. We strip brands down to
+              what actually matters, then build everything else around it.
+            </p>
+            <div className="flex items-center gap-4" style={{ color: INK }}>
+              <Facebook className="w-5 h-5 fill-current" />
+              <Instagram className="w-5 h-5" />
+              <Youtube className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="text-right">
+            <h2
+              className="font-display text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-medium leading-[0.95] tracking-tight mb-3"
+              style={{ color: INK }}
+            >
+              6+
+              <br />
+              <span style={{ color: ACCENT }}>years of focus</span>
+            </h2>
+            <p className="text-sm lg:text-base max-w-sm ml-auto" style={{ color: INK }}>
+              Six years sharpening the same question for every client: what should people feel in
+              the first three seconds?
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 lg:gap-4">
+          {CLIENTS.map(({ name, Icon }) => (
+            <div
+              key={name}
+              className="bg-white rounded-lg px-3 py-4 flex flex-col items-center justify-center gap-2 text-center shadow-sm"
+            >
+              <Icon className="w-5 h-5 lg:w-6 lg:h-6" style={{ color: ACCENT }} />
+              <span className="text-xs lg:text-sm font-medium" style={{ color: INK }}>
+                {name}
+              </span>
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}
