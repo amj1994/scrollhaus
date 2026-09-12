@@ -87,6 +87,7 @@ export const SITES: Site[] = [
   { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10', previewV: '2' },
   { id: 'inner-circle', title: 'Inner Circle', category: 'Interactive', added: '2026-09-10' },
   { id: 'morphos', title: 'Morphos', category: '3d Website', added: '2026-09-12' },
+  { id: 'neuralkinetics', title: 'NeuralKinetics', category: 'Ai', added: '2026-09-12' },
 ]
 
 // Free giveaway builds — mixed into the main grid (via ALL_SITES below)
