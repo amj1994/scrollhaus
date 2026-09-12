@@ -1,0 +1,373 @@
+Velara — complete build spec
+
+Recreation of a pasted 'AI Developer Solver Hero Velara' component spec, with new original branding kept as-is (Velaraai/DevSolver were the source's own generic placeholder names) but the hosted hero-video background — hotlinked from another site's CDN — replaced with a live canvas particle-stream effect in the same violet palette, rendering the same downward falling-light motion without reusing anyone else's footage.
+
+Stack: Vite + React 19 + TypeScript + Tailwind CSS v4 (via @tailwindcss/vite).
+Dependencies: framer-motion@^12.0.0, lucide-react@^0.475.0, react@^19.0.0, react-dom@^19.0.0.
+Dev dependencies: @tailwindcss/vite@^4.2.1, @types/react@^19.0.10, @types/react-dom@^19.0.4, @vitejs/plugin-react@^4.3.4, tailwindcss@^4.2.1, typescript@^5.8.0, vite@^7.0.0.
+
+## Setup
+1. `npm create vite@latest . -- --template react-ts`
+2. Install the exact dependencies listed above (`npm install framer-motion@12.0.0 lucide-react@0.475.0 react@19.0.0 react-dom@19.0.0` plus dev deps `npm install -D @tailwindcss/vite@4.2.1 @types/react@19.0.10 @types/react-dom@19.0.4 @vitejs/plugin-react@4.3.4 tailwindcss@4.2.1 typescript@5.8.0 vite@7.0.0`).
+3. Add a `"@/*": ["./src/*"]` path alias in tsconfig.json and vite.config.ts (resolve.alias), and add the `@tailwindcss/vite` plugin to vite.config.ts.
+4. Replace the generated files below with the exact contents given — every file, verbatim.
+
+## Files
+
+### src/App.tsx
+```tsx
+import { useEffect, useRef, useState } from "react";
+import { Menu, X, Star, ArrowRight, Lock, Terminal, Bug, Code2, CheckCircle2, Zap, Cpu, Search } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+// Original, live-drawn motion background — not a hosted video asset, not
+// generated media. The source spec's hero video was a hotlinked clip from
+// another site's own CDN ("flows top to bottom like falling water"); this
+// reproduces that same downward, liquid-light feel as a canvas particle
+// stream in Velara's own violet palette instead of reusing someone else's
+// footage.
+function FallingStreams() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const colors = ["168,84,247", "146,51,234", "192,132,252"];
+    let raf = 0;
+    let w = 0;
+    let h = 0;
+    let drops: { x: number; y: number; len: number; speed: number; c: string; alpha: number }[] = [];
+
+    const resize = () => {
+      w = canvas.clientWidth;
+      h = canvas.clientHeight;
+      canvas.width = w * devicePixelRatio;
+      canvas.height = h * devicePixelRatio;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(devicePixelRatio, devicePixelRatio);
+      const count = Math.round(w / 11);
+      drops = Array.from({ length: count }, () => ({
+        x: Math.random() * w,
+        y: Math.random() * h - h,
+        len: 80 + Math.random() * 180,
+        speed: 1.4 + Math.random() * 3,
+        c: colors[Math.floor(Math.random() * colors.length)],
+        alpha: 0.22 + Math.random() * 0.38,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const d of drops) {
+        d.y += d.speed;
+        if (d.y - d.len > h) {
+          d.y = -Math.random() * h * 0.3;
+          d.x = Math.random() * w;
+        }
+        const grad = ctx.createLinearGradient(d.x, d.y - d.len, d.x, d.y);
+        grad.addColorStop(0, `rgba(${d.c},0)`);
+        grad.addColorStop(1, `rgba(${d.c},${d.alpha})`);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(d.x, d.y - d.len);
+        ctx.lineTo(d.x, d.y);
+        ctx.stroke();
+
+        ctx.shadowColor = `rgba(${d.c},0.8)`;
+        ctx.shadowBlur = 6;
+        ctx.fillStyle = `rgba(${d.c},${Math.min(1, d.alpha + 0.45)})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, 1.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+      if (!reduced) raf = requestAnimationFrame(draw);
+    };
+
+    resize();
+    draw();
+    window.addEventListener("resize", resize);
+    return () => {
+      window.removeEventListener("resize", resize);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="w-full h-full" />;
+}
+
+export default function App({ className }: { className?: string }) {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  return (
+    <>
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" crossOrigin="anonymous" />
+
+      <section className={"w-full min-h-screen bg-black text-white font-sans relative " + (className || "")}>
+        {/* Hero Section Container with a live falling-light background */}
+        <header className="relative w-full h-fit min-h-screen overflow-hidden">
+          {/* Live motion background — replaces the source's hosted hero video */}
+          <div className="absolute inset-0 pointer-events-none z-0">
+            <FallingStreams />
+            {/* Dark Overlay to ensure text readability */}
+            <div className="absolute inset-0 bg-black/45" />
+          </div>
+
+          {/* Navbar */}
+          <div className="relative top-0 left-0 w-full z-50 transition-all duration-300">
+            <nav className="max-w-7xl mx-auto px-8 py-8 flex items-center justify-between">
+              <div className="flex items-center gap-4 group cursor-pointer">
+                <span className="text-2xl font-black text-white uppercase leading-none">Velaraai</span>
+              </div>
+
+              {/* Desktop Links Inside a Capsule Box */}
+              <div className="hidden lg:flex items-center gap-10 bg-white/[0.03] backdrop-blur-xl border border-white/10 px-10 py-3.5 rounded-full shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+                {["Expertise", "Intelligence", "Enterprise", "Resources"].map((item: string) => (
+                  <a
+                    key={item}
+                    href="#"
+                    className="text-[11px] font-bold text-white uppercase tracking-[0.2em] transition-all duration-500 relative group"
+                  >
+                    {item}
+                    <span className="absolute -bottom-2 left-0 w-0 h-px bg-[#A854F7] transition-all duration-500 group-hover:w-full" />
+                  </a>
+                ))}
+              </div>
+
+              {/* CTA & Actions */}
+              <div className="flex items-center gap-6">
+                <div className="hidden md:block">
+                  <button className="relative group overflow-hidden bg-white px-9 py-3 rounded-full transition-all duration-500 hover:shadow-[0_0_40px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95">
+                    <span className="relative z-10 text-[12px] font-black text-black uppercase tracking-widest">
+                      Join Waitlist
+                    </span>
+                  </button>
+                </div>
+                {/* Mobile Menu Toggle */}
+                <button
+                  className="lg:hidden text-white hover:text-[#A854F7] transition-colors"
+                  onClick={() => setIsMenuOpen(!isMenuOpen)}
+                >
+                  {isMenuOpen ? <X className="w-8 h-8" /> : <Menu className="w-8 h-8" />}
+                </button>
+              </div>
+            </nav>
+          </div>
+
+          {/* Mobile Navigation Menu */}
+          <AnimatePresence>
+            {isMenuOpen && (
+              <motion.div
+                key="mobile-menu"
+                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                className="absolute top-24 left-6 right-6 bg-[#0b0a0b]/95 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 lg:hidden z-[60] shadow-2xl"
+              >
+                <div className="flex flex-col gap-8">
+                  {["Expertise", "Intelligence", "Enterprise", "Resources"].map((item: string) => (
+                    <a key={item} href="#" className="text-2xl font-bold text-white/90 hover:text-[#A854F7] transition-all tracking-tight">{item}</a>
+                  ))}
+                  <div className="h-px bg-white/10 w-full" />
+                  <button className="bg-[#9233EA] text-white rounded-2xl py-4 font-bold text-lg shadow-xl shadow-[#9233EA]/20">Join Waitlist</button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <div className="relative z-30 px-8 pt-[220px] pb-32">
+            {/* Rating Row */}
+            <div className="flex justify-center items-center gap-2 mb-6">
+              <div className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((i: number) => (
+                  <Star key={i} className="w-4 h-4 fill-[#f4a722] stroke-[#f4a722]" />
+                ))}
+              </div>
+              <span className="text-sm font-medium text-white/50 tracking-tight">
+                Trusted by 5,000+ top developers
+              </span>
+            </div>
+
+            {/* Hero Heading */}
+            <div className="max-w-4xl mx-auto text-center mb-6">
+              <h1 className="text-4xl md:text-[68px] font-bold leading-[1.05] tracking-tight text-white">
+                Your smartest AI Developer<br />
+                <span>solve code faster</span> than ever
+              </h1>
+            </div>
+
+            {/* Subtext */}
+            <p className="max-w-[550px] mx-auto text-center text-sm md:text-lg leading-[1.65] text-white/50 mb-10 font-medium">
+              Say goodbye to manual debugging and complex issue tracking. DevSolver automatically identifies, analyzes, and fixes code bugs instantly.
+            </p>
+
+            {/* Hero CTA */}
+            <div className="flex flex-col items-center mb-10 gap-4">
+              <button className="bg-[#A854F7] hover:bg-[#9233EA] text-white rounded-full px-10 py-4 text-base font-bold flex items-center gap-2 shadow-[0_0_40px_rgba(168,85,247,0.4)] transition-all duration-300 hover:scale-105">
+                Analyze Your Code Now <ArrowRight className="w-5 h-5" />
+              </button>
+              <div className="flex items-center gap-2 text-[14px] text-white/40 font-semibold uppercase tracking-wider">
+                <Lock className="w-3.5 h-3.5" /> Secure &amp; Enterprise Ready
+              </div>
+            </div>
+
+            {/* Modern AI Solver Dashboard */}
+            <motion.section
+              initial={{ opacity: 0, y: 40 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] as const }}
+              className="max-w-[1100px] mx-auto relative px-4"
+            >
+              {/* Dashboard Frame */}
+              <div className="bg-[#111926]/40 backdrop-blur-3xl rounded-[32px] border border-white/10 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden">
+                <div className="bg-[#020612] rounded-[24px] overflow-hidden border border-white/5 grid grid-cols-1 md:grid-cols-12 min-h-[520px]">
+
+                  {/* Sidebar Rail */}
+                  <div className="hidden md:flex md:col-span-1 border-r border-white/5 flex-col items-center py-8 gap-10 bg-black/30">
+                    <Terminal className="w-6 h-6 text-[#A854F7]" />
+                    <Bug className="w-6 h-6 text-white/30 hover:text-white/60 cursor-pointer transition-colors" />
+                    <Code2 className="w-6 h-6 text-white/30 hover:text-white/60 cursor-pointer transition-colors" />
+                    <Search className="w-6 h-6 text-white/30 hover:text-white/60 cursor-pointer transition-colors" />
+                    <div className="mt-auto flex flex-col gap-6">
+                      <div className="w-8 h-8 rounded-full border border-dashed border-white/20 flex items-center justify-center text-white/20">
+                        <Zap className="w-4 h-4" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main Content Area */}
+                  <div className="col-span-full md:col-span-11 flex flex-col">
+                    {/* Header of Dashboard */}
+                    <div className="px-8 py-5 border-b border-white/5 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex gap-1.5">
+                          <div className="w-3 h-3 rounded-full bg-red-500/50" />
+                          <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+                          <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                        </div>
+                        <span className="text-xs font-mono text-white/30 ml-4 tracking-widest uppercase">Project: solver-core-v1.ts</span>
+                      </div>
+                      <div className="flex gap-4">
+                        <div className="px-3 py-1 rounded bg-white/5 border border-white/10 text-[10px] font-mono text-white/40">BRANCH: MAIN</div>
+                        <div className="px-3 py-1 rounded bg-[#11b980]/10 border border-[#11b980]/20 text-[10px] font-mono text-[#11b980]">STATUS: ANALYZING</div>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2">
+                      {/* Left: Code Editor Mockup */}
+                      <div className="p-8 border-r border-white/5 bg-black/10">
+                        <div className="flex items-center gap-2 mb-6">
+                          <div className="w-2 h-2 rounded-full bg-red-400" />
+                          <span className="text-sm font-semibold text-red-300">Unresolved Bug Found</span>
+                        </div>
+                        <pre className="font-mono text-sm leading-relaxed overflow-x-auto">
+                          <code className="text-white/80">
+                            {"async function processData(input) {\n  const result = await fetch(API);\n  // ERROR: input might be undefined\n  return result.map(item => {\n    return item.value + input.multiplier;\n  });\n}"}
+                          </code>
+                        </pre>
+
+                        <div className="mt-12 space-y-4">
+                          <div className="flex items-center gap-4 p-4 bg-red-500/5 rounded-xl border border-red-500/20">
+                            <Bug className="w-4 h-4 text-red-500 shrink-0" />
+                            <div className="text-xs text-red-200/60 leading-relaxed font-mono">
+                              Runtime Error: Cannot read property &apos;multiplier&apos; of undefined at line 4:21
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Right: AI Solver Output */}
+                      <div className="p-8 flex flex-col h-full bg-[#020612]">
+                        <div className="flex items-center gap-2 mb-8">
+                          <CheckCircle2 className="w-5 h-5 text-[#A854F7]" />
+                          <span className="text-base font-bold text-white tracking-tight">AI Suggested Fix</span>
+                        </div>
+
+                        <div className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 shadow-inner">
+                          <pre className="font-mono text-sm leading-relaxed">
+                            <code className="text-[#A854F7]/90 font-bold">
+                              {"async function processData(input = {}) {\n  const result = await fetch(API);\n  const { multiplier = 1 } = input;\n  return result.map(item => {\n    return item.value + multiplier;\n  });\n}"}
+                            </code>
+                          </pre>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                              <Zap className="w-4 h-4 text-yellow-500" />
+                              <span className="text-xs font-medium text-white/50 tracking-wide uppercase">Complexity Reduced</span>
+                            </div>
+                            <span className="text-xs font-bold text-[#11b980]">-12%</span>
+                          </div>
+                          <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-xl border border-white/5">
+                            <div className="flex items-center gap-3">
+                              <Cpu className="w-4 h-4 text-indigo-400" />
+                              <span className="text-xs font-medium text-white/50 tracking-wide uppercase">Memory Efficient</span>
+                            </div>
+                            <span className="text-xs font-bold text-[#11b980]">OK</span>
+                          </div>
+                        </div>
+
+                        <button className="mt-auto w-full py-4 bg-[#A854F7] text-white rounded-xl text-sm font-bold shadow-lg shadow-[#A854F7]/10 hover:bg-[#9233EA] transition-all flex items-center justify-center gap-3 tracking-wide">
+                          Apply Fix Locally <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Floating UI Badge */}
+              <motion.div
+                animate={{ y: [0, -10, 0] }}
+                transition={{ duration: 4, repeat: Infinity as number, ease: "easeInOut" as const }}
+                className="absolute -top-6 -right-10 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-4 hidden lg:block shadow-2xl"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center">
+                    <CheckCircle2 className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div>
+                    <div className="text-[10px] text-white/40 font-bold uppercase tracking-widest">Efficiency Scan</div>
+                    <div className="text-sm font-bold text-[#11b980]">Passed 100%</div>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.section>
+          </div>
+        </header>
+      </section>
+    </>
+  );
+}
+
+```
+
+### src/index.css
+```css
+@import "tailwindcss";
+
+```
+
+### src/main.tsx
+```tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+```
+
