@@ -1,0 +1,140 @@
+import { ArrowRight, Facebook, Instagram, Youtube, Box, Zap, Flame, Sparkles, Triangle, Anchor } from 'lucide-react';
+
+const BG_VIDEO =
+  'https://d8j0ntlcm91z4.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/hf_20260912_110320_8cad9098-d050-4937-a5ef-2ec6db9f6a27.mp4';
+
+const NAV_LINKS = ['About', 'Features', 'Pricing', 'FAQ', 'Help'];
+
+const BRANDS = [
+  { name: 'Frame Blox', Icon: Box },
+  { name: 'Supa Blox', Icon: Zap },
+  { name: 'Hype Blox', Icon: Flame },
+  { name: 'Hype Blox', Icon: Sparkles },
+  { name: 'Ultra Blox', Icon: Triangle },
+  { name: 'Ship Blox', Icon: Anchor },
+];
+
+export default function App() {
+  return (
+    <div
+      className="h-screen overflow-hidden flex flex-col"
+      style={{ backgroundColor: '#F5F3EE', fontFamily: 'Inter, sans-serif' }}
+    >
+      <video
+        src={BG_VIDEO}
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed top-0 left-0 w-full h-full object-cover pointer-events-none"
+        style={{ zIndex: 0 }}
+      />
+
+      <header className="relative px-6 lg:px-12 py-4 lg:py-6 flex-shrink-0" style={{ zIndex: 10 }}>
+        <nav className="flex items-center justify-between">
+          <span className="text-2xl lg:text-3xl font-bold text-black">Brandly</span>
+
+          <div className="hidden md:flex items-center gap-8 text-base lg:text-lg" style={{ color: '#080808' }}>
+            {NAV_LINKS.map((link) => (
+              <a key={link} href="#">
+                {link}
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              className="px-4 lg:px-6 py-2 text-base lg:text-lg hover:text-black transition"
+              style={{ color: '#080808' }}
+            >
+              Sign Up
+            </button>
+            <button
+              type="button"
+              className="px-4 lg:px-6 py-2 bg-black text-white text-base lg:text-lg hover:bg-gray-800 transition"
+            >
+              Log In
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <main className="relative px-6 lg:px-12 py-6 lg:py-8 flex-1 flex flex-col justify-between" style={{ zIndex: 10 }}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          <div>
+            <h1 className="font-anton text-5xl sm:text-6xl lg:text-6xl xl:text-7xl font-normal text-black leading-[0.80] tracking-tight mb-4 lg:mb-5">
+              BUILDING
+              <br />
+              BRANDS THAT
+              <br />
+              RESONATE
+            </h1>
+            <p className="text-lg lg:text-xl mb-4 lg:mb-5 max-w-md" style={{ color: '#080808' }}>
+              Thoughtful design that captivates, empowers, and creates lasting impact.
+            </p>
+            <button
+              type="button"
+              className="flex items-center gap-3 pl-8 pr-1.5 py-1.5 bg-black text-white rounded-full hover:bg-gray-800 transition"
+            >
+              Start today
+              <span className="flex items-center justify-center w-9 h-9 rounded-full bg-white text-black">
+                <ArrowRight className="w-4 h-4" />
+              </span>
+            </button>
+          </div>
+
+          <div className="text-right">
+            <h2 className="font-anton text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-normal text-black leading-[0.85] tracking-tight mb-3">
+              50+
+              <br />
+              BRANDS LAUNCHED
+            </h2>
+            <p className="text-sm lg:text-base max-w-sm ml-auto" style={{ color: '#080808' }}>
+              From startups to established names, we've helped brands across every industry find
+              their voice and grow with confidence.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+          <div>
+            <p className="text-sm lg:text-base max-w-sm mb-4" style={{ color: '#080808' }}>
+              Led by a small studio of designers obsessed with craft, Brandly builds identities
+              that feel considered from the first sketch to the final launch.
+            </p>
+            <div className="flex items-center gap-4" style={{ color: '#080808' }}>
+              <Facebook className="w-5 h-5 fill-current" />
+              <Instagram className="w-5 h-5" />
+              <Youtube className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="text-right">
+            <h2 className="font-anton text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-normal text-black leading-[0.85] tracking-tight mb-3">
+              5+
+              <br />
+              YEARS IN THE INDUSTRY
+            </h2>
+            <p className="text-sm lg:text-base max-w-sm ml-auto" style={{ color: '#080808' }}>
+              Half a decade of shaping brand systems that hold up across every touchpoint, from
+              first impression to everyday use.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3 lg:gap-4">
+          {BRANDS.map(({ name, Icon }, i) => (
+            <div
+              key={`${name}-${i}`}
+              className="bg-white rounded-lg px-3 py-4 flex flex-col items-center justify-center gap-2 text-center"
+            >
+              <Icon className="w-5 h-5 lg:w-6 lg:h-6 text-black" />
+              <span className="text-xs lg:text-sm font-medium text-black">{name}</span>
+            </div>
+          ))}
+        </div>
+      </main>
+    </div>
+  );
+}
