@@ -1,31 +1,22 @@
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
-import { githubOf, previewOf, specOf, thumbOf, type Site } from '@/data/sites'
+import { githubOf, previewOf, thumbOf, type Site } from '@/data/sites'
 import { observe } from '@/lib/inview'
-
-// Specs are fetched once and kept for the session. Copying the same card twice
-// costs one request, not two.
-const specCache = new Map<string, Promise<string>>()
-function loadSpec(id: string) {
-  let p = specCache.get(id)
-  if (!p) {
-    p = fetch(specOf(id)).then(r => {
-      if (!r.ok) throw new Error(`spec ${id}: ${r.status}`)
-      return r.text()
-    })
-    specCache.set(id, p)
-  }
-  return p
-}
+import { clearSpecCache, loadSpec } from '@/lib/specs'
 
 export default function SiteCard({
   site,
   onPremiumClick,
+  onOpen,
   ratio = '16 / 9',
   index = 0,
 }: {
   site: Site
   onPremiumClick: () => void
+  /** Opens the full detail view (live preview + spec sidebar) for this site.
+   *  Omitted inside the detail view's own "more from the library" strip is
+   *  never needed — SiteDetail always passes it. */
+  onOpen?: (id: string) => void
   /** CSS aspect-ratio for the thumbnail box — see lib/bento.ts. Drives the
    *  card's own height, which lib/masonry.ts then reads to size its grid
    *  span; this is what makes the four columns run to different lengths. */
@@ -155,7 +146,7 @@ export default function SiteCard({
       }
       setCopied('ok')
     } catch {
-      specCache.delete(site.id) // let a retry actually retry
+      clearSpecCache(site.id) // let a retry actually retry
       setCopied('err')
     }
     window.setTimeout(() => setCopied('idle'), 1600)
@@ -172,7 +163,12 @@ export default function SiteCard({
       <div className="masonry-content flex flex-col">
       <div
         ref={boxRef}
-        className="relative shrink-0 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 will-change-transform"
+        role={onOpen ? 'button' : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        onClick={onOpen ? () => onOpen(site.id) : undefined}
+        onKeyDown={onOpen ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(site.id) } } : undefined}
+        aria-label={onOpen ? `Open ${site.title} — live preview and build spec` : undefined}
+        className={`relative shrink-0 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 will-change-transform ${onOpen ? 'cursor-pointer' : ''}`}
         style={{ aspectRatio: ratio }}
       >
         <img
@@ -207,7 +203,7 @@ export default function SiteCard({
         ) : (
           <button
             type="button"
-            onClick={onPremiumClick}
+            onClick={e => { e.stopPropagation(); onPremiumClick() }}
             title="See plans"
             className="absolute left-2 top-2 flex items-center gap-1 rounded-md bg-white px-2 py-1 text-[11px] font-semibold text-black transition-colors hover:bg-white/85"
           >
@@ -218,7 +214,7 @@ export default function SiteCard({
           </button>
         )}
 
-        <div className="absolute right-2 top-2 flex items-center gap-1.5">
+        <div className="absolute right-2 top-2 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
           <a
             href={githubOf(site.id, site.free)}
             target="_blank"

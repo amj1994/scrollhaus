@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
+import SiteDetail from '@/components/SiteDetail'
 import Creative from '@/components/Creative'
 import Pricing from '@/components/Pricing'
 import AuthModal from '@/components/AuthModal'
@@ -30,6 +31,26 @@ export default function App() {
   const [active, setActive] = useState<string>('All')
   const [q, setQ] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
+
+  // The open detail view lives in the URL (?site=<id>) so it's shareable and
+  // the browser's own back button closes it — not just the on-page arrow.
+  const [openId, setOpenId] = useState<string | null>(
+    () => new URLSearchParams(window.location.search).get('site'),
+  )
+  useEffect(() => {
+    const onPop = () => setOpenId(new URLSearchParams(window.location.search).get('site'))
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+  }, [])
+  const openSite = useCallback((id: string) => {
+    window.history.pushState({}, '', `?site=${id}`)
+    setOpenId(id)
+  }, [])
+  const closeSite = useCallback(() => {
+    window.history.pushState({}, '', window.location.pathname)
+    setOpenId(null)
+  }, [])
+  const openSiteObj = openId ? ALL_SITES.find(s => s.id === openId) ?? null : null
 
   useEffect(() => {
     if (passwordRecovery) setAuthOpen(true)
@@ -134,7 +155,15 @@ export default function App() {
 
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
-      {view === 'library' ? (
+      {view === 'library' && openSiteObj ? (
+        <SiteDetail
+          key={openSiteObj.id}
+          site={openSiteObj}
+          onBack={closeSite}
+          onOpen={openSite}
+          onPremiumClick={() => setView('pricing')}
+        />
+      ) : view === 'library' ? (
         <>
           {/* Motion banner. The headline lives over the footage rather than above it, the way a
               storefront hero does — the copy that used to sit in a flat text block is the overlay. */}
@@ -240,6 +269,7 @@ export default function App() {
                     site={s}
                     index={i}
                     ratio={bentoSpan(i)}
+                    onOpen={openSite}
                     onPremiumClick={() => setView('pricing')}
                   />
                 ))}

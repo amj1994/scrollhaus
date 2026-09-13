@@ -17,6 +17,14 @@ export type Site = {
   /** true = a free giveaway build, shown with a "Free" badge in the main
    *  grid instead of gated behind a plan. Never set on paid inventory. */
   free?: boolean
+  /** true = the real build is mirrored at /sites/<id>/ and the detail view
+   *  can iframe it live. Most of the library's `sites/<id>` GitHub folders
+   *  turned out to hold an incomplete checkout (bare package-lock.json, no
+   *  source) or a Vite project that was never built — neither is iframeable
+   *  as-is. Only set this once a working static build actually exists under
+   *  public/sites/<id>/index.html; everything else falls back to the
+   *  existing preview video in the detail view instead of a broken iframe. */
+  live?: boolean
 }
 
 const REPO = 'https://github.com/amj1994/scrollhaus'
@@ -36,6 +44,7 @@ const VAULT_REPO = 'https://github.com/amj1994/scrollhaus-vault'
 export const thumbOf = (id: string) => `/thumbs/${id}.webp`
 export const previewOf = (id: string, v?: string) => `/previews/${id}.mp4${v ? `?v=${v}` : ''}`
 export const specOf = (id: string) => `/specs/${id}.txt`
+export const siteUrlOf = (id: string) => `/sites/${id}/index.html`
 export const githubOf = (id: string, free?: boolean) =>
   `${free ? REPO : VAULT_REPO}/tree/main/sites/${id}`
 
@@ -96,18 +105,18 @@ export const SITES: Site[] = [
 // with a "Free" badge rather than a separate tab. Original builds made
 // specifically to be free; paid library sites above are never marked free.
 export const FREE_SITES: Site[] = [
-  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '6', free: true },
-  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10', previewV: '6', free: true },
-  { id: 'waypoint-about', title: 'Waypoint', category: 'Travel', added: '2026-09-10', previewV: '6', free: true },
-  { id: 'aurum-jewelry', title: 'Aurum', category: 'Portfolio', added: '2026-09-11', previewV: '6', free: true },
-  { id: 'velara', title: 'Velara', category: 'Ai', added: '2026-09-12', previewV: '6', free: true },
-  { id: 'frostbound', title: 'Frostbound', category: 'Travel', added: '2026-09-12', previewV: '6', free: true },
-  { id: 'auria', title: 'Auria', category: 'Ai', added: '2026-09-12', previewV: '6', free: true },
-  { id: 'contentflow', title: 'ContentFlow', category: 'Saas', added: '2026-09-12', previewV: '6', free: true },
-  { id: 'brandly', title: 'Brandly', category: 'Agency', added: '2026-09-12', previewV: '6', free: true },
-  { id: 'aperture', title: 'Aperture', category: 'Agency', added: '2026-09-12', previewV: '6', free: true },
-  { id: 'orven', title: 'Orven', category: 'Ecommerce', added: '2026-09-13', previewV: '6', free: true },
-  { id: 'drift', title: 'DRIFT', category: 'Hero', added: '2026-09-13', previewV: '6', free: true },
+  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '6', free: true, live: true },
+  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10', previewV: '6', free: true, live: true },
+  { id: 'waypoint-about', title: 'Waypoint', category: 'Travel', added: '2026-09-10', previewV: '6', free: true, live: true },
+  { id: 'aurum-jewelry', title: 'Aurum', category: 'Portfolio', added: '2026-09-11', previewV: '6', free: true, live: true },
+  { id: 'velara', title: 'Velara', category: 'Ai', added: '2026-09-12', previewV: '6', free: true, live: true },
+  { id: 'frostbound', title: 'Frostbound', category: 'Travel', added: '2026-09-12', previewV: '6', free: true, live: true },
+  { id: 'auria', title: 'Auria', category: 'Ai', added: '2026-09-12', previewV: '6', free: true, live: true },
+  { id: 'contentflow', title: 'ContentFlow', category: 'Saas', added: '2026-09-12', previewV: '6', free: true, live: true },
+  { id: 'brandly', title: 'Brandly', category: 'Agency', added: '2026-09-12', previewV: '6', free: true, live: true },
+  { id: 'aperture', title: 'Aperture', category: 'Agency', added: '2026-09-12', previewV: '6', free: true, live: true },
+  { id: 'orven', title: 'Orven', category: 'Ecommerce', added: '2026-09-13', previewV: '6', free: true, live: true },
+  { id: 'drift', title: 'DRIFT', category: 'Hero', added: '2026-09-13', previewV: '6', free: true, live: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]
