@@ -5,6 +5,7 @@ import Creative from '@/components/Creative'
 import Pricing from '@/components/Pricing'
 import AuthModal from '@/components/AuthModal'
 import { bentoSpan } from '@/lib/bento'
+import { useMasonry } from '@/lib/masonry'
 import { useAuth } from '@/lib/auth'
 
 // Three.js is a ~600KB chunk on its own — split it out so the core library
@@ -47,26 +48,12 @@ export default function App() {
     return CATEGORIES.filter(c => c === 'All' || set.has(c))
   }, [])
 
-  // A "big" tile is a 2-col/2-row span. For that to actually be a square
-  // (not the wide, cropped-looking banner a fixed row height produced), the
-  // row height has to equal the column's own live rendered width — which
-  // CSS Grid does not do on its own. Read the browser's resolved column
-  // width straight off gridTemplateColumns (already solved for the current
-  // breakpoint and gap) and feed it back in as --tile for auto-rows to use.
+  // Each card's own aspect ratio (bentoSpan) decides its height; this just
+  // measures that rendered height and tells the grid how many implicit rows
+  // to span, which is what lets the four columns run to different lengths
+  // instead of locking to a shared row height.
   const gridRef = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    const el = gridRef.current
-    if (!el) return
-    const sync = () => {
-      const cols = getComputedStyle(el).gridTemplateColumns.split(' ')
-      const tile = parseFloat(cols[0])
-      if (tile > 0) el.style.setProperty('--tile', `${tile}px`)
-    }
-    sync()
-    const ro = new ResizeObserver(sync)
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [shown.length])
+  useMasonry(gridRef, [shown.map(s => s.id).join(',')])
 
   return (
     <div className="relative min-h-screen bg-[#080808]">
@@ -245,14 +232,14 @@ export default function App() {
             ) : (
               <div
                 ref={gridRef}
-                className="grid grid-cols-2 gap-4 [grid-auto-rows:var(--tile,190px)] sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
+                className="grid grid-cols-2 gap-4 [grid-auto-rows:8px] sm:grid-cols-3 lg:grid-cols-4"
               >
                 {shown.map((s, i) => (
                   <SiteCard
                     key={s.id}
                     site={s}
                     index={i}
-                    span={bentoSpan(i)}
+                    ratio={bentoSpan(i)}
                     onPremiumClick={() => setView('pricing')}
                   />
                 ))}

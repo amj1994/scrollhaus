@@ -21,13 +21,15 @@ function loadSpec(id: string) {
 export default function SiteCard({
   site,
   onPremiumClick,
-  span = '',
+  ratio = '16 / 9',
   index = 0,
 }: {
   site: Site
   onPremiumClick: () => void
-  /** Tailwind col/row-span classes for the bento grid — see lib/bento.ts. */
-  span?: string
+  /** CSS aspect-ratio for the thumbnail box — see lib/bento.ts. Drives the
+   *  card's own height, which lib/masonry.ts then reads to size its grid
+   *  span; this is what makes the four columns run to different lengths. */
+  ratio?: string
   /** Position in the currently filtered list, used only to stagger the reveal. */
   index?: number
 }) {
@@ -164,12 +166,14 @@ export default function SiteCard({
   return (
     <div
       ref={rootRef}
-      className={`group card-cv flex h-full flex-col ${span}`}
+      className="group card-cv masonry-item"
       style={{ opacity: initialHidden ? 0 : 1 }}
     >
+      <div className="masonry-content flex flex-col">
       <div
         ref={boxRef}
-        className="relative min-h-[150px] flex-1 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 will-change-transform"
+        className="relative shrink-0 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 will-change-transform"
+        style={{ aspectRatio: ratio }}
       >
         <img
           src={thumbOf(site.id)}
@@ -259,6 +263,7 @@ export default function SiteCard({
           <div className="mt-0.5 text-[11px] text-white/35">{site.category}</div>
         </div>
         <div className="shrink-0 text-[10px] tabular-nums text-white/20">{site.added}</div>
+      </div>
       </div>
     </div>
   )

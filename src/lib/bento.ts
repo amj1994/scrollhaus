@@ -1,15 +1,19 @@
-// A subtle alternating rhythm — normal tile, slightly smaller tile, repeating
-// — not a dramatic big/small split. Every card sits in the SAME uniform grid
-// cell (no col/row spanning at all now), so there is no dense-packing, no
-// cell four times the area of its neighbor, and nothing for the video inside
-// to get cropped against: the "smaller" variant is just a bit of inset
-// padding shrinking the square within its own cell, leaving a sliver of the
-// ambient backdrop showing around it.
-const PATTERN = [
-  '', // normal
-  'p-[5%]', // a little smaller
+// Three aspect ratios in rotation, not one uniform shape — this is what
+// actually produces the staggered, non-symmetrical masonry look (a wide
+// card and a tall card sitting side by side naturally throw their columns
+// out of alignment; a grid of identical squares never can, no matter how
+// the columns are counted). Length 7 against 4 columns means the same
+// column doesn't land on the same ratio again for 28 cards.
+const RATIOS = [
+  '4 / 3', // normal
+  '3 / 4', // tall
+  '16 / 9', // wide
+  '4 / 3',
+  '16 / 9',
+  '3 / 4',
+  '4 / 3',
 ] as const
 
 export function bentoSpan(index: number): string {
-  return PATTERN[index % PATTERN.length]
+  return RATIOS[index % RATIOS.length]
 }
