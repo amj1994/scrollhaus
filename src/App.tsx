@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import Creative from '@/components/Creative'
@@ -46,6 +46,27 @@ export default function App() {
     const set = new Set(ALL_SITES.map(s => s.category))
     return CATEGORIES.filter(c => c === 'All' || set.has(c))
   }, [])
+
+  // A "big" tile is a 2-col/2-row span. For that to actually be a square
+  // (not the wide, cropped-looking banner a fixed row height produced), the
+  // row height has to equal the column's own live rendered width — which
+  // CSS Grid does not do on its own. Read the browser's resolved column
+  // width straight off gridTemplateColumns (already solved for the current
+  // breakpoint and gap) and feed it back in as --tile for auto-rows to use.
+  const gridRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = gridRef.current
+    if (!el) return
+    const sync = () => {
+      const cols = getComputedStyle(el).gridTemplateColumns.split(' ')
+      const tile = parseFloat(cols[0])
+      if (tile > 0) el.style.setProperty('--tile', `${tile}px`)
+    }
+    sync()
+    const ro = new ResizeObserver(sync)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [shown.length])
 
   return (
     <div className="relative min-h-screen bg-[#080808]">
@@ -222,7 +243,10 @@ export default function App() {
             {shown.length === 0 ? (
               <p className="py-24 text-center text-[13px] text-white/30">Nothing here yet.</p>
             ) : (
-              <div className="grid auto-rows-[190px] grid-cols-2 gap-4 sm:grid-cols-3 sm:auto-rows-[200px] lg:auto-rows-[170px] lg:grid-cols-4 lg:[grid-auto-flow:dense] xl:grid-cols-5">
+              <div
+                ref={gridRef}
+                className="grid grid-cols-2 gap-4 [grid-auto-rows:var(--tile,190px)] sm:grid-cols-3 sm:[grid-auto-flow:dense] lg:grid-cols-4 xl:grid-cols-5"
+              >
                 {shown.map((s, i) => (
                   <SiteCard
                     key={s.id}

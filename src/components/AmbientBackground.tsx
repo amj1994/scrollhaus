@@ -39,7 +39,7 @@ export default function AmbientBackground() {
     sctx.fillRect(0, 0, 64, 64)
     const sprite = new THREE.CanvasTexture(spriteCanvas)
 
-    const COUNT = reduced ? 0 : 420
+    const COUNT = reduced ? 0 : 900
     const positions = new Float32Array(COUNT * 3)
     const colors = new Float32Array(COUNT * 3)
     const speeds = new Float32Array(COUNT)
@@ -59,7 +59,7 @@ export default function AmbientBackground() {
       colors[i * 3 + 1] = col.g
       colors[i * 3 + 2] = col.b
 
-      speeds[i] = 0.05 + Math.random() * 0.12
+      speeds[i] = 0.1 + Math.random() * 0.22
     }
 
     const geometry = new THREE.BufferGeometry()
@@ -67,11 +67,11 @@ export default function AmbientBackground() {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3))
 
     const material = new THREE.PointsMaterial({
-      size: 0.16,
+      size: 0.32,
       map: sprite,
       vertexColors: true,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.95,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
     })
@@ -102,13 +102,13 @@ export default function AmbientBackground() {
       }
       pos.needsUpdate = true
 
-      current.x += (target.x - current.x) * 0.02
-      current.y += (target.y - current.y) * 0.02
-      camera.position.x = current.x * 1.2
-      camera.position.y = -current.y * 0.8
+      current.x += (target.x - current.x) * 0.035
+      current.y += (target.y - current.y) * 0.035
+      camera.position.x = current.x * 2.4
+      camera.position.y = -current.y * 1.6
       camera.lookAt(0, 0, 0)
 
-      points.rotation.y = t * 0.01
+      points.rotation.y = t * 0.02
 
       renderer.render(scene, camera)
     }

@@ -1,17 +1,16 @@
-// A repeating rhythm of tile sizes for the library grid, applied only from
-// the lg breakpoint up (grid-cols-4/5 with grid-flow-dense). Below that the
-// grid stays a plain 2-column list — mixing 2-wide spans into a 2-column
-// mobile grid would just make every "wide" card full-width, which is not a
-// size variant, it is the whole row.
+// A simple alternating rhythm — big square, small square, big square, small
+// square — applied from the sm breakpoint up (grid-flow-dense fills any gaps
+// dense packing leaves on the tightest 2-column layout, so mobile stays a
+// plain, uniform grid of small squares instead of reflowing oddly).
+//
+// Every tile is a real square: the grid container measures its own live
+// column width (see syncTileSize in App.tsx) and writes it into --tile,
+// which auto-rows reads — so a "big" 2-col/2-row span is exactly as tall as
+// it is wide, at every breakpoint, instead of the wide, cropped-looking
+// rectangle the fixed-height rows produced before.
 const PATTERN = [
-  'lg:col-span-2 lg:row-span-2', // feature
-  '',
-  '',
-  'lg:row-span-2', // tall
-  '',
-  'lg:col-span-2', // wide
-  '',
-  '',
+  'sm:col-span-2 sm:row-span-2', // big
+  '', // small
 ] as const
 
 export function bentoSpan(index: number): string {
