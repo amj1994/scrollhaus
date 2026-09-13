@@ -1,0 +1,580 @@
+Orven — complete build spec
+
+Recreation of a pasted 'Orven' luxury performance-eyewear scroll-hero spec: a vanilla HTML/CSS/JS single-page experience with two video-scrub phases, a crossfade, feature panels driven by position:relative+top for mix-blend-mode-safe motion, an RAF-lerp video scrub engine, and a word/char stagger reveal system. The spec's own two hero video URLs pointed to another party's Higgsfield account, so both are original Higgsfield-generated loops instead: a rotating product shot of performance sunglasses on a reflective surface, and a macro push-in on a lens edge, encoded with a dense keyframe interval since these are scroll-scrubbed (seeked), not just played.
+
+Stack: plain static HTML/CSS/vanilla JS. No build step, no framework.
+
+## Setup
+Create one file named index.html with exactly this content, and serve it as a static file (any static server, e.g. `python3 -m http.server`).
+
+## Files
+
+### index.html
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Orven® — Precision Engineered Eyewear</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --gap: 24px;
+    --margin: 32px;
+    --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { margin: 0; box-sizing: border-box; }
+  html, body { overscroll-behavior: none; }
+
+  html {
+    background: #000;
+  }
+
+  body {
+    background: #000;
+    color: #fff;
+    font-family: 'Inter Tight', sans-serif;
+    font-weight: 500;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    column-gap: var(--gap);
+    padding-inline: var(--margin);
+  }
+
+  /* --- Dev grid overlay, toggled with the "G" key --- */
+  .dev-grid {
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    z-index: 999;
+    pointer-events: none;
+    display: none;
+  }
+  .dev-grid.visible { display: grid; }
+  .dev-grid span {
+    height: 100%;
+    background: rgba(255, 0, 0, 0.1);
+  }
+
+  /* --- Header --- */
+  .site-header {
+    position: fixed;
+    top: 24px;
+    left: 0;
+    width: 100%;
+    height: 58px;
+    padding-inline: 32px;
+    z-index: 100;
+    mix-blend-mode: difference;
+    display: flex;
+    align-items: center;
+  }
+  .site-header .col {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+  .site-header .col-logo {
+    font-size: 24px;
+    letter-spacing: -0.04em;
+  }
+  .site-header .col-nav {
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 24px;
+    align-items: flex-start;
+  }
+  .site-header .col-nav span {
+    font-size: 14px;
+    letter-spacing: -0.03em;
+  }
+  .col-cart {
+    justify-content: flex-end;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0 0 0 24px;
+  }
+  .col-cart span {
+    font-size: 14px;
+    letter-spacing: -0.03em;
+  }
+
+  /* --- Hero --- */
+  .hero {
+    position: relative;
+    height: 1200vh;
+  }
+  .hero-sticky {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow: hidden;
+  }
+  .hero-backdrop {
+    position: absolute;
+    inset: 0;
+    background: #000;
+  }
+  .hero-video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero-video--2 { opacity: 0; }
+  .hero-video--1 { opacity: 1; }
+
+  /* --- Hero UI overlay --- */
+  .hero-ui {
+    position: fixed;
+    inset: 0;
+    height: 100vh;
+    align-content: end;
+    padding-bottom: 33px;
+    pointer-events: none;
+    mix-blend-mode: difference;
+    z-index: 50;
+  }
+  .hero-ui > * { pointer-events: auto; }
+
+  .hero-left {
+    grid-column: 1 / 7;
+  }
+  .hero-title {
+    font-size: 160px;
+    font-weight: 500;
+    line-height: 100%;
+    letter-spacing: -0.04em;
+  }
+  .hero-caption {
+    margin-top: 8px;
+    font-size: 18px;
+    line-height: 120%;
+    letter-spacing: -0.04em;
+    text-indent: 120px;
+  }
+
+  .hero-right {
+    grid-column: 9 / 13;
+    min-height: 176px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .info-row {
+    display: flex;
+  }
+  .info-label {
+    width: 120px;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .info-text {
+    flex: 1;
+    font-size: 18px;
+    text-indent: 120px;
+  }
+  .meta-row {
+    display: flex;
+    gap: 25px;
+    font-size: 18px;
+  }
+
+  /* --- Feature panels --- */
+  .feature-panels {
+    position: fixed;
+    inset: 0;
+    padding-top: 82px;
+    pointer-events: none;
+    mix-blend-mode: difference;
+    z-index: 60;
+  }
+  .panel {
+    grid-row: 1;
+    position: relative;
+    pointer-events: auto;
+  }
+  .panel--right { grid-column: 9 / 12; }
+  .panel--left { grid-column: 2 / 5; }
+
+  .panel-bar-row {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .panel-bar {
+    width: 95px;
+    height: 2px;
+    background: linear-gradient(90deg, #888DCC 0%, #02B5B8 25.96%, #868D0A 55.77%, #B2A2B6 95.19%);
+  }
+
+  .panel-body {
+    margin-top: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 80px;
+  }
+  .panel-text {
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 120%;
+    letter-spacing: -0.04em;
+    text-indent: 120px;
+  }
+  .panel-specs {
+    border-top: 1px solid #fff;
+    padding-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .spec-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .spec-bar {
+    width: 6px;
+    height: 14px;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .spec-row span {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: -0.03em;
+    white-space: nowrap;
+  }
+  .spec-row span:last-child {
+    margin-left: auto;
+  }
+
+  /* --- Section 4 --- */
+  .next {
+    min-height: 100vh;
+    background: #000;
+  }
+
+  /* --- Split-reveal words --- */
+  .reveal-word {
+    display: inline-block;
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(20px);
+    transition: opacity 0.4s var(--ease-expo), filter 0.4s var(--ease-expo), transform 0.4s var(--ease-expo);
+    transition-delay: calc(var(--i, 0) * var(--stagger, 0s));
+    will-change: opacity, filter, transform;
+  }
+  .reveal-active .reveal-word {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+  .reveal-exit .reveal-word {
+    opacity: 0;
+    filter: blur(9px);
+    transform: translateY(-28px);
+    transition-duration: 0.3s;
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 768px) {
+    :root {
+      --gap: 12px;
+      --margin: 16px;
+    }
+
+    .hero-title { font-size: 56px; }
+    .hero-caption {
+      grid-column: 1 / -1;
+      font-size: 14px;
+      text-indent: 0;
+    }
+
+    .hero-right {
+      grid-column: 1 / -1;
+      min-height: auto;
+      margin-top: 24px;
+    }
+    .info-row { flex-direction: column; }
+    .info-label { width: auto; font-size: 14px; }
+    .info-text { font-size: 14px; text-indent: 0; }
+    .meta-row { font-size: 14px; }
+
+    .hero-ui { padding-bottom: 24px; }
+
+    .site-header {
+      padding-inline: 16px;
+      top: 16px;
+    }
+    .site-header .col-nav,
+    .site-header .col-cart { display: none; }
+
+    .panel--right,
+    .panel--left { grid-column: 1 / -1; }
+    .panel-text { font-size: 20px; text-indent: 0; }
+  }
+
+  @media (max-width: 480px) {
+    .hero-title { font-size: 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="dev-grid grid" id="devGrid" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span><span></span>
+</div>
+
+<header class="site-header">
+  <div class="col col-logo">Orven&reg;</div>
+  <div class="col col-nav">
+    <span>Precision engineered</span>
+    <span>Essential</span>
+    <span>Proven</span>
+  </div>
+  <div class="col col-nav">
+    <span>Innovation Redefined</span>
+    <span>Our Story</span>
+  </div>
+  <div class="col col-cart">
+    <span>+ Cart</span>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-sticky">
+    <div class="hero-backdrop"></div>
+    <video id="video2" class="hero-video hero-video--2" muted playsinline preload="auto">
+      <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/f2bd1096-0e4d-4d1c-be1b-1448e94b621e.mp4" type="video/mp4" />
+    </video>
+    <video id="video1" class="hero-video hero-video--1" muted playsinline preload="auto">
+      <source src="https://d2ol7oe51mr4n9.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/10fb1243-fcfe-4bef-bddf-a98f3b7bc2af.mp4" type="video/mp4" />
+    </video>
+  </div>
+</section>
+
+<div class="hero-ui grid" id="heroUi">
+  <div class="hero-left">
+    <h1 class="hero-title" id="heroTitle">Orven&reg;</h1>
+    <p class="hero-caption" id="heroCaption">Performance optics engineered for crystal vision. Precision-crafted lenses tested for durability. Superior technology. Built for excellence</p>
+  </div>
+
+  <div class="hero-right">
+    <div class="info-row">
+      <div class="info-label">Info</div>
+      <p class="info-text" id="heroInfoText">Advanced lens engineering meets optical excellence. Every frame tested for impact resistance. Precision optics drive performance vision forward</p>
+    </div>
+    <div class="meta-row">
+      <span>(Drop)</span>
+      <span>(2026)</span>
+    </div>
+  </div>
+</div>
+
+<div class="feature-panels grid" id="featurePanels">
+  <div class="panel panel--right" id="panelRight">
+    <div class="panel-bar-row"><div class="panel-bar"></div></div>
+    <div class="panel-body">
+      <p class="panel-text" id="rightPanelText">Precision-ground lenses hold razor clarity from edge to edge. Tuned to kill glare, lift contrast, and stay flawless through speed, sweat, and grit.</p>
+      <div class="panel-specs">
+        <div class="spec-row"><span class="spec-bar"></span><span>Clarity</span><span>98%</span></div>
+        <div class="spec-row"><span class="spec-bar"></span><span>Contrast</span><span>94%</span></div>
+        <div class="spec-row"><span class="spec-bar"></span><span>UV Filter</span><span>400nm</span><span>100%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel panel--left" id="panelLeft">
+    <div class="panel-bar-row"><div class="panel-bar"></div></div>
+    <div class="panel-body">
+      <p class="panel-text" id="leftPanelText">Aerospace-grade polymer flexes under load and springs back unbroken. Built to swallow impact, shed heat, and stay locked through every hard mile.</p>
+      <div class="panel-specs">
+        <div class="spec-row"><span class="spec-bar"></span><span>Frame Weight</span><span>22g</span></div>
+        <div class="spec-row"><span class="spec-bar"></span><span>Impact Rating</span><span>Z87+</span></div>
+        <div class="spec-row"><span class="spec-bar"></span><span>Field</span><span>180 degrees</span><span>Wide</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<section class="next"></section>
+
+<script>
+(function () {
+  // ---------- Dev grid overlay ("G" key) ----------
+  const devGrid = document.getElementById('devGrid');
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'g' || e.key === 'G') devGrid.classList.toggle('visible');
+  });
+
+  // ---------- Split-reveal ----------
+  function splitReveal(el, mode, stagger) {
+    const text = el.textContent;
+    el.textContent = '';
+    const units = mode === 'char' ? [...text] : text.split(' ');
+    units.forEach((unit, i) => {
+      const span = document.createElement('span');
+      span.className = 'reveal-word';
+      span.textContent = unit;
+      span.style.setProperty('--i', i);
+      span.style.setProperty('--stagger', stagger + 's');
+      el.appendChild(span);
+      if (mode === 'word' && i < units.length - 1) {
+        el.appendChild(document.createTextNode(' '));
+      }
+    });
+  }
+
+  splitReveal(document.getElementById('heroTitle'), 'char', 0.025);
+  splitReveal(document.getElementById('heroCaption'), 'word', 0.05);
+  splitReveal(document.getElementById('heroInfoText'), 'word', 0.05);
+  splitReveal(document.getElementById('rightPanelText'), 'word', 0.05);
+  splitReveal(document.getElementById('leftPanelText'), 'word', 0.05);
+
+  // Hero title cluster reveals immediately on page load.
+  const heroUi = document.getElementById('heroUi');
+  requestAnimationFrame(() => heroUi.classList.add('reveal-active'));
+
+  // ---------- Video scrub engine (RAF-lerp) ----------
+  function makeScrubber(video) {
+    let target = 0;
+    let current = 0;
+    let lastSeek = 0;
+    let raf = null;
+    let primed = false;
+
+    video.addEventListener('loadedmetadata', () => {
+      if (primed) return;
+      primed = true;
+      const p = video.play();
+      if (p && p.then) p.then(() => video.pause()).catch(() => {});
+      else video.pause();
+    });
+
+    function tick(now) {
+      current += (target - current) * 0.09;
+      if (Math.abs(target - current) < 0.002) current = target;
+
+      const drift = Math.abs(video.currentTime - current);
+      if (drift > 0.02 && now - lastSeek > 30) {
+        try { video.currentTime = current; } catch (e) {}
+        lastSeek = now;
+      }
+
+      if (Math.abs(target - current) > 0.001) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        raf = null;
+      }
+    }
+
+    return {
+      setTarget(t) {
+        const dur = video.duration || 0;
+        target = Math.max(0, Math.min(dur, t));
+        if (!raf) raf = requestAnimationFrame(tick);
+      },
+    };
+  }
+
+  const video1 = document.getElementById('video1');
+  const video2 = document.getElementById('video2');
+  const scrub1 = makeScrubber(video1);
+  const scrub2 = makeScrubber(video2);
+
+  // ---------- Scroll-driven timeline ----------
+  const SCRUB1_VH = 3;
+  const FADE_VH = 3;
+  const SCRUB2_VH = 5;
+  const TOTAL_VH = SCRUB1_VH + FADE_VH + SCRUB2_VH + 1;
+
+  const heroEl = document.querySelector('.hero');
+  const heroCaption = document.getElementById('heroCaption');
+  const panelRight = document.getElementById('panelRight');
+  const panelLeft = document.getElementById('panelLeft');
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function panelMotion(panel, subProgress) {
+    const vh = window.innerHeight;
+    const h = panel.offsetHeight || 0;
+    const start = vh + 60;
+    const travel = vh + h + 60;
+    panel.style.top = (start - subProgress * travel) + 'px';
+  }
+
+  function applyReveal(el, subProgress) {
+    if (subProgress < 0.12) {
+      el.classList.remove('reveal-active', 'reveal-exit');
+    } else if (subProgress <= 0.88) {
+      el.classList.add('reveal-active');
+      el.classList.remove('reveal-exit');
+    } else {
+      el.classList.add('reveal-exit');
+      el.classList.remove('reveal-active');
+    }
+  }
+
+  function update() {
+    const vh = window.innerHeight;
+    const start = heroEl.offsetTop;
+    const scrollVh = clamp((window.scrollY - start) / vh, 0, TOTAL_VH);
+
+    const p1 = clamp(scrollVh / SCRUB1_VH, 0, 1);
+    const p2 = clamp((scrollVh - SCRUB1_VH) / FADE_VH, 0, 1);
+    const p3 = clamp((scrollVh - SCRUB1_VH - FADE_VH) / SCRUB2_VH, 0, 1);
+
+    // Phase 1 — video 1 scrub + hero UI fade/dissolve.
+    if (video1.duration) scrub1.setTarget(p1 * video1.duration);
+
+    const uiFade = clamp((p1 - 0.8) / 0.2, 0, 1);
+    heroUi.style.opacity = 1 - uiFade;
+    heroUi.style.transform = 'translateY(' + (-120 * uiFade) + 'px)';
+    if (uiFade > 0.15) {
+      heroUi.classList.add('reveal-exit');
+      heroUi.classList.remove('reveal-active');
+    } else {
+      heroUi.classList.add('reveal-active');
+      heroUi.classList.remove('reveal-exit');
+    }
+
+    // Phase 2 — crossfade.
+    video1.style.opacity = 1 - p2;
+    video1.style.filter = 'blur(' + (p2 * 80) + 'px)';
+    video2.style.opacity = p2;
+
+    // Phase 3 — video 2 scrub + feature panels.
+    const scrub2Progress = clamp(p3 / 0.8, 0, 1);
+    if (video2.duration) scrub2.setTarget(scrub2Progress * video2.duration);
+
+    const rightSub = clamp((p3 - 0) / (0.4 - 0), 0, 1);
+    const leftSub = clamp((p3 - 0.45) / (0.85 - 0.45), 0, 1);
+
+    panelMotion(panelRight, rightSub);
+    panelMotion(panelLeft, leftSub);
+    applyReveal(document.getElementById('rightPanelText'), rightSub);
+    applyReveal(document.getElementById('leftPanelText'), leftSub);
+  }
+
+  window.addEventListener('scroll', update, { passive: true });
+  window.addEventListener('resize', update);
+  update();
+})();
+</script>
+</body>
+</html>
+
+```
+
