@@ -1,10 +1,16 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import Creative from '@/components/Creative'
 import Pricing from '@/components/Pricing'
 import AuthModal from '@/components/AuthModal'
+import { bentoSpan } from '@/lib/bento'
 import { useAuth } from '@/lib/auth'
+
+// Three.js is a ~600KB chunk on its own — split it out so the core library
+// (header, grid, cards) never waits on it. It streams in behind everything
+// else and just fades into place once ready.
+const AmbientBackground = lazy(() => import('@/components/AmbientBackground'))
 
 const BRAND = 'Scrollhaus'
 
@@ -42,7 +48,11 @@ export default function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-[#080808]">
+    <div className="relative min-h-screen bg-[#080808]">
+      <Suspense fallback={null}>
+        <AmbientBackground />
+      </Suspense>
+
       <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#080808]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-4 py-3.5 sm:px-6">
           <a href="/" className="flex shrink-0 items-center" aria-label="Scrollhaus home">
@@ -208,13 +218,19 @@ export default function App() {
             </div>
           </div>
 
-          <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+          <main className="relative mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
             {shown.length === 0 ? (
               <p className="py-24 text-center text-[13px] text-white/30">Nothing here yet.</p>
             ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {shown.map(s => (
-                  <SiteCard key={s.id} site={s} onPremiumClick={() => setView('pricing')} />
+              <div className="grid auto-rows-[190px] grid-cols-2 gap-4 sm:grid-cols-3 sm:auto-rows-[200px] lg:auto-rows-[170px] lg:grid-cols-4 lg:[grid-auto-flow:dense] xl:grid-cols-5">
+                {shown.map((s, i) => (
+                  <SiteCard
+                    key={s.id}
+                    site={s}
+                    index={i}
+                    span={bentoSpan(i)}
+                    onPremiumClick={() => setView('pricing')}
+                  />
                 ))}
               </div>
             )}

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import gsap from 'gsap'
 import { githubOf, previewOf, specOf, thumbOf, type Site } from '@/data/sites'
 import { observe } from '@/lib/inview'
 
@@ -17,13 +18,27 @@ function loadSpec(id: string) {
   return p
 }
 
-export default function SiteCard({ site, onPremiumClick }: { site: Site; onPremiumClick: () => void }) {
+export default function SiteCard({
+  site,
+  onPremiumClick,
+  span = '',
+  index = 0,
+}: {
+  site: Site
+  onPremiumClick: () => void
+  /** Tailwind col/row-span classes for the bento grid — see lib/bento.ts. */
+  span?: string
+  /** Position in the currently filtered list, used only to stagger the reveal. */
+  index?: number
+}) {
   const [copied, setCopied] = useState<'idle' | 'ok' | 'err'>('idle')
   const [near, setNear] = useState(false)   // within 300px of the viewport
   const [ready, setReady] = useState(false) // first video frame painted
   const inViewRef = useRef(false)
+  const revealedRef = useRef(false) // the GSAP entrance only ever plays once
   const videoRef = useRef<HTMLVideoElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
 
   // The <video> element does not exist until the card is near the viewport, and
   // it is torn down again once the card has been away for a while. Without the
@@ -32,6 +47,10 @@ export default function SiteCard({ site, onPremiumClick }: { site: Site; onPremi
   // The 4s grace period means flicking back and forth across the boundary does
   // not thrash, and the card is >300px offscreen when the swap happens, so the
   // poster coming back is never visible.
+  //
+  // The same intersection callback also fires the GSAP entrance the first
+  // time a card is seen — no second observer for that, per the "one
+  // IntersectionObserver for the whole grid" rule in lib/inview.ts.
   useEffect(() => {
     const box = boxRef.current
     if (!box) return
@@ -46,6 +65,22 @@ export default function SiteCard({ site, onPremiumClick }: { site: Site; onPremi
         // v is still null on the FIRST intersection - the element has not been
         // rendered yet. The effect below is what actually starts playback then.
         v?.play().catch(() => {})
+
+        if (!revealedRef.current && rootRef.current) {
+          revealedRef.current = true
+          gsap.fromTo(
+            rootRef.current,
+            { opacity: 0, y: 22, scale: 0.96 },
+            {
+              opacity: 1,
+              y: 0,
+              scale: 1,
+              duration: 0.7,
+              ease: 'power3.out',
+              delay: Math.min(index % 4, 3) * 0.06,
+            },
+          )
+        }
       } else {
         v?.pause()
         window.clearTimeout(release)
@@ -53,6 +88,40 @@ export default function SiteCard({ site, onPremiumClick }: { site: Site; onPremi
       }
     })
     return () => { window.clearTimeout(release); stop() }
+  }, [index])
+
+  // A light magnetic tilt on hover — quickTo keeps this cheap even with many
+  // cards, since it reuses one tween per axis instead of spinning up a new
+  // one on every pointer move.
+  useEffect(() => {
+    const box = boxRef.current
+    if (!box || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    const rotX = gsap.quickTo(box, 'rotateX', { duration: 0.5, ease: 'power3.out' })
+    const rotY = gsap.quickTo(box, 'rotateY', { duration: 0.5, ease: 'power3.out' })
+    const scale = gsap.quickTo(box, 'scale', { duration: 0.4, ease: 'power3.out' })
+
+    const onMove = (e: PointerEvent) => {
+      const r = box.getBoundingClientRect()
+      const px = (e.clientX - r.left) / r.width - 0.5
+      const py = (e.clientY - r.top) / r.height - 0.5
+      rotY(px * 8)
+      rotX(-py * 8)
+      scale(1.015)
+    }
+    const onLeave = () => {
+      rotX(0)
+      rotY(0)
+      scale(1)
+    }
+
+    gsap.set(box, { transformPerspective: 700 })
+    box.addEventListener('pointermove', onMove)
+    box.addEventListener('pointerleave', onLeave)
+    return () => {
+      box.removeEventListener('pointermove', onMove)
+      box.removeEventListener('pointerleave', onLeave)
+    }
   }, [])
 
   // Start playback once the <video> actually exists. Without this the first
@@ -90,11 +159,17 @@ export default function SiteCard({ site, onPremiumClick }: { site: Site; onPremi
     window.setTimeout(() => setCopied('idle'), 1600)
   }
 
+  const initialHidden = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
   return (
-    <div className="group card-cv">
+    <div
+      ref={rootRef}
+      className={`group card-cv flex h-full flex-col ${span}`}
+      style={{ opacity: initialHidden ? 0 : 1 }}
+    >
       <div
         ref={boxRef}
-        className="relative aspect-video overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10"
+        className="relative min-h-[150px] flex-1 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 will-change-transform"
       >
         <img
           src={thumbOf(site.id)}
@@ -178,7 +253,7 @@ export default function SiteCard({ site, onPremiumClick }: { site: Site; onPremi
         </div>
       </div>
 
-      <div className="mt-2.5 flex items-baseline justify-between gap-3 px-0.5">
+      <div className="mt-2.5 flex shrink-0 items-baseline justify-between gap-3 px-0.5">
         <div className="min-w-0">
           <div className="truncate text-[13px] font-semibold tracking-tight text-white">{site.title}</div>
           <div className="mt-0.5 text-[11px] text-white/35">{site.category}</div>
