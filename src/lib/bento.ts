@@ -1,17 +1,19 @@
-// Three aspect ratios in rotation, not one uniform shape — this is what
-// actually produces the staggered, non-symmetrical masonry look (a wide
-// card and a tall card sitting side by side naturally throw their columns
-// out of alignment; a grid of identical squares never can, no matter how
-// the columns are counted). Length 7 against 4 columns means the same
-// column doesn't land on the same ratio again for 28 cards.
+// Three aspect ratios in rotation, all close to the library's own native
+// 16:9 preview footage — that's what keeps the masonry stagger real without
+// the letterboxing blowing up. object-contain never crops, but the further
+// a box's ratio sits from 16:9 the more of it is dead margin instead of
+// video: a 3:4 portrait box showing 16:9 content is ~77% blank bars, top
+// and bottom. Staying inside roughly 1.5–2.1 keeps that margin to a sliver
+// (worst case around 12% a side) while still throwing columns out of
+// alignment — variety without the empty-frame look.
 const RATIOS = [
-  '4 / 3', // normal
-  '3 / 4', // tall
-  '16 / 9', // wide
-  '4 / 3',
+  '16 / 9', // exact match, no letterbox at all
+  '3 / 2', // a little taller
+  '2 / 1', // a little wider
   '16 / 9',
-  '3 / 4',
-  '4 / 3',
+  '2 / 1',
+  '3 / 2',
+  '16 / 9',
 ] as const
 
 export function bentoSpan(index: number): string {
