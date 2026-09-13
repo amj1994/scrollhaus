@@ -1,16 +1,13 @@
-// A simple alternating rhythm — big square, small square, big square, small
-// square — applied from the sm breakpoint up (grid-flow-dense fills any gaps
-// dense packing leaves on the tightest 2-column layout, so mobile stays a
-// plain, uniform grid of small squares instead of reflowing oddly).
-//
-// Every tile is a real square: the grid container measures its own live
-// column width (see syncTileSize in App.tsx) and writes it into --tile,
-// which auto-rows reads — so a "big" 2-col/2-row span is exactly as tall as
-// it is wide, at every breakpoint, instead of the wide, cropped-looking
-// rectangle the fixed-height rows produced before.
+// A subtle alternating rhythm — normal tile, slightly smaller tile, repeating
+// — not a dramatic big/small split. Every card sits in the SAME uniform grid
+// cell (no col/row spanning at all now), so there is no dense-packing, no
+// cell four times the area of its neighbor, and nothing for the video inside
+// to get cropped against: the "smaller" variant is just a bit of inset
+// padding shrinking the square within its own cell, leaving a sliver of the
+// ambient backdrop showing around it.
 const PATTERN = [
-  'sm:col-span-2 sm:row-span-2', // big
-  '', // small
+  '', // normal
+  'p-[5%]', // a little smaller
 ] as const
 
 export function bentoSpan(index: number): string {

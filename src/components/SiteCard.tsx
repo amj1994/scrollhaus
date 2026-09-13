@@ -177,7 +177,7 @@ export default function SiteCard({
           aria-hidden="true"
           loading="lazy"
           decoding="async"
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${ready ? 'opacity-0' : 'opacity-100'}`}
+          className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${ready ? 'opacity-0' : 'opacity-100'}`}
         />
         {near && (
           <video
@@ -190,7 +190,7 @@ export default function SiteCard({
             preload="auto"
             aria-label={`Scroll-through preview of ${site.title}`}
             onPlaying={() => setReady(true)}
-            className="absolute inset-0 h-full w-full object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
+            className="absolute inset-0 h-full w-full object-contain transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
           />
         )}
 

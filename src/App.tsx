@@ -245,7 +245,7 @@ export default function App() {
             ) : (
               <div
                 ref={gridRef}
-                className="grid grid-cols-2 gap-4 [grid-auto-rows:var(--tile,190px)] sm:grid-cols-3 sm:[grid-auto-flow:dense] lg:grid-cols-4 xl:grid-cols-5"
+                className="grid grid-cols-2 gap-4 [grid-auto-rows:var(--tile,190px)] sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6"
               >
                 {shown.map((s, i) => (
                   <SiteCard
