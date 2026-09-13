@@ -191,7 +191,7 @@ export default function SiteCard({
             muted
             loop
             playsInline
-            preload="auto"
+            preload="metadata"
             aria-label={`Scroll-through preview of ${site.title}`}
             onPlaying={() => setReady(true)}
             className="absolute inset-0 h-full w-full object-contain transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"

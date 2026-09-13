@@ -44,68 +44,70 @@ export const CATEGORIES = [
   'Saas', 'Ai', '3d Website', 'Wellness', 'Travel', 'Technology', 'Fintech',
 ] as const
 
-// previewV: '4' across the board on 2026-09-10 — every preview was recaptured
-// in one batch with a native 30fps screencast recorder (Puppeteer
-// page.screencast()) replacing the old periodic-screenshot method (a
-// screenshot every 150ms, ~6.7fps of real content, stretched to fill time by
-// holding each frame — looked like a slideshow for any continuous scroll
-// motion, not video). See gallery commit history for the capture-tool fix.
+// previewV: '6' across the board on 2026-09-13 — every preview was re-encoded
+// down from a 1920x1080 source (the cards never render wider than ~380px) to
+// 960px-wide H.264 at a content-appropriate CRF, cutting the library from 69MB
+// to 26MB. Uncapped source resolution meant every card near the viewport was
+// decoding a full 1080p stream at once — with a dozen-plus cards inside the
+// 300px intersection runway during a normal scroll, that decode + bandwidth
+// load was what made scrolling stall. Quality is unchanged at the size the
+// video ever actually displays at; only the wasted resolution is gone.
 export const SITES: Site[] = [
-  { id: 'juniper-path', title: 'Juniper Path', category: 'Wellness', added: '2026-09-07', previewV: '4' },
-  { id: 'argent', title: 'Argent', category: 'Hero', added: '2026-09-07', previewV: '4' },
-  { id: 'ltv12', title: 'LTV-12', category: 'Technology', added: '2026-09-07', previewV: '5' },
-  { id: 'anula', title: 'Anula', category: 'Ecommerce', added: '2026-09-08', previewV: '4' },
-  { id: 'botnest', title: 'BotNest', category: 'Ai', added: '2026-09-08', previewV: '5' },
-  { id: 'voyages', title: 'Voyages & Chapters', category: 'Travel', added: '2026-09-08', previewV: '4' },
-  { id: 'cryptowave', title: 'CryptoWave', category: 'Fintech', added: '2026-09-09', previewV: '4' },
-  { id: 'lafys', title: 'Lafys', category: 'Portfolio', added: '2026-09-09', previewV: '5' },
-  { id: 'third-time', title: 'The Third Time', category: 'Landing Page', added: '2026-09-09', previewV: '5' },
-  { id: 'tenth-hvac', title: 'Tenth Heating & Air', category: 'Landing Page', added: '2026-09-09', previewV: '5' },
-  { id: 'solv-finance', title: 'Solv', category: 'Fintech', added: '2026-09-09', previewV: '4' },
-  { id: 'glass-solution', title: 'ai/SmartSolution', category: 'Ai', added: '2026-09-09', previewV: '4' },
-  { id: 'glair-glasses', title: 'Glair', category: 'Technology', added: '2026-09-09', previewV: '4' },
-  { id: 'pictura', title: 'Pictura', category: 'Portfolio', added: '2026-09-09', previewV: '4' },
-  { id: 'nexus-ring', title: 'Nexus Ring', category: 'Ecommerce', added: '2026-09-09', previewV: '4' },
-  { id: 'nixole', title: 'Nixole', category: 'Saas', added: '2026-09-09', previewV: '4' },
-  { id: 'e-endless', title: 'E-Endless', category: 'Saas', added: '2026-09-10', previewV: '4' },
-  { id: 'vanguard', title: 'Vanguard', category: 'Fintech', added: '2026-09-10', previewV: '4' },
-  { id: 'shyen', title: 'Shyen', category: 'Ai', added: '2026-09-10', previewV: '4' },
-  { id: 'cirform', title: 'Cirform', category: 'Fintech', added: '2026-09-10', previewV: '4' },
-  { id: 'animated-loader', title: 'Animated Loader', category: 'Hero', added: '2026-09-10', previewV: '4' },
-  { id: 'brilliant-portfolio', title: 'Liquid', category: '3d Website', added: '2026-09-10', previewV: '4' },
-  { id: 'kubric', title: 'Kubric', category: 'Saas', added: '2026-09-10', previewV: '4' },
-  { id: 'valmax', title: 'Valmax', category: 'Portfolio', added: '2026-09-10', previewV: '4' },
-  { id: 'pelmatech', title: 'Pelmatech', category: 'Landing Page', added: '2026-09-10', previewV: '4' },
-  { id: 'groundai', title: 'GroundAI', category: 'Ai', added: '2026-09-10', previewV: '4' },
-  { id: 'sixsense', title: 'Sixsense', category: 'Ai', added: '2026-09-10', previewV: '4' },
-  { id: 'bancuip', title: 'Bancuip', category: 'Fintech', added: '2026-09-10', previewV: '4' },
-  { id: 'pallet-ross', title: 'Pallet Ross', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
-  { id: 'pallet-bags', title: 'Bags Crafted', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
-  { id: 'moneta', title: 'Moneta Key', category: 'Interactive', added: '2026-09-10', previewV: '4' },
-  { id: 'pyra', title: 'Pyra', category: 'Ecommerce', added: '2026-09-10', previewV: '4' },
-  { id: 'ember-footer', title: 'Ember', category: 'Interactive', added: '2026-09-10', previewV: '2' },
-  { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10', previewV: '2' },
-  { id: 'inner-circle', title: 'Inner Circle', category: 'Interactive', added: '2026-09-10' },
-  { id: 'morphos', title: 'Morphos', category: '3d Website', added: '2026-09-12' },
-  { id: 'neuralkinetics', title: 'NeuralKinetics', category: 'Ai', added: '2026-09-12' },
+  { id: 'juniper-path', title: 'Juniper Path', category: 'Wellness', added: '2026-09-07', previewV: '6' },
+  { id: 'argent', title: 'Argent', category: 'Hero', added: '2026-09-07', previewV: '6' },
+  { id: 'ltv12', title: 'LTV-12', category: 'Technology', added: '2026-09-07', previewV: '6' },
+  { id: 'anula', title: 'Anula', category: 'Ecommerce', added: '2026-09-08', previewV: '6' },
+  { id: 'botnest', title: 'BotNest', category: 'Ai', added: '2026-09-08', previewV: '6' },
+  { id: 'voyages', title: 'Voyages & Chapters', category: 'Travel', added: '2026-09-08', previewV: '6' },
+  { id: 'cryptowave', title: 'CryptoWave', category: 'Fintech', added: '2026-09-09', previewV: '6' },
+  { id: 'lafys', title: 'Lafys', category: 'Portfolio', added: '2026-09-09', previewV: '6' },
+  { id: 'third-time', title: 'The Third Time', category: 'Landing Page', added: '2026-09-09', previewV: '6' },
+  { id: 'tenth-hvac', title: 'Tenth Heating & Air', category: 'Landing Page', added: '2026-09-09', previewV: '6' },
+  { id: 'solv-finance', title: 'Solv', category: 'Fintech', added: '2026-09-09', previewV: '6' },
+  { id: 'glass-solution', title: 'ai/SmartSolution', category: 'Ai', added: '2026-09-09', previewV: '6' },
+  { id: 'glair-glasses', title: 'Glair', category: 'Technology', added: '2026-09-09', previewV: '6' },
+  { id: 'pictura', title: 'Pictura', category: 'Portfolio', added: '2026-09-09', previewV: '6' },
+  { id: 'nexus-ring', title: 'Nexus Ring', category: 'Ecommerce', added: '2026-09-09', previewV: '6' },
+  { id: 'nixole', title: 'Nixole', category: 'Saas', added: '2026-09-09', previewV: '6' },
+  { id: 'e-endless', title: 'E-Endless', category: 'Saas', added: '2026-09-10', previewV: '6' },
+  { id: 'vanguard', title: 'Vanguard', category: 'Fintech', added: '2026-09-10', previewV: '6' },
+  { id: 'shyen', title: 'Shyen', category: 'Ai', added: '2026-09-10', previewV: '6' },
+  { id: 'cirform', title: 'Cirform', category: 'Fintech', added: '2026-09-10', previewV: '6' },
+  { id: 'animated-loader', title: 'Animated Loader', category: 'Hero', added: '2026-09-10', previewV: '6' },
+  { id: 'brilliant-portfolio', title: 'Liquid', category: '3d Website', added: '2026-09-10', previewV: '6' },
+  { id: 'kubric', title: 'Kubric', category: 'Saas', added: '2026-09-10', previewV: '6' },
+  { id: 'valmax', title: 'Valmax', category: 'Portfolio', added: '2026-09-10', previewV: '6' },
+  { id: 'pelmatech', title: 'Pelmatech', category: 'Landing Page', added: '2026-09-10', previewV: '6' },
+  { id: 'groundai', title: 'GroundAI', category: 'Ai', added: '2026-09-10', previewV: '6' },
+  { id: 'sixsense', title: 'Sixsense', category: 'Ai', added: '2026-09-10', previewV: '6' },
+  { id: 'bancuip', title: 'Bancuip', category: 'Fintech', added: '2026-09-10', previewV: '6' },
+  { id: 'pallet-ross', title: 'Pallet Ross', category: 'Ecommerce', added: '2026-09-10', previewV: '6' },
+  { id: 'pallet-bags', title: 'Bags Crafted', category: 'Ecommerce', added: '2026-09-10', previewV: '6' },
+  { id: 'moneta', title: 'Moneta Key', category: 'Interactive', added: '2026-09-10', previewV: '6' },
+  { id: 'pyra', title: 'Pyra', category: 'Ecommerce', added: '2026-09-10', previewV: '6' },
+  { id: 'ember-footer', title: 'Ember', category: 'Interactive', added: '2026-09-10', previewV: '6' },
+  { id: 'quire', title: 'Quire', category: 'Interactive', added: '2026-09-10', previewV: '6' },
+  { id: 'inner-circle', title: 'Inner Circle', category: 'Interactive', added: '2026-09-10', previewV: '6' },
+  { id: 'morphos', title: 'Morphos', category: '3d Website', added: '2026-09-12', previewV: '6' },
+  { id: 'neuralkinetics', title: 'NeuralKinetics', category: 'Ai', added: '2026-09-12', previewV: '6' },
 ]
 
 // Free giveaway builds — mixed into the main grid (via ALL_SITES below)
 // with a "Free" badge rather than a separate tab. Original builds made
 // specifically to be free; paid library sites above are never marked free.
 export const FREE_SITES: Site[] = [
-  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '2', free: true },
-  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10', free: true },
-  { id: 'waypoint-about', title: 'Waypoint', category: 'Travel', added: '2026-09-10', free: true },
-  { id: 'aurum-jewelry', title: 'Aurum', category: 'Portfolio', added: '2026-09-11', previewV: '2', free: true },
-  { id: 'velara', title: 'Velara', category: 'Ai', added: '2026-09-12', free: true },
-  { id: 'frostbound', title: 'Frostbound', category: 'Travel', added: '2026-09-12', free: true },
-  { id: 'auria', title: 'Auria', category: 'Ai', added: '2026-09-12', free: true },
-  { id: 'contentflow', title: 'ContentFlow', category: 'Saas', added: '2026-09-12', free: true },
-  { id: 'brandly', title: 'Brandly', category: 'Agency', added: '2026-09-12', free: true },
-  { id: 'aperture', title: 'Aperture', category: 'Agency', added: '2026-09-12', free: true },
-  { id: 'orven', title: 'Orven', category: 'Ecommerce', added: '2026-09-13', free: true },
-  { id: 'drift', title: 'DRIFT', category: 'Hero', added: '2026-09-13', free: true },
+  { id: 'kelo-hero', title: 'Kelo', category: 'Ai', added: '2026-09-10', previewV: '6', free: true },
+  { id: 'verve-header', title: 'Verve', category: 'Ecommerce', added: '2026-09-10', previewV: '6', free: true },
+  { id: 'waypoint-about', title: 'Waypoint', category: 'Travel', added: '2026-09-10', previewV: '6', free: true },
+  { id: 'aurum-jewelry', title: 'Aurum', category: 'Portfolio', added: '2026-09-11', previewV: '6', free: true },
+  { id: 'velara', title: 'Velara', category: 'Ai', added: '2026-09-12', previewV: '6', free: true },
+  { id: 'frostbound', title: 'Frostbound', category: 'Travel', added: '2026-09-12', previewV: '6', free: true },
+  { id: 'auria', title: 'Auria', category: 'Ai', added: '2026-09-12', previewV: '6', free: true },
+  { id: 'contentflow', title: 'ContentFlow', category: 'Saas', added: '2026-09-12', previewV: '6', free: true },
+  { id: 'brandly', title: 'Brandly', category: 'Agency', added: '2026-09-12', previewV: '6', free: true },
+  { id: 'aperture', title: 'Aperture', category: 'Agency', added: '2026-09-12', previewV: '6', free: true },
+  { id: 'orven', title: 'Orven', category: 'Ecommerce', added: '2026-09-13', previewV: '6', free: true },
+  { id: 'drift', title: 'DRIFT', category: 'Hero', added: '2026-09-13', previewV: '6', free: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]
