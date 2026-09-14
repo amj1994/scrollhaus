@@ -275,9 +275,18 @@ function rafLoop(ts){
   else smoothScrollProgress=scrollProgress;
   var p=smoothScrollProgress;
 
-  // Seek video
-  if(videoReady&&video.duration&&Math.abs(delta)>0.008){
-    seekTo(p*video.duration);
+  // Seek video — gated on how far the video's own currentTime is from the
+  // smoothed target, not on the outer scroll-lerp delta. The lerp above
+  // settles (delta < 0.0001) well before smoothScrollProgress actually
+  // reaches scrollProgress, and gating on that delta stopped seeking the
+  // instant the lerp looked "close enough" even though p was still moving
+  // toward its target — the video visibly froze while every other
+  // scroll-driven effect on the page kept animating.
+  if(videoReady&&video.duration){
+    var targetT=p*video.duration;
+    if(Math.abs(video.currentTime-targetT)>0.01){
+      seekTo(targetT);
+    }
   }
 
   // Video blur/scale

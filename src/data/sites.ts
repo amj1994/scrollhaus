@@ -133,6 +133,11 @@ export const FREE_SITES: Site[] = [
   { id: 'keynest', title: 'KeyNest', category: 'Saas', added: '2026-09-15', free: true, live: true },
   { id: 'aegis', title: 'Aegis Ops', category: 'Technology', added: '2026-09-15', free: true, live: true },
   { id: 'figura', title: 'Figura', category: 'Ecommerce', added: '2026-09-15', free: true, live: true },
+  { id: 'axiom', title: 'Axiom R9', category: 'Ecommerce', added: '2026-09-15', free: true, live: true },
+  { id: 'helixway', title: 'Helixway', category: 'Technology', added: '2026-09-15', free: true, live: true },
+  { id: 'paperkite', title: 'Paperkite', category: 'Agency', added: '2026-09-15', free: true, live: true },
+  { id: 'aurum-ash', title: 'Aurum & Ash', category: 'Ecommerce', added: '2026-09-15', free: true, live: true },
+  { id: 'halobake', title: 'HaloBake', category: 'Ecommerce', added: '2026-09-15', free: true, live: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Helixway</title>
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+  <!-- OG / Twitter -->
+  <meta property="og:image" content="https://bolt.new/static/og_default.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:image" content="https://bolt.new/static/og_default.png" />
+
+  <!-- Font -->
+  <link rel="stylesheet" href="https://db.onlinewebfonts.com/c/95cecf452d3208890088a5b4c19c7ecf?family=Helvetica+Neue+ME" />
+
+  <!-- MP4Box (classic script — must expose global MP4Box and DataStream) -->
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+  <script>
+  if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    var lenis = new Lenis({ duration: 1.0, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+    window.__lenis = lenis;
+    requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- NAVBAR -->
+  <nav class="navbar">
+    <div class="navbar__inner">
+      <a href="#" class="navbar__logo">Helixway</a>
+
+      <ul class="navbar__links">
+        <li><a href="#">Kits</a></li>
+        <li><a href="#">Traits</a></li>
+        <li><a href="#">Science</a></li>
+        <li><a href="#">Journal</a></li>
+      </ul>
+
+      <a href="#" class="btn btn--primary navbar__cta">Start Here</a>
+
+      <button class="hamburger" aria-label="Toggle menu" aria-expanded="false">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- MOBILE MENU -->
+  <div class="mobile-menu">
+    <ul class="mobile-menu__links">
+      <li><a href="#">Kits</a></li>
+      <li><a href="#">Traits</a></li>
+      <li><a href="#">Science</a></li>
+      <li><a href="#">Journal</a></li>
+    </ul>
+    <a href="#" class="btn btn--primary mobile-menu__cta">Start Here</a>
+  </div>
+
+  <!-- SCROLL VIDEO BLOCK -->
+  <div class="scroll-video" id="scrollContainer">
+    <video
+      id="scrollVideo"
+      src="assets/video/hero.mp4"
+      muted
+      playsinline
+      preload="auto"
+    ></video>
+    <canvas id="scrollCanvas" class="scroll-canvas" aria-hidden="true"></canvas>
+  </div>
+
+  <!-- CONTENT OVERLAY -->
+  <div class="content-overlay">
+
+    <!-- Section 0: bottom-left -->
+    <div class="section-content section-content--1 active" data-section="0">
+      <div class="content">
+        <h1>Read the story your genes have been keeping.</h1>
+        <p>Trace your ancestry and find relatives you never knew, from one simple cheek swab.</p>
+        <a href="#" class="btn btn--primary">Start Here</a>
+      </div>
+    </div>
+
+    <!-- Section 1: top-right on desktop -->
+    <div class="section-content section-content--2" data-section="1">
+      <div class="content">
+        <h1>Every migration, written in your blood.</h1>
+        <p>Follow your line back through centuries and continents.</p>
+        <a href="#" class="btn btn--primary">See Your Map</a>
+      </div>
+    </div>
+
+    <!-- Section 2: bottom-right on desktop -->
+    <div class="section-content section-content--3" data-section="2">
+      <div class="content">
+        <h1>Where the data meets you.</h1>
+        <p>Genetic insight built on two decades of population research.</p>
+        <a href="#" class="btn btn--outline">Read The Science</a>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>

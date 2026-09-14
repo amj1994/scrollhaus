@@ -1,0 +1,1536 @@
+AXIOM R9 — complete build spec
+
+A finished, self-contained single-file build supplied ready-made: a
+hand-laid road bike showcase with three scroll-scrubbed WebCodecs frame-bank
+video plates (cockpit, frame detail, full-bike), a spec panel, and a
+built-to-order closing section.
+
+Bug fixed on arrival: `screenWriter()`'s very first line computed
+`segT(progress(), IN_rng[0], IN_rng[1])` unconditionally, even for the
+hero screen's writer (`screenWriter(s1, 's1', null, S1_OUT, S1_PAR)`, called
+with `IN_rng` explicitly `null` since the hero needs no entrance). This threw
+`Cannot read properties of null` on every page load, and since it's a
+top-level synchronous call, the throw stopped every scroll-writer
+initialization after it from ever running — the whole scroll engine beyond
+the hero screen was silently dead. Fixed by guarding that line the same way
+the function's own returned closure already guards its `inV`/`outV`
+computation (`IN_rng ? segT(...) : 1`).
+
+Video: three clips, all originally hosted externally (Gumlet, Higgsfield/
+CloudFront) with an unused silent audio track each — the two CloudFront
+ones were 14MB and 19MB at raw capture bitrate. Stripped audio, re-encoded
+with a dense forced keyframe interval (crf 22, -g 6 -keyint_min 6
+-sc_threshold 0) and self-hosted at assets/video/v1.mp4, v2.mp4, v3.mp4 —
+the dense keyframe interval protects the page's native-video fallback path
+if WebCodecs/MP4Box aren't available, the same fix applied to KILN and
+Halogen's scrub-stepping bug this session.
+
+Motion: Lenis smooth scroll wired in (a real scroll-driven multi-screen
+page — a genuine `runway` scroll driver, not a single-viewport hero).
+
+Stack: plain static HTML/CSS/vanilla JS. No build step, no framework.
+
+## Setup
+Serve as a static file — the README notes `file://` is not supported since
+the frame banks fetch raw bytes with range requests
+(`npx serve . -l 5183`, or `python3 -m http.server`). The three plate videos
+must be present at `assets/video/v1.mp4`, `v2.mp4`, `v3.mp4` relative to
+the served root.
+
+## Files
+
+### index.html
+```html
+<!DOCTYPE html>
+<title>AXIOM R9</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="AXIOM R9 — a 6.1 kg hand-laid road bike, built to order in Bergamo.">
+<link rel="stylesheet" href="style.css">
+<script>document.documentElement.classList.add('js')</script>
+
+<a class="skip pol" href="#main">Skip to content</a>
+
+<header class="pill pol">
+  <nav class="pill-nav pol">
+    <a class="pill-mark pol" href="/">Axiom</a>
+    <a href="#spec" class="pol">R9</a>
+  </nav>
+  <div class="pill-act pol">
+    <a href="#spec" class="chip pol">Configure</a>
+    <a href="#spec" class="sq pol" aria-label="Configure">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M2.25 8h11.5M9 3.2 13.75 8 9 12.8"/>
+      </svg>
+    </a>
+  </div>
+</header>
+
+<div class="stage pol" id="stage">
+  <video id="v1" class="plate" src="assets/video/v1.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+  <canvas id="c1" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
+</div>
+
+<div class="reveal reveal--a pol" id="ra">
+  <video id="v2" class="plate" src="assets/video/v2.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+  <canvas id="c2" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
+</div>
+
+<div class="reveal reveal--b pol" id="rb">
+  <video id="v3" class="plate" src="assets/video/v3.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+  <canvas id="c3" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
+</div>
+
+<div class="plate-out" id="plateout"></div>
+
+<main id="main">
+  <div class="chrome">
+    <div class="scr scr--1 pol" id="s1">
+      <h1 class="display display--hero pol">Axiom R9</h1>
+      <p class="note pol">Sixteen plies of T1100 carbon, laid by hand in Bergamo. One frameset leaves the mould each day.</p>
+      <div class="callout pol" style="--bx:1113;--by:220">
+        <div class="badge pol">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="59.5"/>
+          </svg>
+          <div class="b-read pol">
+            <span class="b-val pol">268</span>
+            <span class="b-unit pol">grams</span>
+          </div>
+        </div>
+      </div>
+      <div class="card pol">
+        <div class="card-title pol"><span>Built</span><span class="dim"> to order</span></div>
+        <p class="card-note pol">Each frame is laid, cured and finished for one rider. Fourteen weeks from paint to pedal.</p>
+        <div class="card-act pol">
+          <span class="chip pol">Start your build</span>
+          <a href="#spec" class="sq pol" aria-label="Start your build">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M2.25 8h11.5M9 3.2 13.75 8 9 12.8"/>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="scr scr--2 pol" id="s2">
+      <h2 class="display display--s2 pol">A wheel without<br>a single spoke</h2>
+      <p class="note pol">One piece of carbon, cured in a single mould. No spokes to true, nothing to catch the wind.</p>
+      <div class="callout pol" style="--bx:1113;--by:550">
+        <div class="badge pol">
+          <svg class="ring" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="59.5"/>
+          </svg>
+          <div class="b-read pol">
+            <span class="b-val pol">1254</span>
+            <span class="b-unit pol">grams</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="outro pol" id="spec">
+    <div class="outro-inner pol">
+      <h2 class="display display--fin pol">Six point one<br>kilograms.</h2>
+      <div class="outro-foot pol">
+        <span>Full specification</span>
+      </div>
+      <dl class="spec pol">
+        <div class="spec-row pol">
+          <dt>Frame</dt>
+          <dd><span>T1100 monocoque</span><span>681 g</span></dd>
+        </div>
+        <div class="spec-row pol">
+          <dt>Fork</dt>
+          <dd><span>Integrated crown</span><span>304 g</span></dd>
+        </div>
+        <div class="spec-row pol">
+          <dt>Cockpit</dt>
+          <dd><span>One piece, 6&deg; drop</span><span>268 g</span></dd>
+        </div>
+        <div class="spec-row pol">
+          <dt>Wheelset</dt>
+          <dd><span>Spokeless carbon</span><span>1 254 g</span></dd>
+        </div>
+        <div class="spec-row pol">
+          <dt>Gearbox</dt>
+          <dd><span>Sealed, 12 ratios</span><span>2 402 g</span></dd>
+        </div>
+        <div class="spec-row pol">
+          <dt>Complete</dt>
+          <dd><span>As shown, size 54</span><span>6.1 kg</span></dd>
+        </div>
+      </dl>
+      <div class="card-act spec-act pol">
+        <a href="#spec" class="chip pol">Configure yours</a>
+        <a href="#spec" class="sq pol" aria-label="Configure yours">
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M2.25 8h11.5M9 3.2 13.75 8 9 12.8"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div class="cut-wrap" id="cutwrap" style="display:none">
+  <img class="cutout" id="cut" data-src="https://i.ibb.co/SDws9KFm/bike-rock-transparent-1.png" decoding="async" fetchpriority="low" width="1920" height="1080" alt="">
+</div>
+
+<div class="runway" aria-hidden="true"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var lenis = new Lenis({ duration: 1.0, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+  window.__lenis = lenis;
+  requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
+}
+</script>
+<script defer src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+<script type="module" src="main.js"></script>
+```
+
+### main.js
+```js
+// AXIOM R9 — main.js
+// ES module, no imports, no classes, no async/await
+
+var A = 0.2191, B = 0.4539, HOLD = 0.6261;
+var WIPE_VH = 90;
+var S1_OUT = [0.1565, 0.2035];
+var S2_IN = [0.2348, 0.2817], S2_OUT = [0.3913, 0.4383];
+var POL = [0.3052, 0.3443];
+var S1_PAR = [0.0000, 0.2035], S2_PAR = [0.2348, 0.4383];
+var CUT = [0.622, 0.646];
+var VIDFADE = [0.646, 0.672];
+var EXIT = [0.672, 1.000];
+var FIN = [0.780, 0.862];
+var TAIL = [0.856, 0.974];
+var STAGE_FADE = [0.94, 1.00];
+var LERP_TAU = 8, SNAP = 0.002, LRU_MAX = 24, LEAD = 24, WATCHDOG = 60000;
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function clamp01(v) { return v < 0 ? 0 : v > 1 ? 1 : v; }
+function smoothstep(a, b, x) {
+  var t = clamp01((x - a) / (b - a));
+  return t * t * (3 - 2 * t);
+}
+function segT(p, lo, hi) { return clamp01((p - lo) / (hi - lo)); }
+function r3(v) { return Math.round(v * 1000) / 1000; }
+
+var _memo = {};
+function setVar(el, key, name, v) {
+  var rv = r3(v);
+  var mk = key + name;
+  if (_memo[mk] === rv) return;
+  _memo[mk] = rv;
+  el.style.setProperty(name, rv);
+}
+
+var _classMemo = {};
+function setClass(el, key, cls, on) {
+  var mk = key + cls;
+  if (_classMemo[mk] === on) return;
+  _classMemo[mk] = on;
+  el.classList.toggle(cls, on);
+}
+
+var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+var mqNarrow = matchMedia('(max-width: 767px)');
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+var v1 = document.getElementById('v1');
+var c1 = document.getElementById('c1');
+var v2 = document.getElementById('v2');
+var c2 = document.getElementById('c2');
+var v3 = document.getElementById('v3');
+var c3 = document.getElementById('c3');
+var stage = document.getElementById('stage');
+var ra = document.getElementById('ra');
+var rb = document.getElementById('rb');
+var plateout = document.getElementById('plateout');
+var cutwrap = document.getElementById('cutwrap');
+var cutEl = document.getElementById('cut');
+var s1 = document.getElementById('s1');
+var s2 = document.getElementById('s2');
+var specEl = document.getElementById('spec');
+var runway = document.querySelector('.runway');
+
+// ── cutout ────────────────────────────────────────────────────────────────────
+var hasCut = false;
+
+function loadCutout() {
+  cutEl.addEventListener('load', function () {
+    hasCut = true;
+    cutwrap.style.display = '';
+  });
+  cutEl.addEventListener('error', function () {
+    hasCut = false;
+  });
+  cutEl.src = cutEl.dataset.src;
+}
+
+if (document.readyState === 'complete') {
+  setTimeout(loadCutout, 1200);
+} else {
+  window.addEventListener('load', function () { setTimeout(loadCutout, 1200); });
+}
+
+// ── entrance ──────────────────────────────────────────────────────────────────
+var shown = false;
+var shownAt = 0;
+var settled = false;
+
+function settle() {
+  if (settled) return;
+  settled = true;
+  document.documentElement.classList.add('is-settled');
+}
+
+function showPage() {
+  if (shown) return;
+  shown = true;
+  shownAt = performance.now();
+  requestAnimationFrame(function () {
+    document.documentElement.classList.add('is-ready');
+  });
+  setTimeout(settle, 4000);
+}
+
+document.fonts.ready.then(showPage);
+window.addEventListener('load', showPage);
+setTimeout(function () {
+  // failsafe — no rAF hop (hidden docs)
+  if (!shown) {
+    shown = true;
+    shownAt = performance.now();
+    document.documentElement.classList.add('is-ready');
+    setTimeout(settle, 4000);
+  }
+}, 2500);
+
+// ── frame bank ────────────────────────────────────────────────────────────────
+function createClip(video, canvas) {
+  var ctx = canvas.getContext('2d', { alpha: false });
+  var url = video.getAttribute('src');
+  var dur = 0, current = 0, target = 0;
+  var bank = [], lru = [], drawnIndex = -1;
+  var ready = false, reverted = false, painted = false, building = false;
+  var buildRun = 0;
+
+  function prime() {
+    dur = video.duration || 0;
+    video.currentTime = 0.001;
+    video.pause();
+  }
+
+  if (video.readyState >= 1) { prime(); }
+  video.addEventListener('loadedmetadata', prime);
+
+  function nearestIndex(t) {
+    var us = t * 1e6;
+    var lo = 0, hi = bank.length - 1;
+    while (lo < hi) {
+      var mid = (lo + hi) >> 1;
+      if (bank[mid].ts < us) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
+
+  function evict(bmp) {
+    if (bmp && bmp.close) bmp.close();
+  }
+
+  function warm(i) {
+    for (var d = -1; d <= 2; d++) {
+      var idx = i + d;
+      if (idx < 0 || idx >= bank.length) continue;
+      if (bank[idx].bmp) continue;
+      (function (entry) {
+        createImageBitmap(entry.blob).then(function (bmp) {
+          if (lru.length >= LRU_MAX) { evict(lru.shift().bmp); }
+          entry.bmp = bmp;
+          lru.push(entry);
+        });
+      })(bank[idx]);
+    }
+  }
+
+  function drawFromBank(t) {
+    var i = nearestIndex(t);
+    if (i === drawnIndex) return;
+    drawnIndex = i;
+    warm(i);
+    var entry = bank[i];
+    if (!entry || !entry.bmp) return;
+    ctx.drawImage(entry.bmp, 0, 0, 1280, 720);
+    if (!painted) {
+      painted = true;
+      canvas.classList.add('is-live');
+    }
+  }
+
+  function drawFallback(t) {
+    if (video.seeking) return;
+    if (Math.abs(video.currentTime - t) > 0.01) {
+      video.currentTime = t;
+    }
+    if (video.readyState >= 2) {
+      ctx.drawImage(video, 0, 0, 1280, 720);
+      if (!painted) {
+        painted = true;
+        canvas.classList.add('is-live');
+      }
+    }
+  }
+
+  function render(t) {
+    if (ready) {
+      drawFromBank(t);
+    } else {
+      drawFallback(t);
+    }
+  }
+
+  function revert() {
+    reverted = true;
+    ready = false;
+    canvas.classList.remove('is-live');
+  }
+
+  function build(soft) {
+    if (building) return;
+    if (reduced) return;
+    if (typeof VideoDecoder === 'undefined') return;
+    if (typeof MP4Box === 'undefined') return;
+    if (typeof DataStream === 'undefined') return;
+
+    building = true;
+    reverted = false;
+    var run = ++buildRun;
+    var frames = [];
+    var decoder, file, sampleQueue = [], pumping = false, done = false;
+    var wdTimer = setTimeout(function () { fail('watchdog'); }, WATCHDOG);
+    var hw = true;
+
+    function finish() {
+      if (!finish.called) {
+        finish.called = true;
+        clearTimeout(wdTimer);
+        building = false;
+      }
+    }
+
+    function fail(reason) {
+      if (fail.called) return;
+      fail.called = true;
+      finish();
+      if (hw) {
+        hw = false;
+        setTimeout(function () { build(true); }, 100);
+      } else {
+        revert();
+      }
+    }
+
+    function failDecode(e) {
+      fail('decode:' + (e && e.message || e));
+    }
+
+    var codecStr = '', descBytes = null;
+
+    function configureDecoder() {
+      try {
+        decoder = new VideoDecoder({
+          output: function (frame) {
+            if (run !== buildRun) { frame.close(); return; }
+            frames.push(frame);
+            pump();
+          },
+          error: failDecode
+        });
+        decoder.configure({
+          codec: codecStr,
+          description: descBytes,
+          hardwareAcceleration: hw ? 'prefer-hardware' : 'prefer-software'
+        });
+      } catch (e) { failDecode(e); }
+    }
+
+    function pump() {
+      if (pumping || done) return;
+      pumping = true;
+      while (sampleQueue.length && decoder && decoder.decodeQueueSize < LEAD) {
+        var s = sampleQueue.shift();
+        try {
+          decoder.decode(new EncodedVideoChunk({
+            type: s.is_sync ? 'key' : 'delta',
+            timestamp: s.cts * 1e6 / s.timescale,
+            duration: s.duration * 1e6 / s.timescale,
+            data: s.data
+          }));
+        } catch (e) { failDecode(e); return; }
+      }
+      pumping = false;
+      if (sampleQueue.length === 0 && done) {
+        try {
+          decoder.flush().then(function () {
+            if (run !== buildRun) return;
+            // convert frames to blobs
+            var pending = frames.length;
+            if (pending === 0) { finish(); revert(); return; }
+            frames.forEach(function (frame) {
+              var offscreen = new OffscreenCanvas(frame.displayWidth, frame.displayHeight);
+              var oc = offscreen.getContext('2d');
+              oc.drawImage(frame, 0, 0);
+              var ts = frame.timestamp;
+              frame.close();
+              offscreen.convertToBlob({ type: 'image/jpeg', quality: 0.85 }).then(function (blob) {
+                if (run !== buildRun) return;
+                bank.push({ ts: ts, blob: blob, bmp: null });
+                pending--;
+                if (pending === 0) {
+                  bank.sort(function (a, b) { return a.ts - b.ts; });
+                  // draw first frame
+                  if (bank[0]) {
+                    createImageBitmap(bank[0].blob).then(function (bmp) {
+                      bank[0].bmp = bmp;
+                      ctx.drawImage(bmp, 0, 0, 1280, 720);
+                      ready = true;
+                      finish();
+                    }).catch(function () { ready = true; finish(); });
+                  } else {
+                    ready = true;
+                    finish();
+                  }
+                }
+              }).catch(function () { pending--; if (pending === 0) { ready = true; finish(); } });
+            });
+            frames = [];
+          }).catch(failDecode);
+        } catch (e) { failDecode(e); }
+      }
+    }
+
+    file = MP4Box.createFile();
+    file.onReady = function (info) {
+      var track = info.videoTracks[0];
+      if (!track) { fail('no-video-track'); return; }
+
+      // extract codec description
+      var trak = file.getTrackById(track.id);
+      var entry = trak && trak.mdia && trak.mdia.minf && trak.mdia.minf.stbl &&
+                  trak.mdia.minf.stbl.stsd && trak.mdia.minf.stbl.stsd.entries &&
+                  trak.mdia.minf.stbl.stsd.entries[0];
+      var boxNames = ['avcC', 'hvcC', 'vpcC', 'av1C'];
+      var descBox = null;
+      for (var bi = 0; bi < boxNames.length; bi++) {
+        if (entry && entry[boxNames[bi]]) { descBox = entry[boxNames[bi]]; break; }
+      }
+      if (descBox) {
+        var ds = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
+        descBox.write(ds);
+        descBytes = new Uint8Array(ds.buffer, 8);
+      }
+
+      codecStr = track.codec;
+      configureDecoder();
+      file.setExtractionOptions(track.id, null, { nbSamples: Infinity });
+      file.start();
+    };
+    file.onSamples = function (id, user, samples) {
+      for (var i = 0; i < samples.length; i++) {
+        samples[i].data = samples[i].data.slice();
+        sampleQueue.push(samples[i]);
+      }
+      pump();
+    };
+    file.onError = function (e) { fail('mp4box:' + e); };
+
+    // fetch with range requests
+    var offset = 0;
+    function fetchChunk() {
+      fetch(url, {
+        headers: { Range: 'bytes=' + offset + '-' + (offset + 1024 * 1024 - 1) }
+      }).then(function (res) {
+        return res.arrayBuffer();
+      }).then(function (buf) {
+        if (run !== buildRun) return;
+        buf.fileStart = offset;
+        offset += buf.byteLength;
+        var next = file.appendBuffer(buf);
+        if (buf.byteLength > 0 && next !== null) {
+          fetchChunk();
+        } else if (buf.byteLength > 0) {
+          done = true;
+          pump();
+        } else {
+          done = true;
+          pump();
+        }
+      }).catch(function (e) {
+        if (run !== buildRun) return;
+        done = true;
+        pump();
+      });
+    }
+    fetchChunk();
+  }
+
+  return {
+    get dur() { return dur || (bank.length > 1 ? (bank[bank.length-1].ts - bank[0].ts + (bank[1].ts - bank[0].ts)) / 1e6 : 0); },
+    get drawnIndex() { return drawnIndex; },
+    get painted() { return painted; },
+    get ready() { return ready; },
+    render: render,
+    build: build,
+    revert: revert,
+    prime: prime,
+    current: function () { return current; },
+    setTarget: function (t) { target = t; },
+    lerp: function (dt) {
+      var decay = 1 - Math.exp(-dt * LERP_TAU);
+      current += (target - current) * decay;
+      if (Math.abs(current - target) < SNAP) current = target;
+    }
+  };
+}
+
+var clips = [
+  createClip(v1, c1),
+  createClip(v2, c2),
+  createClip(v3, c3)
+];
+
+// ── build sequentially ────────────────────────────────────────────────────────
+function buildAll() {
+  if (mqNarrow.matches || reduced) return;
+  clips[0].build(false);
+  // build 2 after 1 finishes — simplified: stagger with interval check
+  var t1 = setInterval(function () {
+    if (!mqNarrow.matches && clips[0].ready) {
+      clearInterval(t1);
+      clips[1].build(false);
+      var t2 = setInterval(function () {
+        if (clips[1].ready) {
+          clearInterval(t2);
+          clips[2].build(false);
+        }
+      }, 500);
+    }
+  }, 500);
+}
+
+window.addEventListener('load', buildAll);
+mqNarrow.addEventListener('change', function (e) {
+  if (!e.matches) buildAll();
+});
+
+// ── measure ───────────────────────────────────────────────────────────────────
+var span = 0, wipe = 0, vw = 0, vh = 0;
+
+function measure() {
+  span = runway.offsetHeight - innerHeight;
+  wipe = span > 0 ? Math.min(0.24, (WIPE_VH / 100 * innerHeight) / span) : 0;
+  vw = innerWidth;
+  vh = innerHeight;
+}
+
+measure();
+window.addEventListener('load', measure);
+var resizeTimer;
+function onResize() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(measure, 120);
+}
+window.addEventListener('resize', onResize);
+window.addEventListener('orientationchange', onResize);
+
+function progress() {
+  return span > 0 ? clamp01(scrollY / span) : 0;
+}
+
+// ── polarity probe ────────────────────────────────────────────────────────────
+var probe = document.createElement('canvas');
+probe.width = 32; probe.height = 18;
+var probCtx = probe.getContext('2d', { willReadFrequently: true, alpha: false });
+var polEls = Array.from(document.querySelectorAll('.pol')).map(function (el) {
+  return { el: el, pol: 0, cur: 0, memo: -1 };
+});
+var probeKey = '';
+var probeRetired = false;
+var dissolved = 0;
+
+function blitCols(src, x0) {
+  probCtx.drawImage(src, x0, 0, 32 - x0, 18, x0, 0, 32 - x0, 18);
+}
+function blitRows(src, y0) {
+  probCtx.drawImage(src, 0, y0, 32, 18 - y0, 0, y0, 32, 18 - y0);
+}
+
+var raNow = 0, rbNow = 0;
+
+function paintProbe() {
+  if (!clips[0].painted) return false;
+  probCtx.fillStyle = '#030303';
+  probCtx.fillRect(0, 0, 32, 18);
+  probCtx.drawImage(c1, 0, 0, 32, 18);
+  if (raNow > 0 && clips[1].painted) {
+    blitCols(c2, Math.round((1 - raNow) * 32));
+  }
+  if (rbNow > 0 && clips[2].painted) {
+    blitRows(c3, Math.round((1 - rbNow) * 18));
+  }
+  return true;
+}
+
+var lumData = new Float32Array(32 * 18);
+
+function readProbe() {
+  try {
+    var id = probCtx.getImageData(0, 0, 32, 18);
+    var d = id.data;
+    for (var i = 0; i < 32 * 18; i++) {
+      lumData[i] = (0.2126 * d[i*4] + 0.7152 * d[i*4+1] + 0.0722 * d[i*4+2]) / 255;
+    }
+  } catch (e) {
+    probeRetired = true;
+  }
+}
+
+function regionLum(q) {
+  var r = q.el.getBoundingClientRect();
+  if (r.width < 1 || r.height < 1) return -1;
+  var x0 = Math.max(0, Math.min(31, Math.floor(r.left / vw * 32)));
+  var x1 = Math.max(x0 + 1, Math.min(32, Math.ceil(r.right / vw * 32)));
+  var y0 = Math.max(0, Math.min(17, Math.floor(r.top / vh * 18)));
+  var y1 = Math.max(y0 + 1, Math.min(18, Math.ceil(r.bottom / vh * 18)));
+  var sum = 0, n = 0;
+  for (var y = y0; y < y1; y++) {
+    for (var x = x0; x < x1; x++) {
+      sum += lumData[y * 32 + x];
+      n++;
+    }
+  }
+  return n > 0 ? sum / n : -1;
+}
+
+function updatePolarity(p, dt) {
+  var key = clips[0].drawnIndex + '|' + clips[1].drawnIndex + '|' + clips[2].drawnIndex + '|' + r3(raNow) + '|' + r3(rbNow);
+  var needsPaint = key !== probeKey;
+  if (needsPaint && !probeRetired) {
+    if (paintProbe()) {
+      probeKey = key;
+      readProbe();
+    }
+  }
+  var decay = 1 - Math.exp(-dt * 6);
+  for (var i = 0; i < polEls.length; i++) {
+    var q = polEls[i];
+    var lum = regionLum(q);
+    if (lum < 0) lum = q.cur;
+    lum = lum * (1 - dissolved) + dissolved;
+    var cur = q.cur;
+    var tgt = cur >= 0.5 ? (lum >= 0.46 ? 1 : 0) : (lum > 0.54 ? 1 : 0);
+    if (probeRetired) tgt = segT(p, POL[0], POL[1]);
+    cur += (tgt - cur) * decay;
+    if (Math.abs(cur - tgt) < 0.004) cur = tgt;
+    q.cur = cur;
+    if (Math.abs(cur - q.pol) > 0.001) {
+      q.pol = cur;
+      q.el.style.setProperty('--pol', r3(cur));
+    }
+  }
+}
+
+// ── writers ───────────────────────────────────────────────────────────────────
+function screenWriter(el, key, IN_rng, OUT_rng, PAR_rng) {
+  var callout = el.querySelector('.callout');
+  var inV = IN_rng ? segT(progress(), IN_rng[0], IN_rng[1]) : 1;
+  var outV = 0;
+  return function (p) {
+    inV = IN_rng ? segT(p, IN_rng[0], IN_rng[1]) : 1;
+    outV = OUT_rng ? segT(p, OUT_rng[0], OUT_rng[1]) : 0;
+    var parV = PAR_rng ? segT(p, PAR_rng[0], PAR_rng[1]) : 0.5;
+    setVar(el, key, '--in', inV);
+    setVar(el, key, '--out', outV);
+    var live = inV > 0 && outV < 1;
+    setClass(el, key, 'is-anim', live);
+    setClass(el, key, 'is-hidden', !live && outV >= 1);
+    if (callout) {
+      setVar(callout, key + 'c', '--par', parV);
+      setClass(callout, key + 'c', 'is-anim', live);
+    }
+  };
+}
+
+var writeS1 = screenWriter(s1, 's1', null, S1_OUT, S1_PAR);
+var writeS2 = screenWriter(s2, 's2', S2_IN, S2_OUT, S2_PAR);
+
+function updateReveals(p) {
+  var raFrac = 0, rbFrac = 0;
+  if (p >= A) {
+    raFrac = Math.min(1, (p - A) / wipe);
+  }
+  if (p >= B) {
+    rbFrac = Math.min(1, (p - B) / wipe);
+  }
+  raNow = raFrac;
+  rbNow = rbFrac;
+
+  setVar(ra, 'ra', '--reveal', raFrac);
+  setVar(rb, 'rb', '--reveal', rbFrac);
+
+  var stageOut = segT(p, STAGE_FADE[0], STAGE_FADE[1]);
+  setVar(stage, 'st', '--stage-out', stageOut);
+
+  var raEdge = raFrac > 0 && raFrac < 1 ? 1 : 0;
+  var rbEdge = rbFrac > 0 && rbFrac < 1 ? 1 : 0;
+  setVar(ra, 'rae', '--edge', raEdge);
+  setVar(rb, 'rbe', '--edge', rbEdge);
+
+  // is-covered: hide stage when fully revealed
+  setClass(stage, 'st', 'is-covered', raFrac >= 1 && rbFrac >= 1);
+  setClass(ra, 'ra', 'is-covered', rbFrac >= 1);
+}
+
+function updateHandoff(p) {
+  var cut = hasCut ? smoothstep(CUT[0], CUT[1], p) : 0;
+  var vidfade = smoothstep(VIDFADE[0], VIDFADE[1], p);
+  var exit = hasCut ? segT(p, EXIT[0], EXIT[1]) : 0;
+  var fin = smoothstep(FIN[0], FIN[1], p);
+  var tail = segT(p, TAIL[0], TAIL[1]);
+
+  dissolved = vidfade;
+
+  setVar(cutEl, 'cut', '--cut', cut);
+  setVar(rb, 'diss', '--dissolve', vidfade);
+  setVar(plateout, 'pout', '--vidfade', vidfade);
+  setVar(cutEl, 'exit', '--exit', exit);
+  setClass(cutEl, 'cut', 'is-diving', exit > 0.5);
+
+  setVar(specEl, 'fin', '--fin', fin);
+  setVar(specEl, 'tail', '--tail', tail);
+
+  var specLive = p > TAIL[0];
+  setClass(specEl, 'spec', 'is-anim', specLive);
+  setClass(specEl, 'spec', 'is-hidden', false);
+}
+
+function updateScrub(p, dt) {
+  // clip 1: 0 → A
+  var t1 = segT(p, 0, A);
+  var d1 = clips[0].dur || 8;
+  clips[0].setTarget(t1 * d1);
+  clips[0].lerp(dt);
+  var v1 = raNow >= 1 && rbNow >= 1;
+  if (!v1) clips[0].render(clips[0].current());
+
+  // clip 2: A → B
+  var t2 = segT(p, A, B);
+  var d2 = clips[1].dur || 10.04;
+  clips[1].setTarget(t2 * d2);
+  clips[1].lerp(dt);
+  var v2vis = raNow > 0 && rbNow < 1;
+  if (v2vis) clips[1].render(clips[1].current());
+
+  // clip 3: B → HOLD
+  var t3 = segT(p, B, HOLD);
+  var d3 = clips[2].dur || 8.04;
+  clips[2].setTarget(t3 * d3);
+  clips[2].lerp(dt);
+  if (rbNow > 0) clips[2].render(clips[2].current());
+}
+
+// ── main loop ─────────────────────────────────────────────────────────────────
+var last = performance.now();
+var lastVW = vw, lastVH = vh;
+var settleTimer = null;
+
+function drive(p, dt) {
+  writeS1(p);
+  writeS2(p);
+  updateReveals(p);
+  updateHandoff(p);
+  updatePolarity(p, dt);
+}
+
+function tick() {
+  var now = performance.now();
+  var dt = Math.min(0.1, (now - last) / 1000);
+  last = now;
+
+  if (innerWidth !== lastVW || innerHeight !== lastVH) {
+    measure();
+    lastVW = vw;
+    lastVH = vh;
+  }
+
+  if (shown && !settled && (now - shownAt) > 1600) {
+    settle();
+  }
+
+  var p = progress();
+  drive(p, dt);
+  updateScrub(p, dt);
+
+  requestAnimationFrame(tick);
+}
+
+requestAnimationFrame(tick);
+
+// ── diagnostics ───────────────────────────────────────────────────────────────
+Object.defineProperty(window, '__axiom', {
+  get: function () {
+    return {
+      get clips() { return clips; },
+      get map() { return { A: A, B: B, HOLD: HOLD }; },
+      get vars() { return { span: span, wipe: wipe }; },
+      get pol() { return polEls.map(function (q) { return { el: q.el, pol: q.pol }; }); },
+      get hasCut() { return hasCut; },
+      get p() { return progress(); },
+      drive: drive,
+      seek: function (i, t) { clips[i].setTarget(t); clips[i].render(t); }
+    };
+  }
+});
+```
+
+### style.css
+```css
+@layer reset, tokens, base, layout, components, motion, utilities;
+
+@property --cin {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&display=swap');
+
+@layer reset {
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  img, video, canvas { display: block; }
+  a { color: inherit; text-decoration: none; }
+  button { background: none; border: none; cursor: pointer; font: inherit; }
+}
+
+@layer tokens {
+  :root {
+    --u: calc(100vw / 1470);
+    --w: #ffffff;
+    --k: #030303;
+    --pol: 0;
+    --fs-120: max(56px, calc(120 * var(--u)));
+    --fs-80: max(40px, calc(80 * var(--u)));
+    --fs-60: max(34px, calc(60 * var(--u)));
+    --fs-24: max(15px, calc(24 * var(--u)));
+    --fs-18: max(13px, calc(18 * var(--u)));
+    --fs-14: max(12px, calc(14 * var(--u)));
+    --font: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --track: -0.04em;
+    --gutter: max(16px, calc(24 * var(--u)));
+    --r: 8px;
+    --blur: blur(12px);
+    --ease-expo: cubic-bezier(.16,1,.3,1);
+    --ease-strong: cubic-bezier(.23,1,.32,1);
+    --runway: 1250vh;
+    --cut-scale: 1;
+    --cut-y: 0px;
+    --z-stage: 0;
+    --z-rev-a: 5;
+    --z-rev-b: 7;
+    --z-outro: 8;
+    --z-cutout: 9;
+    --z-chrome: 10;
+    --z-pill: 50;
+  }
+
+  * { letter-spacing: var(--track); }
+
+  .pol, .skip {
+    --ink: color-mix(in srgb, var(--w), var(--k) calc(var(--pol) * 100%));
+    --plate: color-mix(in srgb, var(--k), var(--w) calc(var(--pol) * 100%));
+    --ov: color-mix(in srgb, rgba(255,255,255,.10), rgba(3,3,3,.10) calc(var(--pol) * 100%));
+    --hairline: color-mix(in srgb, rgba(255,255,255,.16), rgba(3,3,3,.16) calc(var(--pol) * 100%));
+    --ink-fade: color-mix(in srgb, var(--ink), var(--plate) 35%);
+    --grad: linear-gradient(180deg, var(--ink) 0%, var(--ink-fade) 136.55%);
+  }
+}
+
+@layer base {
+  html {
+    font-family: var(--font);
+    font-size: var(--fs-14);
+    color: var(--w);
+    background: var(--k);
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: auto;
+  }
+
+  body { overflow-x: hidden; }
+
+  .skip {
+    position: fixed;
+    top: -100%;
+    left: var(--gutter);
+    z-index: 9999;
+    background: var(--ink);
+    color: var(--plate);
+    padding: 8px 16px;
+    border-radius: var(--r);
+    font-size: var(--fs-14);
+    transition: top 200ms;
+  }
+  .skip:focus { top: var(--gutter); }
+}
+
+@layer layout {
+  .stage {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-stage);
+    background: var(--k);
+    opacity: calc(1 - var(--stage-out, 0));
+  }
+  .stage > video,
+  .stage > canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  .reveal {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100%;
+    width: calc(var(--reveal, 0) * 100vw);
+    overflow: hidden;
+    pointer-events: none;
+    background: var(--k);
+    z-index: var(--z-rev-a);
+  }
+  .reveal > video,
+  .reveal > canvas {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100vw;
+    height: 100%;
+    object-fit: cover;
+  }
+  .reveal::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1px;
+    height: 100%;
+    background: var(--hairline, rgba(255,255,255,.16));
+    opacity: var(--edge, 0);
+    z-index: 1;
+  }
+
+  .reveal--b {
+    z-index: var(--z-rev-b);
+    background: var(--w);
+    top: auto;
+    bottom: 0;
+    right: 0;
+    width: 100vw;
+    height: calc(var(--reveal, 0) * 100vh);
+  }
+  .reveal--b > video,
+  .reveal--b > canvas {
+    opacity: calc(1 - var(--dissolve, 0));
+    top: auto;
+    bottom: 0;
+    height: 100vh;
+    right: 0;
+  }
+  .reveal--b::before {
+    top: 0;
+    bottom: auto;
+    left: 0;
+    width: 100%;
+    height: 1px;
+  }
+
+  .is-covered { visibility: hidden; }
+
+  .plate-out {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-outro);
+    background: var(--w);
+    opacity: var(--vidfade, 0);
+    pointer-events: none;
+  }
+
+  .cut-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-cutout);
+    pointer-events: none;
+  }
+
+  .cutout {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: var(--cut, 0);
+    transform-origin: 50% 50%;
+    --e2: calc(var(--exit, 0) * var(--exit, 0));
+    --e3: calc(var(--e2) * var(--exit, 0));
+    --eg: clamp(0, calc((var(--exit, 0) - .45) / .55), 1);
+    --eb: clamp(0, calc((var(--exit, 0) - .55) / .45), 1);
+    transform:
+      translateY(calc(var(--e2) * 75vh + var(--e3) * 80vh + var(--cut-y)))
+      scale(calc(var(--cut-scale) * (1 + var(--eg) * var(--eg) * 1.8)));
+  }
+
+  .cutout.is-diving {
+    filter: blur(calc(var(--eb) * var(--eb) * 64px));
+  }
+
+  .runway {
+    height: var(--runway);
+    pointer-events: none;
+  }
+}
+
+@layer components {
+  /* Chrome / screens */
+  .chrome {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-chrome);
+    pointer-events: none;
+  }
+
+  .scr {
+    position: absolute;
+    inset: 0;
+    opacity: calc(var(--in, 0) * (1 - var(--out, 0)));
+    transform: translateY(calc((1 - var(--in, 0)) * 26px + var(--out, 0) * -40px));
+  }
+
+  .scr--1 { --in: 1; }
+
+  .display {
+    position: absolute;
+    margin: 0;
+    font-size: var(--fs-120);
+    font-weight: 500;
+    line-height: 1;
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: .08em;
+  }
+
+  .display--hero {
+    left: var(--gutter);
+    bottom: calc(228 / 900 * 100%);
+    font-size: var(--fs-120);
+  }
+
+  .display--s2 {
+    left: var(--gutter);
+    bottom: calc(523 / 900 * 100%);
+    font-size: var(--fs-80);
+  }
+
+  .display--fin {
+    font-size: var(--fs-80);
+  }
+
+  .note {
+    position: absolute;
+    left: var(--gutter);
+    bottom: calc(33 / 900 * 100%);
+    width: max(260px, calc(305 * var(--u)));
+    font-size: var(--fs-14);
+    line-height: calc(17 / 14);
+    color: var(--ink);
+  }
+
+  /* Callout / badge */
+  .callout {
+    position: absolute;
+    left: calc(var(--bx) / 1470 * 100%);
+    top: calc(var(--by) / 900 * 100%);
+    transform: translateY(calc((0.5 - var(--par, 0.5)) * 56px));
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .badge {
+    position: relative;
+    width: max(96px, calc(120 * var(--u)));
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+
+  .ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .ring circle {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 1;
+    stroke-dasharray: 374;
+    stroke-dashoffset: calc((1 - var(--draw, 0)) * 374);
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+  }
+
+  .b-read {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: var(--fs-18);
+    font-weight: 500;
+    line-height: 1.1;
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    padding-bottom: .08em;
+  }
+
+  .b-val { font-size: var(--fs-24); font-weight: 500; }
+  .b-unit { font-size: var(--fs-14); }
+
+  /* Card */
+  .card {
+    position: absolute;
+    right: var(--gutter);
+    bottom: calc(33 / 900 * 100%);
+    width: max(220px, calc(280 * var(--u)));
+    background: var(--ov);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r);
+    padding: max(16px, calc(20 * var(--u)));
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .card-title {
+    font-size: var(--fs-24);
+    font-weight: 500;
+    line-height: 1.1;
+    background: var(--grad);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .card-note {
+    font-size: var(--fs-14);
+    line-height: calc(17 / 14);
+    color: var(--ink-fade);
+  }
+
+  .dim { opacity: 0.5; }
+
+  /* Chip + sq system */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 max(12px, calc(14 * var(--u)));
+    height: max(32px, calc(36 * var(--u)));
+    border-radius: 999px;
+    font-size: var(--fs-14);
+    font-weight: 500;
+    background: var(--ov);
+    color: var(--ink);
+    border: 1px solid var(--hairline);
+    pointer-events: all;
+  }
+
+  .sq {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: max(32px, calc(36 * var(--u)));
+    height: max(32px, calc(36 * var(--u)));
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--plate);
+    flex-shrink: 0;
+    transition: transform 160ms var(--ease-strong);
+  }
+
+  .sq:active { transform: scale(.94); }
+
+  .sq svg { width: 16px; height: 16px; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .sq:hover svg { transform: translateX(2px); }
+  }
+
+  .card-act {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* Pill */
+  .pill {
+    position: fixed;
+    top: var(--gutter);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: var(--z-pill);
+    display: flex;
+    align-items: center;
+    gap: 0;
+    background: var(--ov);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 4px 4px 4px max(12px, calc(14 * var(--u)));
+    backdrop-filter: var(--blur);
+    -webkit-backdrop-filter: var(--blur);
+    pointer-events: all;
+  }
+
+  .pill-nav {
+    display: flex;
+    align-items: center;
+    gap: max(12px, calc(16 * var(--u)));
+    font-size: var(--fs-14);
+    color: var(--ink);
+    margin-right: max(12px, calc(16 * var(--u)));
+  }
+
+  .pill-mark {
+    font-weight: 500;
+    color: var(--ink);
+  }
+
+  .pill-act {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* Outro / spec */
+  .outro {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-outro);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .outro-inner {
+    width: min(900px, calc(100vw - 2 * var(--gutter)));
+    display: flex;
+    flex-direction: column;
+    gap: max(24px, calc(32 * var(--u)));
+  }
+
+  .display--fin {
+    opacity: var(--fin, 0);
+    transform: translateY(calc((1 - var(--fin, 0)) * 26px));
+  }
+
+  .outro-foot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--fs-14);
+    color: var(--ink-fade);
+  }
+
+  .spec {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1px;
+    background: var(--hairline);
+    border: 1px solid var(--hairline);
+    border-radius: var(--r);
+    overflow: hidden;
+  }
+
+  .spec-row {
+    background: var(--ov);
+    padding: max(14px, calc(16 * var(--u)));
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    opacity: calc(var(--w-row, 0));
+    transform: translateY(calc((1 - var(--w-row, 0)) * 12px));
+  }
+
+  .spec-row dt {
+    font-size: var(--fs-14);
+    color: var(--ink-fade);
+    font-weight: 400;
+  }
+
+  .spec-row dd {
+    font-size: var(--fs-18);
+    font-weight: 500;
+    color: var(--ink);
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+
+  .spec-row dd span:last-child {
+    font-size: var(--fs-14);
+    color: var(--ink-fade);
+    font-weight: 400;
+  }
+
+  .spec-act {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    pointer-events: all;
+  }
+
+  .spec-act .chip {
+    flex: 1;
+    justify-content: center;
+    background: var(--ink);
+    color: var(--plate);
+    border-color: var(--ink);
+  }
+
+  canvas.plate {
+    opacity: 0;
+    transition: opacity 420ms ease;
+  }
+  canvas.plate.is-live { opacity: 1; }
+}
+
+@layer motion {
+  .js .scr--1 > *, .js .pill {
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(14px);
+    transition: opacity 900ms var(--ease-expo), filter 900ms var(--ease-expo), transform 900ms var(--ease-expo);
+  }
+
+  .js .scr--1 > *:nth-child(1) { transition-delay: 80ms; }
+  .js .scr--1 > *:nth-child(2) { transition-delay: 160ms; }
+  .js .scr--1 > *:nth-child(3) { transition-delay: 240ms; }
+  .js .pill { transition-delay: 320ms; }
+
+  .js .scr--1 > .callout {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .is-ready .js .scr--1 > *,
+  .is-ready .js .pill,
+  .is-ready.js .scr--1 > *,
+  .is-ready.js .pill {
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+
+  .is-settled .scr--1 > *, .is-settled .pill {
+    transition: none !important;
+    opacity: 1 !important;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  /* callout entrance */
+  .is-ready .scr--1 .callout {
+    --cin: 1;
+    transition: --cin 1500ms var(--ease-expo) 320ms;
+  }
+
+  /* anim gate */
+  .scr.is-anim, .callout.is-anim {
+    will-change: opacity, transform;
+  }
+
+  .is-hidden {
+    pointer-events: none !important;
+  }
+}
+
+@layer utilities {
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+    .ring circle { stroke-dashoffset: 0; }
+    .scr { transform: none !important; }
+    .cutout { transform: none !important; filter: none !important; }
+    .display--fin { transform: none !important; }
+    .spec-row { transform: none !important; }
+  }
+
+  @media (max-width: 767px) {
+    :root { --runway: auto; }
+    .reveal, .cut-wrap { display: none !important; }
+    .runway { display: none; }
+    .chrome {
+      position: static;
+      pointer-events: auto;
+      background: var(--k);
+    }
+    .scr {
+      position: static;
+      opacity: 1 !important;
+      transform: none !important;
+      padding: var(--gutter);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      min-height: 100svh;
+    }
+    .display { position: static; font-size: var(--fs-60); }
+    .note { position: static; width: 100%; }
+    .card { position: static; width: 100%; }
+    .callout { position: static; transform: none; }
+    .stage::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, transparent 40%, rgba(3,3,3,0.85) 100%);
+    }
+  }
+
+  html:not(.js) {
+    .reveal, .cut-wrap { display: none !important; }
+    .runway { display: none; }
+    .chrome { position: static; pointer-events: auto; }
+    .scr {
+      position: static;
+      opacity: 1 !important;
+      transform: none !important;
+      padding: var(--gutter);
+    }
+    .display { position: static; }
+    .note { position: static; }
+    .card { position: static; }
+  }
+}
+```

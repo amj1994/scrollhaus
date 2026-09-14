@@ -69,7 +69,15 @@ export default function App() {
   // to span, which is what lets the four columns run to different lengths
   // instead of locking to a shared row height.
   const gridRef = useRef<HTMLDivElement>(null)
-  useMasonry(gridRef, [shown.map(s => s.id).join(',')])
+  // openId is in the deps too: the grid and the detail view are mutually
+  // exclusive branches below (not one hidden behind the other), so closing
+  // the detail view unmounts and remounts the grid's actual DOM nodes.
+  // Without openId here, this effect's deps look unchanged across that
+  // transition (shown didn't change) and never re-runs — the ResizeObserver
+  // stays attached to the old, now-detached .masonry-content elements, and
+  // every freshly-mounted card is left at the CSS default single-row span,
+  // which is exactly the collapsed-grid bug this fixes.
+  useMasonry(gridRef, [shown.map(s => s.id).join(','), openId])
 
   return (
     <div className="relative min-h-screen bg-[#080808]">
