@@ -46,12 +46,32 @@ export function useMasonry(containerRef: React.RefObject<HTMLElement | null>, de
       }
     })
 
+    // The synchronous getBoundingClientRect() read below is normally safe (see
+    // the file comment), but on a fresh remount of the whole grid — e.g.
+    // returning from the detail view, where the grid section unmounts and
+    // remounts rather than just being covered — the very first layout pass
+    // can land before newly-inserted (even cache-hit) <img> elements have
+    // finished contributing their intrinsic size, so this can read a
+    // collapsed height and lock every card's row-span at the 1-row minimum.
+    // ResizeObserver's own initial callback fires later with the correct
+    // settled size, but that alone doesn't help: the *first* apply() call
+    // already wrote a stale span, and nothing here re-reads it once it's
+    // wrong. A rAF defer for this first pass only (observe() still happens
+    // synchronously, so later real resizes are still caught immediately)
+    // gives layout one frame to settle before the height is trusted.
+    const raf = requestAnimationFrame(() => {
+      for (const el of contents) {
+        apply(el, el.getBoundingClientRect().height)
+      }
+    })
     for (const el of contents) {
-      apply(el, el.getBoundingClientRect().height)
       ro.observe(el, { box: 'border-box' })
     }
 
-    return () => ro.disconnect()
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)
 }
