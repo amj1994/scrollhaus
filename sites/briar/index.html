@@ -406,6 +406,21 @@
   </section>
 </main>
 
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+/* Smooth scroll — the module script below reads window.pageYOffset each
+   RAF tick, which Lenis keeps in sync as it eases, so no downstream
+   changes are needed. Runs as a plain (non-module) script so it executes
+   during parsing, before the deferred module script starts reading
+   scroll position. window.__lenis is exposed for capture scripts, which
+   must drive it directly (lenis.scrollTo) rather than a bare
+   window.scrollTo. */
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var lenis = new Lenis({ duration: 1.0, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+  window.__lenis = lenis;
+  requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
+}
+</script>
 <script type="module">
 /* ─── shared helpers ──────────────────────────────────────────── */
 const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;

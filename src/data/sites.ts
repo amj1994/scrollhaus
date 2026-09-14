@@ -116,12 +116,12 @@ export const FREE_SITES: Site[] = [
   { id: 'brandly', title: 'Brandly', category: 'Agency', added: '2026-09-12', previewV: '6', free: true, live: true },
   { id: 'aperture', title: 'Aperture', category: 'Agency', added: '2026-09-12', previewV: '6', free: true, live: true },
   { id: 'orven', title: 'Orven', category: 'Ecommerce', added: '2026-09-13', previewV: '6', free: true, live: true },
-  { id: 'drift', title: 'DRIFT', category: 'Hero', added: '2026-09-13', previewV: '6', free: true, live: true },
-  { id: 'kiln', title: 'KILN', category: 'Agency', added: '2026-09-14', free: true, live: true },
-  { id: 'briar', title: 'Briar', category: 'Ecommerce', added: '2026-09-14', previewV: '2', free: true, live: true },
-  { id: 'elsewhere', title: 'Elsewhere', category: 'Travel', added: '2026-09-14', free: true, live: true },
-  { id: 'silentstudios', title: 'Silent Studios', category: 'Portfolio', added: '2026-09-14', free: true, live: true },
-  { id: 'plinth', title: 'Plinth', category: 'Agency', added: '2026-09-14', free: true, live: true },
+  { id: 'drift', title: 'DRIFT', category: 'Hero', added: '2026-09-13', previewV: '7', free: true, live: true },
+  { id: 'kiln', title: 'KILN', category: 'Agency', added: '2026-09-14', previewV: '2', free: true, live: true },
+  { id: 'briar', title: 'Briar', category: 'Ecommerce', added: '2026-09-14', previewV: '3', free: true, live: true },
+  { id: 'elsewhere', title: 'Elsewhere', category: 'Travel', added: '2026-09-14', previewV: '2', free: true, live: true },
+  { id: 'silentstudios', title: 'Silent Studios', category: 'Portfolio', added: '2026-09-14', previewV: '2', free: true, live: true },
+  { id: 'plinth', title: 'Plinth', category: 'Agency', added: '2026-09-14', previewV: '2', free: true, live: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]

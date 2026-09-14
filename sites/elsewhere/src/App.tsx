@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import Lenis from 'lenis'
 
 /* ─────────────────────────────────────────────────────────────
    Recreation of a pasted "Step Into Wonder" scroll-experience spec.
@@ -230,6 +231,28 @@ export default function App() {
 
   const raw = useRef({ x: 0, y: 0 })
   const smooth = useRef({ x: 0, y: 0 })
+
+  // Smooth scroll — the scroll-progress effect below reads window.scrollY,
+  // which Lenis keeps in sync as it eases, so no downstream changes are
+  // needed. window.__lenis is exposed for capture/preview scripts, which
+  // must drive it directly (lenis.scrollTo) rather than a bare
+  // window.scrollTo, or the eased position fights the capture's own
+  // scroll writes.
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    ;(window as unknown as { __lenis: Lenis }).__lenis = lenis
+    let raf = 0
+    function tick(time: number) {
+      lenis.raf(time)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(raf)
+      lenis.destroy()
+    }
+  }, [])
 
   // entrance sequence
   useEffect(() => {

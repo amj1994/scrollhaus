@@ -716,6 +716,18 @@ h1 .i2{ font-size: calc(59.2 * var(--u)); }
 
 <div class="runway"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+/* Smooth scroll — the scrub loop below reads window.pageYOffset each
+   tick, which Lenis keeps in sync as it eases, so no downstream changes
+   are needed. window.__lenis is exposed for capture scripts, which must
+   drive it directly (lenis.scrollTo) rather than a bare window.scrollTo. */
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var lenis = new Lenis({ duration: 1.0, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+  window.__lenis = lenis;
+  requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
+}
+</script>
 <script>
 /* ── entrance sequence ─────────────────────────────────────── */
 (function () {
@@ -966,5 +978,4 @@ h1 .i2{ font-size: calc(59.2 * var(--u)); }
 </script>
 </body>
 </html>
-
 ```

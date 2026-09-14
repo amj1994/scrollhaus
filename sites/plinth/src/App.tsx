@@ -1,4 +1,28 @@
 import { useEffect, useRef, useState } from 'react'
+import Lenis from 'lenis'
+
+// Smooth scroll for the page's own vertical scroll (the marquee animates
+// itself via its own rAF loop regardless — this is for the hero/bottom
+// section flow around it). window.__lenis is exposed for capture/preview
+// scripts, which must drive it directly (lenis.scrollTo) rather than a
+// bare window.scrollTo.
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    ;(window as unknown as { __lenis: Lenis }).__lenis = lenis
+    let raf = 0
+    function tick(time: number) {
+      lenis.raf(time)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(raf)
+      lenis.destroy()
+    }
+  }, [])
+}
 
 /* Recreation of a pasted "Bespoke Architecture Studio" spec. Rebranded as
    Plinth — light touch, text only. Logo path, mask SVGs, image URLs, and
@@ -254,6 +278,7 @@ function BottomSection() {
 }
 
 export default function App() {
+  useLenis()
   return (
     <div className="min-h-screen overflow-hidden bg-white">
       <Navbar />

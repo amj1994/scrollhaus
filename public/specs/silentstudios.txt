@@ -182,7 +182,31 @@ export function useScrollReveal(ref: RefObject<HTMLElement>) {
 ```tsx
 import { useEffect, useRef, useState } from 'react'
 import { Facebook, Twitter, Linkedin, BarChart3, Aperture } from 'lucide-react'
+import Lenis from 'lenis'
 import { useScrollReveal } from './useScrollReveal'
+
+// Smooth scroll — QAndA's and QuoteBanner's parallax effects read
+// window.scrollY off native 'scroll' events, which Lenis keeps dispatching
+// as it eases, so no downstream changes are needed. window.__lenis is
+// exposed for capture/preview scripts, which must drive it directly
+// (lenis.scrollTo) rather than a bare window.scrollTo.
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    ;(window as unknown as { __lenis: Lenis }).__lenis = lenis
+    let raf = 0
+    function tick(time: number) {
+      lenis.raf(time)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(raf)
+      lenis.destroy()
+    }
+  }, [])
+}
 
 /* Recreation of a pasted "Digital Archive" art-gallery spec. Rebranded as
    Silent Studios (and the profiled gallery within it as Hollow Light) —
@@ -461,6 +485,7 @@ function Footer() {
 }
 
 export default function App() {
+  useLenis()
   return (
     <div>
       <Navbar />
@@ -475,5 +500,4 @@ export default function App() {
     </div>
   )
 }
-
 ```
