@@ -120,6 +120,8 @@ export const FREE_SITES: Site[] = [
   { id: 'kiln', title: 'KILN', category: 'Agency', added: '2026-09-14', free: true, live: true },
   { id: 'briar', title: 'Briar', category: 'Ecommerce', added: '2026-09-14', previewV: '2', free: true, live: true },
   { id: 'elsewhere', title: 'Elsewhere', category: 'Travel', added: '2026-09-14', free: true, live: true },
+  { id: 'silentstudios', title: 'Silent Studios', category: 'Portfolio', added: '2026-09-14', free: true, live: true },
+  { id: 'plinth', title: 'Plinth', category: 'Agency', added: '2026-09-14', free: true, live: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]
