@@ -122,6 +122,7 @@ export const FREE_SITES: Site[] = [
   { id: 'elsewhere', title: 'Elsewhere', category: 'Travel', added: '2026-09-14', previewV: '2', free: true, live: true },
   { id: 'silentstudios', title: 'Silent Studios', category: 'Portfolio', added: '2026-09-14', previewV: '2', free: true, live: true },
   { id: 'plinth', title: 'Plinth', category: 'Agency', added: '2026-09-14', previewV: '2', free: true, live: true },
+  { id: 'hanbit-korea', title: 'Hanbit Korea', category: 'Travel', added: '2026-09-15', free: true, live: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]
