@@ -1,0 +1,894 @@
+BRIAR — complete build spec
+
+Recreation of a pasted "Orla." conceptual-eco-clothing spec: a layered-@layer CSS architecture on a fluid clamp() type scale, a fixed full-bleed two-clip scroll-scrubbed video plate (WebCodecs frame-bank decode of HEVC Main10 footage, falling back to native <video> currentTime seeking when hardware HEVC decode isn't available), a floating materials collage with per-item drift/rotation/bow physics keyed to scroll position, and a --in/--out custom-property reveal contract driving every animated element from one requestAnimationFrame loop (no scroll listeners doing the driving, no IntersectionObserver, no GSAP). Rebranded as Briar, a small slow-fashion workshop, in place of the source spec's "Orla." — same DOM shape (hero / craft / shop), same generic sustainable-textile vocabulary, new name, new copy, new product line (raw tank, twist cuff, rinse jeans, horn shield, woven tote, straw hat replacing the source's own SKUs), and all-original Higgsfield stills/video replacing the source spec's hardcoded CloudFront assets — including two chained video clips (a still frame from the end of clip 1 was fed back in as the start reference for clip 2, so the handoff between them is frame-exact, matching the source spec's own two-clip design).
+
+Fonts: Switzer (Fontshare, 300/400/500) and the Arial fallback face with the spec's exact ascent/descent/line-gap/size-adjust metric overrides load for real, as specified; the wordmark's script initial uses Playball from Google Fonts.
+
+Video codec: the spec's HEVC Main10 choice (with its own explicit graceful-degradation note — "elsewhere the plate stays white" when there's no hardware decoder) is preserved for the new footage too. Both clips are encoded hvc1/Main10 with a moderate GOP (12) rather than strict all-intra: x265 silently promotes an all-I-frame Main10 stream to the Rext profile, which loses exactly the hardware-decoder compatibility the spec is asking for, and the primary playback path (WebCodecs decoding the whole clip once into a frame bank) doesn't need per-frame keyframes to seek fast.
+
+Stack: plain static HTML/CSS/vanilla JS. No build step, no framework.
+
+## Setup
+Create one file named index.html with exactly this content, plus an assets/ folder holding the four materials-collage PNGs (driftwood, cotton, fern, granite) and six shop-product webp photos referenced inside it, and serve it as a static file (any static server, e.g. `python3 -m http.server`). Needs internet — the video plate streams from CloudFront.
+
+## Files
+
+### index.html
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Briar. — Conceptual slow clothing</title>
+
+<!--
+  Standalone recreation of a pasted "Orla." conceptual-eco-clothing spec —
+  same layered-CSS architecture, materials-collage physics, two-clip
+  scroll-scrubbed WebCodecs video plate with a handoff crossfade, and
+  reveal-contract choreography. Rebranded as Briar., a small slow-fashion
+  workshop: same DOM shape (hero / craft / shop), same generic
+  sustainable-textile vocabulary, new name, new copy, new product line,
+  new palette lean, and all-original Higgsfield stills/video replacing the
+  source spec's hardcoded CloudFront assets.
+
+  Fonts: Switzer (Fontshare) and Playball (Google Fonts) load for real, as
+  specified, plus the named Arial fallback face with the given metric
+  overrides.
+
+  Video: the spec's HEVC Main10 codec choice is a deliberate one (explicit
+  graceful-degradation note: "elsewhere the plate stays white"), so both
+  clips are encoded hvc1/Main10 here too — same codec, new footage. A
+  short, dense GOP (12) rather than strict all-intra: x265 silently
+  promotes an all-I-frame Main10 stream to the Rext profile, which loses
+  the hardware-decoder compatibility the spec is actually asking for. The
+  primary playback path (WebCodecs, decoding the whole clip once into a
+  frame bank) doesn't need per-frame keyframes to seek fast; only the
+  native-<video> fallback pays a small seek-latency cost, on a 5s clip.
+-->
+
+<script>document.documentElement.classList.add('js')</script>
+
+<link rel="preconnect" href="https://api.fontshare.com">
+<link rel="preconnect" href="https://cdn.fontshare.com">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playball&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js" defer></script>
+
+<style>
+@layer reset, tokens, base, layout, components, motion, utilities;
+
+@layer reset {
+  *,*::before,*::after{ box-sizing:border-box }
+  html,body{ margin:0; padding:0 }
+  img,video,canvas{ display:block; max-width:100% }
+  a{ color:inherit; text-decoration:none }
+  button{ font:inherit; color:inherit; background:none; border:0; padding:0; cursor:pointer }
+  ul{ list-style:none; margin:0; padding:0 }
+  h1,h2,p{ margin:0 }
+}
+
+@layer tokens {
+  @font-face{
+    font-family:'Switzer Fallback';
+    src:local('Arial');
+    ascent-override:96.67%;
+    descent-override:24.66%;
+    line-gap-override:8.88%;
+    size-adjust:101.38%;
+  }
+  @property --brand-min-h{ syntax:'<length>'; inherits:true; initial-value:72px }
+  @property --shrink{ syntax:'<number>'; inherits:true; initial-value:1 }
+
+  :root{
+    --ink:#24363f;
+    --bg:#fff;
+    --ghost:#ededed;
+    --ink-88:color-mix(in srgb, var(--ink) 88%, transparent);
+    --ink-64:color-mix(in srgb, var(--ink) 64%, transparent);
+    --ink-48:color-mix(in srgb, var(--ink) 48%, transparent);
+    --ink-32:color-mix(in srgb, var(--ink) 32%, transparent);
+    --ink-24:color-mix(in srgb, var(--ink) 24%, transparent);
+    --ink-08:color-mix(in srgb, var(--ink) 8%, transparent);
+
+    --pad-x:max(16px, 2.7211vw);
+    --pad-y:max(16px, 2.1769vw);
+
+    --ease-expo:cubic-bezier(0.16,1,0.3,1);
+    --in-y:12px; --in-blur:8px; --out-y:12px; --out-blur:8px;
+
+    --hero-runway:80svh;
+    --sec2-runway:220svh;
+
+    --mat-max:180px; --mat-travel:520px; --mat-rot:4deg;
+    --measure-lead:480px; --measure-body:420px; --measure-h1:580px;
+    --shrink-end:.32;
+
+    --font-ui:'Switzer','Switzer Fallback','Inter Tight',-apple-system,BlinkMacSystemFont,'Helvetica Neue',Arial,sans-serif;
+
+    --fs-ui:14px; --lh-ui:1.7;
+    --brand-min-h: calc(3 * var(--fs-ui) * var(--lh-ui));
+    --fs-display: clamp(80px,16.667vw,240px);
+    --fs-brand: min(var(--fs-display), 26svh);
+  }
+
+  @media (pointer:coarse){ :root{ --fs-ui:16px } }
+}
+
+@layer base {
+  html{ scroll-behavior:auto; overscroll-behavior:none }
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:var(--font-ui); font-weight:300;
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    overflow-x:clip; overscroll-behavior:none;
+  }
+  :focus-visible{ outline:2px solid var(--ink); outline-offset:4px }
+  :focus:not(:focus-visible){ outline:none }
+  a,button{ touch-action:manipulation }
+  .sr-only{
+    position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+    overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+}
+
+@layer utilities {
+  .t-display{ font-size:clamp(80px,16.667vw,240px); line-height:.92; letter-spacing:-.055em; font-weight:300 }
+  .t-h1{ font-size:clamp(40px,3.333vw,48px); line-height:1.125; letter-spacing:-.04em; font-weight:300 }
+  .t-h2{ font-size:clamp(24px,4.667vw,56px); line-height:1.15; letter-spacing:-.025em; font-weight:300 }
+  .t-figure{ font-size:clamp(32px,3.333vw,48px); line-height:1.15; letter-spacing:-.06em; font-weight:300 }
+  .t-lead{ font-size:clamp(20px,2.222vw,32px); line-height:1.3; letter-spacing:-.025em; font-weight:300 }
+  .t-body-lg{ font-size:clamp(18px,2vw,24px); line-height:1.33; letter-spacing:-.03em; font-weight:300 }
+  .t-body{ font-size:clamp(16px,1.667vw,20px); line-height:1.45; letter-spacing:-.02em; font-weight:300 }
+  .t-title{ font-size:clamp(16px,1.667vw,20px); line-height:1.45; letter-spacing:-.02em; font-weight:400 }
+  .t-small{ font-size:14px; line-height:1.7; letter-spacing:-.01em; font-weight:400 }
+  .t-ui{ font-size:var(--fs-ui); line-height:var(--lh-ui); letter-spacing:0; font-weight:500 }
+
+  .is-ghost{ color:var(--ghost) }
+  .is-demoted{ color:var(--ink-64) }
+  .is-muted{ color:var(--ink-32) }
+}
+
+@layer layout {
+  #stage{
+    position:fixed; inset:0; z-index:0; background:var(--bg);
+    opacity:calc(1 - var(--stage-out,0));
+  }
+  #stage .stage__layer{ position:absolute; inset:0 }
+  #stage .stage__b{ opacity:var(--x2,0) }
+  #stage video, #stage canvas{
+    position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  }
+  @media (max-aspect-ratio:3/4){
+    #stage video, #stage canvas{ object-fit:contain; object-position:center 92% }
+  }
+  canvas.plate{ opacity:0; transition:opacity 240ms linear }
+  canvas.plate.is-live{ opacity:1 }
+  .is-blurring{ filter:blur(calc(var(--stage-out,0) * 24px)) }
+  .is-covered{ visibility:hidden }
+
+  .chrome{
+    position:fixed; inset:0; z-index:10; pointer-events:none;
+    padding:var(--pad-y) var(--pad-x);
+  }
+  .brand, .burger{ pointer-events:auto }
+
+  main{ position:relative; z-index:1 }
+
+  #top{ position:relative; height:calc(100svh + var(--hero-runway)) }
+  .hero__stage{
+    position:sticky; top:0; min-height:100svh; padding:var(--pad-y) var(--pad-x);
+    display:grid; grid-template-columns:minmax(0,7fr) minmax(0,3fr);
+    grid-template-rows:38svh 1fr auto;
+  }
+
+  #craft{ position:relative; height:calc(100svh + var(--sec2-runway)) }
+  .sec2__stage{
+    position:sticky; top:0; height:100svh; padding:var(--pad-y) var(--pad-x);
+    display:grid; grid-template-columns:3fr 2fr; grid-template-rows:1fr auto;
+  }
+  .sec2__statement{
+    grid-column:1; grid-row:1 / span 2; align-self:center; z-index:2;
+    max-width:580px; padding-top:calc(var(--brand-min-h) + var(--pad-y));
+  }
+  .specs{ grid-column:2; grid-row:2; align-self:end; width:min(100%,480px); justify-self:end }
+  .specs__row{
+    display:flex; justify-content:space-between; padding:12px 0;
+    border-top:1px solid var(--ink-24);
+  }
+  .specs__row:last-child{ border-bottom:1px solid var(--ink-24) }
+
+  .mats{ position:absolute; inset:0; pointer-events:none }
+  .mat{ position:absolute; left:var(--x); top:var(--y); width:var(--w); will-change:transform }
+  .mat img{ width:100%; height:auto; display:block }
+
+  .shop{ position:relative; padding:calc(var(--pad-y) * 4) var(--pad-x) }
+  .shop__head{
+    display:grid; grid-template-columns:minmax(0,7fr) minmax(0,3fr);
+    margin-bottom:64px; gap:24px;
+  }
+  .shop__grid{
+    display:grid; grid-template-columns:repeat(16,minmax(0,1fr));
+    column-gap:24px; row-gap:clamp(64px,9vw,136px);
+  }
+  .card{ display:flex; flex-direction:column; gap:12px }
+  .card__media{ background:var(--ink-08); overflow:hidden; border-radius:2px }
+  .card__media img{ width:100%; height:100%; object-fit:cover; transition:transform .7s var(--ease-expo) }
+  .card:hover .card__media img{ transform:scale(1.03) }
+  .card:active{ transform:scale(.985) }
+  .card__row{ display:flex; justify-content:space-between; gap:8px }
+
+  .a1{ grid-column:1 / 4; grid-row:1 }
+  .a2{ grid-column:4 / 7; grid-row:1 }
+  .a3{ grid-column:9 / 17; grid-row:1 }
+  .b1{ grid-column:1 / 4; grid-row:2 }
+  .b2{ grid-column:6 / 9; grid-row:2 }
+  .b3{ grid-column:9 / 12; grid-row:2 }
+  .ratio-23{ aspect-ratio:2/3 }
+  .ratio-11{ aspect-ratio:1/1 }
+}
+
+@layer components {
+  .brand{
+    display:inline-flex; align-items:baseline;
+    font-size:var(--fs-brand); line-height:.92; letter-spacing:-.03em; font-weight:300;
+    transform-origin:top left; transform:scale(var(--shrink,1));
+  }
+  .brand__initial{
+    font-family:'Playball',cursive; font-weight:400; letter-spacing:0;
+    font-size:1.04em; line-height:0; margin-right:-.06em; translate:0 -.01em;
+  }
+
+  .burger{
+    position:absolute; top:var(--pad-y); right:var(--pad-x);
+    width:44px; height:44px; display:flex; flex-direction:column;
+    align-items:flex-end; justify-content:center; gap:8px;
+  }
+  .burger span{ display:block; width:36px; height:1.5px; background:var(--ink) }
+
+  .hero__nav{ grid-column:1; grid-row:1; align-self:start; display:flex; flex-direction:column; gap:8px }
+  .hero__nav a{ width:fit-content }
+  @media (hover:hover) and (pointer:fine){
+    .hero__nav a:hover{ color:var(--ink-64) }
+  }
+
+  .hero__lede{ grid-column:1; grid-row:2; align-self:end; max-width:420px }
+  .hero__cta{ grid-column:1; grid-row:3; align-self:start; width:fit-content; margin-top:16px }
+
+  .btn{
+    display:inline-flex; align-items:center; gap:8px; min-height:44px;
+    padding:10px 24px; background:var(--ink-08); border-radius:4px;
+    transition:background .3s ease, color .3s ease;
+  }
+  .btn:hover{ background:var(--ink); color:var(--bg) }
+  .btn:active{ transform:scale(.97) }
+
+  .shop__title{ margin-left:-.04em }
+
+  .card__tag{ text-transform:none }
+}
+
+@layer motion {
+  .js [data-reveal]{ --in:0; --out:0 }
+  [data-reveal]{
+    opacity:calc(var(--in,1) * (1 - var(--out,0)));
+    translate: 0 calc((1 - var(--in,1)) * var(--in-y,12px) - var(--out,0) * var(--out-y,12px));
+  }
+  [data-reveal].is-anim{ filter:blur(calc((1 - var(--in,1)) * var(--in-blur,8px) + var(--out,0) * var(--out-blur,8px))) }
+  [data-reveal].is-hidden{ visibility:hidden }
+  .mat[data-reveal]{ --out-blur:0 }
+
+  @media (prefers-reduced-motion:reduce){
+    [data-reveal]{ filter:none !important }
+    .js [data-reveal]{ --in:1; --out:0 }
+  }
+}
+
+/* ── mobile ─────────────────────────────────────────────────── */
+@media (max-width:767px){
+  .hero__nav{ display:none }
+  .hero__stage{ grid-template-columns:1fr; grid-template-rows:30svh 1fr auto }
+  .hero__lede, .hero__cta{ grid-column:1 }
+
+  .shop__head{ grid-template-columns:1fr; gap:16px; margin-bottom:40px }
+  .shop__grid{ grid-template-columns:repeat(2,1fr); column-gap:16px; row-gap:40px }
+  .a1,.a2,.b1,.b2,.b3{ grid-column:span 1 }
+  .a3{ grid-column:span 2 }
+
+  #craft{ height:auto }
+  .sec2__stage{ position:relative; height:auto; display:block; padding:calc(var(--pad-y) * 1.5) var(--pad-x) }
+  .sec2__statement{ position:relative; max-width:100%; padding-top:0 }
+  .mats{ position:relative; height:220px; margin:24px 0 }
+  .specs{ width:100%; margin-top:24px }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .mat{ transition:none }
+}
+</style>
+</head>
+<body>
+
+<div id="stage" aria-hidden="true">
+  <div class="stage__layer" id="layerA">
+    <video id="v1" muted playsinline preload="auto" tabindex="-1"></video>
+    <canvas id="c1" class="plate" width="1920" height="1080"></canvas>
+  </div>
+  <div class="stage__layer stage__b" id="layerB">
+    <video id="v2" muted playsinline preload="metadata" tabindex="-1"></video>
+    <canvas id="c2" class="plate" width="1920" height="1080"></canvas>
+  </div>
+</div>
+
+<div class="chrome">
+  <a class="brand" href="#top" data-reveal="display" style="--i:0" aria-label="Briar. home">
+    <span class="brand__initial">B</span>riar.
+  </a>
+  <button class="burger" type="button" aria-label="Menu" aria-expanded="false" data-reveal style="--i:4">
+    <span></span><span></span>
+  </button>
+</div>
+
+<main>
+  <section id="top">
+    <div class="hero__stage">
+      <h1 class="sr-only">Briar. Conceptual slow clothing.</h1>
+
+      <nav class="hero__nav t-ui" aria-label="Primary">
+        <a href="#collection" data-reveal style="--i:1">Collection</a>
+        <a href="#craft" data-reveal style="--i:2">Craft</a>
+        <a href="#atelier" data-reveal style="--i:3">Atelier</a>
+      </nav>
+
+      <p class="hero__lede t-body-lg" data-reveal style="--i:5">
+        Small-batch pieces cut from what already exists. Hand-dyed, sewn once, built to outlast the season.
+      </p>
+
+      <a class="hero__cta btn t-ui" href="#collection" data-reveal style="--i:6">See the collection →</a>
+    </div>
+  </section>
+
+  <section id="craft" class="sec2">
+    <div class="sec2__stage">
+      <h2 class="sec2__statement t-h1" data-split="lines">Every piece begins with material already in the world: deadstock canvas, reclaimed wool and organic linen, hand-dyed and finished in one small workshop.</h2>
+
+      <ul class="specs">
+        <li class="specs__row t-title" data-reveal="scroll">
+          <span>Organic linen</span><span class="is-demoted">Rain-fed, hand-loomed</span>
+        </li>
+        <li class="specs__row t-title" data-reveal="scroll">
+          <span>Reclaimed wool</span><span class="is-demoted">Post-industrial fibre</span>
+        </li>
+        <li class="specs__row t-title" data-reveal="scroll">
+          <span>Tencel lyocell</span><span class="is-demoted">Closed loop, solvent reused</span>
+        </li>
+        <li class="specs__row t-title" data-reveal="scroll">
+          <span>Deadstock canvas</span><span class="is-demoted">Rescued mill surplus</span>
+        </li>
+      </ul>
+
+      <!-- Nested inside the STICKY .sec2__stage, not the tall scrolling #craft:
+           position:absolute + inset:0 sizes against the nearest positioned
+           ancestor, and #craft spans the whole 100svh+220svh pin runway, so
+           --x/--y percentages measured against it landed items far outside
+           the visible viewport (e.g. --y:74% of a 3456px-tall section, not
+           74% of the 100svh actually on screen). .sec2__stage is the
+           viewport-sized box that's actually pinned in view. -->
+      <div class="mats" aria-hidden="true">
+        <div class="mat" data-mat="driftwood" style="--x:4%;--y:74%;--w:180px"><img src="assets/driftwood.png" alt=""></div>
+        <div class="mat" data-mat="cotton" style="--x:27%;--y:6%;--w:170px"><img src="assets/cotton.png" alt=""></div>
+        <div class="mat" data-mat="driftwood-2" style="--x:84%;--y:30%;--w:180px;transform:scale(-1,-1)"><img src="assets/driftwood.png" alt=""></div>
+        <div class="mat" data-mat="fern" style="--x:66%;--y:40%;--w:135px;transform:scaleX(-1)"><img src="assets/fern.png" alt=""></div>
+        <div class="mat" data-mat="granite" style="--x:76%;--y:5%;--w:160px"><img src="assets/granite.png" alt=""></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="collection" class="shop">
+    <div class="shop__head">
+      <h2 class="shop__title t-display" data-reveal="scroll" style="--i:0">Shop</h2>
+      <p class="shop__lede t-body-lg" data-reveal="scroll" style="--i:1">Six pieces from the first run. Each one cut, dyed and finished in the workshop, numbered by hand.</p>
+    </div>
+
+    <div class="shop__grid">
+      <a class="card a1" href="#" data-reveal="scroll" style="--i:2">
+        <div class="card__media ratio-23"><img src="assets/shop-tank.webp" alt="Raw tank" loading="lazy"></div>
+        <div class="card__row t-title"><span>Raw tank</span><span>&euro;140</span></div>
+        <span class="t-small is-demoted card__tag">Apparel</span>
+      </a>
+      <a class="card a2" href="#" data-reveal="scroll" style="--i:3">
+        <div class="card__media ratio-11"><img src="assets/shop-cuff.webp" alt="Twist cuff" loading="lazy"></div>
+        <div class="card__row t-title"><span>Twist cuff</span><span>&euro;160</span></div>
+        <span class="t-small is-demoted card__tag">Jewellery</span>
+      </a>
+      <a class="card a3" href="#" data-reveal="scroll" style="--i:4">
+        <div class="card__media ratio-11"><img src="assets/shop-jeans.webp" alt="Rinse jeans" loading="lazy"></div>
+        <div class="card__row t-title"><span>Rinse jeans</span><span>&euro;225</span></div>
+        <span class="t-small is-demoted card__tag">Denim</span>
+      </a>
+      <a class="card b1" href="#" data-reveal="scroll" style="--i:0">
+        <div class="card__media ratio-11"><img src="assets/shop-shield.webp" alt="Horn shield" loading="lazy"></div>
+        <div class="card__row t-title"><span>Horn shield</span><span>&euro;95</span></div>
+        <span class="t-small is-demoted card__tag">Eyewear</span>
+      </a>
+      <a class="card b2" href="#" data-reveal="scroll" style="--i:1">
+        <div class="card__media ratio-23"><img src="assets/shop-tote.webp" alt="Woven tote" loading="lazy"></div>
+        <div class="card__row t-title"><span>Woven tote</span><span>&euro;185</span></div>
+        <span class="t-small is-demoted card__tag">Bags</span>
+      </a>
+      <a class="card b3" href="#" data-reveal="scroll" style="--i:2">
+        <div class="card__media ratio-11"><img src="assets/shop-hat.webp" alt="Straw hat" loading="lazy"></div>
+        <div class="card__row t-title"><span>Straw hat</span><span>&euro;115</span></div>
+        <span class="t-small is-demoted card__tag">Apparel</span>
+      </a>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+/* ─── shared helpers ──────────────────────────────────────────── */
+const clamp01 = x => x < 0 ? 0 : x > 1 ? 1 : x;
+const expoOut = t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+const cubicOut = t => 1 - Math.pow(1 - t, 3);
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const root = document.documentElement;
+
+/* ─── line splitter ───────────────────────────────────────────── */
+function splitLines(el) {
+  const text = el.textContent.trim();
+  const words = text.split(/\s+/);
+  el.textContent = '';
+  const spans = words.map((w, i) => {
+    const s = document.createElement('span');
+    s.className = 'word';
+    s.dataset.reveal = 'scroll';
+    s.textContent = w + (i < words.length - 1 ? ' ' : '');
+    s.style.display = 'inline-block';
+    el.appendChild(s);
+    return s;
+  });
+  return spans;
+}
+const statementEl = document.querySelector('[data-split="lines"]');
+let words = statementEl ? splitLines(statementEl) : [];
+function groupLines() {
+  if (!words.length) return [];
+  const rows = new Map();
+  for (const w of words) {
+    const top = Math.round(w.offsetTop);
+    if (!rows.has(top)) rows.set(top, []);
+    rows.get(top).push(w);
+  }
+  return [...rows.values()];
+}
+let lines = groupLines();
+
+/* ─── entrance sequence ───────────────────────────────────────── */
+const loadNodes = [...document.querySelectorAll('.chrome [data-reveal], .hero__stage [data-reveal]')];
+let entranceStarted = false;
+let entranceStarted0 = 0;
+function startEntrance() {
+  if (entranceStarted) return;
+  entranceStarted = true;
+  entranceStarted0 = performance.now();
+  root.classList.add('is-ready');
+  requestAnimationFrame(loop);
+}
+const fontsReady = document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve();
+Promise.race([fontsReady, new Promise(r => setTimeout(r, 2500))]).then(startEntrance);
+setTimeout(startEntrance, 2500);
+
+/* ─── reveal state ────────────────────────────────────────────── */
+const state = new WeakMap();
+function writeReveal(el, inV, outV, forceClass) {
+  const prev = state.get(el) || { in: -1, out: -1, anim: null, hidden: null };
+  const rin = Math.round(inV * 1000) / 1000;
+  const rout = Math.round(outV * 1000) / 1000;
+  if (rin !== prev.in) el.style.setProperty('--in', rin);
+  if (rout !== prev.out) el.style.setProperty('--out', rout);
+  const anim = rin > 0 && rin < 1 || rout > 0 && rout < 1;
+  const hidden = rin <= 0 || rout >= 1;
+  if (anim !== prev.anim) el.classList.toggle('is-anim', anim);
+  if (hidden !== prev.hidden) el.classList.toggle('is-hidden', hidden);
+  state.set(el, { in: rin, out: rout, anim, hidden });
+}
+
+/* Entrance timing for load nodes (brand + chrome + hero) */
+function entranceFor(el, now) {
+  const i = Number(el.dataset.i || el.style.getPropertyValue('--i')) || 0;
+  const isBrand = el.classList.contains('brand');
+  const dur = isBrand ? 1.4 : 0.9;
+  const delay = i * 0.09;
+  const t = clamp01((now - delay) / dur);
+  return expoOut(t);
+}
+
+/* ─── brand shrink ────────────────────────────────────────────── */
+const brandEl = document.querySelector('.brand');
+const heroSection = document.getElementById('top');
+function brandShrink(p1) {
+  const navVisible = getComputedStyle(document.querySelector('.hero__nav')).display !== 'none';
+  let minRatio = parseFloat(getComputedStyle(root).getPropertyValue('--shrink-end')) || 0.32;
+  if (!navVisible) {
+    const bh = parseFloat(getComputedStyle(root).getPropertyValue('--brand-min-h'));
+    const full = brandEl.offsetHeight / (parseFloat(getComputedStyle(brandEl).getPropertyValue('--shrink')) || 1) || brandEl.offsetHeight;
+    minRatio = bh && full ? bh / full : minRatio;
+  }
+  const t = clamp01(p1 / 0.85);
+  const s = 1 - t * (1 - minRatio);
+  brandEl.style.setProperty('--shrink', s.toFixed(4));
+  root.style.setProperty('--shrink-end', minRatio.toFixed(4));
+}
+
+/* ─── materials collage ───────────────────────────────────────── */
+const MATS = [
+  { key: 'driftwood',   from: 'left',   k: 0, speed: .46, drift: -.30, rot:  1.4, tau: 5,  spin:  -18, bow: 70,  s0: 1.10, tilt: -6 },
+  { key: 'granite',     from: 'top',    k: 1, speed: .42, drift:  .26, rot: -1.0, tau: 6,  spin:   14, bow: -50, s0: 1.08, tilt:  5 },
+  { key: 'driftwood-2', from: 'right',  k: 2, speed: .60, drift:  .28, rot:  -.6, tau: 4,  spin:   16, bow: 60,  s0: 1.12, tilt:  4 },
+  { key: 'cotton',      from: 'top',    k: 3, speed: .30, drift:  .24, rot: -1.2, tau: 7,  spin:  -12, bow: 40,  s0: .92,  tilt:  8 },
+  { key: 'fern',        from: 'bottom', k: 4, speed: .18, drift:  .16, rot:   .5, tau: 8,  spin:   10, bow: -90, s0: .90,  tilt: 12 },
+];
+const matEls = new Map();
+document.querySelectorAll('.mat').forEach(el => matEls.set(el.dataset.mat, el));
+const matCur = new Map();
+MATS.forEach(m => matCur.set(m.key, 0));
+
+function matAxisOffset(from, u) {
+  const dist = window.innerWidth + 200;
+  const rem = 1 - u;
+  switch (from) {
+    case 'left':   return { x: -rem * dist, y: 0 };
+    case 'right':  return { x:  rem * dist, y: 0 };
+    case 'top':    return { x: 0, y: -rem * (window.innerHeight * .6) };
+    case 'bottom': return { x: 0, y:  rem * (window.innerHeight * .6) };
+    default: return { x: 0, y: 0 };
+  }
+}
+
+function updateMats(p2, isFlow) {
+  const IN = isFlow ? [.28, .06, .32] : [.22, .05, .28];
+  const OUT = isFlow ? [.78, .02, .14] : [.70, .02, .14];
+  for (const m of MATS) {
+    const el = matEls.get(m.key);
+    if (!el) continue;
+    const inStart = IN[0] + m.k * IN[1], inDur = IN[2];
+    const outStart = OUT[0] + m.k * OUT[1], outDur = OUT[2];
+    const e = clamp01((p2 - inStart) / inDur);
+    const o = clamp01((p2 - outStart) / outDur);
+    const target = expoOut(e) * (1 - o);
+    let cur = matCur.get(m.key);
+    if (reduced) cur = target;
+    else cur += (target - cur) * (1 - Math.exp(-(1 / 60) * m.tau * 60 / 8));
+    matCur.set(m.key, cur);
+
+    const u = clamp01(cur);
+    const q = clamp01(p2 - .62);
+    const axis = matAxisOffset(m.from, u);
+    const bowAxis = (m.from === 'left' || m.from === 'right') ? -1 : 1;
+    const bowOff = Math.sin(Math.PI * u) * m.bow * bowAxis;
+    const px = axis.x + (m.from === 'top' || m.from === 'bottom' ? bowOff : 0)
+             + q * m.speed * m.drift * 520;
+    const py = axis.y + (m.from === 'left' || m.from === 'right' ? bowOff : 0)
+             - q * m.speed * 520;
+    const exitLift = o * (40 + m.speed * 120);
+    const rot = m.tilt + m.spin * u + q * m.rot * 4;
+    const scale = 1 + (m.s0 - 1) * u;
+
+    el.style.translate = `${px.toFixed(2)}px ${(py - exitLift).toFixed(2)}px`;
+    el.style.rotate = `${rot.toFixed(2)}deg`;
+    el.style.scale = `${scale.toFixed(3)}`;
+    writeReveal(el, u, o);
+  }
+}
+
+/* ─── video plate engine (native <video> seeking; WebCodecs upgrade below) ─ */
+const v1 = document.getElementById('v1'), c1 = document.getElementById('c1');
+const v2 = document.getElementById('v2'), c2 = document.getElementById('c2');
+const stageEl = document.getElementById('stage'), layerB = document.getElementById('layerB');
+
+const SRC_V1 = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/21819d3a-eaa3-4afc-a67d-46d8e684451a.mp4';
+const SRC_V2 = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/0dd51683-efe0-4871-8f50-5d5a3d5286ce.mp4';
+v1.src = SRC_V1; v2.src = SRC_V2;
+
+function createClip(video, canvas) {
+  const ctx = canvas.getContext('2d', { alpha: false });
+  const clip = { v: video, c: canvas, ctx, dur: 0, current: 0, target: 0,
+    bank: [], lru: new Map(), drawnIndex: -1, ready: false, reverted: false, painted: false, building: false };
+
+  video.addEventListener('loadedmetadata', () => { clip.dur = video.duration || 0; });
+  video.pause();
+
+  clip.render = t => {
+    if (clip.ready) {
+      const i = nearestIndex(clip, t);
+      const bm = clip.lru.get(i);
+      if (bm && i !== clip.drawnIndex) {
+        ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
+        clip.drawnIndex = i;
+        if (!clip.painted && !clip.reverted) { clip.painted = true; canvas.classList.add('is-live'); }
+      }
+      return;
+    }
+    if (!video.seeking && Math.abs(video.currentTime - t) > 0.01) {
+      try { video.currentTime = t; } catch (e) {}
+    }
+  };
+  return clip;
+}
+function nearestIndex(clip, t) {
+  const b = clip.bank, us = t * 1e6; let lo = 0, hi = b.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (b[m].ts < us) lo = m + 1; else hi = m; }
+  return lo;
+}
+
+const clip1 = createClip(v1, c1);
+const clip2 = createClip(v2, c2);
+
+// NOTE: canvas 'is-live' is set only inside clip.render's frame-bank branch,
+// once a real bitmap has actually been drawn — never on a bare 'seeked'
+// event. Marking the canvas live before it has painted anything makes it an
+// opaque (alpha:false) black square sitting over the native <video>
+// fallback, hiding it instead of falling back to it.
+v1.addEventListener('seeked', kick);
+v2.addEventListener('seeked', kick);
+
+function primeAutoplayGate(video, clip) {
+  const p = video.play();
+  if (p && p.then) p.then(() => { video.pause(); video.currentTime = clip.current; }).catch(() => {});
+}
+v1.addEventListener('loadeddata', () => primeAutoplayGate(v1, clip1), { once: true });
+v2.addEventListener('loadeddata', () => primeAutoplayGate(v2, clip2), { once: true });
+window.addEventListener('touchstart', () => { primeAutoplayGate(v1, clip1); primeAutoplayGate(v2, clip2); }, { once: true, passive: true });
+
+/* WebCodecs frame-bank upgrade — same shape as the drift/plate engine, run
+   per clip; falls back to plain <video> seeking on any failure. */
+function buildFrameBank(clip, url) {
+  return new Promise(done => {
+    if (clip.building || reduced) return done();
+    if (typeof VideoDecoder === 'undefined' || typeof MP4Box === 'undefined' || typeof DataStream === 'undefined') return done();
+    clip.building = true;
+    let settled = false;
+    const watchdog = setTimeout(() => { clip.reverted = true; finish(); }, 60000);
+    function finish() { if (settled) return; settled = true; clearTimeout(watchdog); done(); }
+    function fail() { if (settled) return; clip.reverted = true; finish(); }
+
+    const off = document.createElement('canvas'); let octx = null;
+    let chain = Promise.resolve(), samples = [], decoder, file;
+    let cnt = 0; const waiters = [];
+    function tickDone() { cnt++; for (let i = waiters.length - 1; i >= 0; i--) if (cnt >= waiters[i].n) { waiters[i].res(); waiters.splice(i, 1); } }
+    function until(n) { return cnt >= n ? Promise.resolve() : new Promise(res => waiters.push({ n, res })); }
+
+    try { file = MP4Box.createFile(); } catch (e) { return fail(); }
+
+    decoder = new VideoDecoder({
+      output(vf) {
+        const ts = vf.timestamp;
+        chain = chain.then(() => {
+          if (clip.reverted) { vf.close(); tickDone(); return; }
+          if (!octx) { off.width = vf.codedWidth || 1920; off.height = vf.codedHeight || 1080; octx = off.getContext('2d', { alpha: false }); }
+          octx.drawImage(vf, 0, 0, off.width, off.height);
+          vf.close();
+          return new Promise(res => {
+            off.toBlob(blob => { if (blob) clip.bank.push({ ts, blob }); tickDone(); res(); }, 'image/webp', 0.85);
+          });
+        });
+      },
+      error: fail,
+    });
+
+    function description(track) {
+      const trak = file.getTrackById(track.id);
+      const entries = trak.mdia.minf.stbl.stsd.entries;
+      for (const e of entries) {
+        const box = e.hvcC || e.avcC || e.vpcC || e.av1C;
+        if (box) { const s = new DataStream(undefined, 0, DataStream.BIG_ENDIAN); box.write(s); return new Uint8Array(s.buffer, 8); }
+      }
+      return null;
+    }
+    file.onError = fail;
+    file.onReady = info => {
+      const track = info.videoTracks && info.videoTracks[0];
+      if (!track) return fail();
+      const desc = description(track);
+      const cfg = { codec: track.codec, codedWidth: track.video.width, codedHeight: track.video.height };
+      if (desc) cfg.description = desc;
+      try { decoder.configure(cfg); } catch (e) { return fail(); }
+      file.setExtractionOptions(track.id, null, { nbSamples: Infinity });
+      file.start();
+    };
+    file.onSamples = (id, user, list) => { for (const s of list) samples.push(s); };
+
+    function pump() {
+      let i = 0;
+      function step() {
+        if (clip.reverted) return Promise.resolve();
+        while (i < samples.length) {
+          const s = samples[i];
+          try {
+            decoder.decode(new EncodedVideoChunk({ type: s.is_sync ? 'key' : 'delta', timestamp: s.cts * 1e6 / s.timescale, duration: s.duration * 1e6 / s.timescale, data: s.data }));
+          } catch (e) { fail(); return Promise.resolve(); }
+          i++;
+          if (i - cnt > 16) return until(i - 16).then(step);
+        }
+        return Promise.resolve();
+      }
+      return step();
+    }
+
+    fetch(url).then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
+      .catch(fail)
+      .then(buf => {
+        if (!buf || clip.reverted) return;
+        try { buf.fileStart = 0; file.appendBuffer(buf); file.flush(); } catch (e) { return fail(); }
+        if (!samples.length) return fail();
+        pump().then(() => clip.reverted ? null : decoder.flush()).then(() => chain).then(() => {
+          if (clip.reverted || !clip.bank.length) return finish();
+          clip.bank.sort((a, b) => a.ts - b.ts);
+          const i0 = nearestIndex(clip, clip.current);
+          createImageBitmap(clip.bank[i0].blob).then(bm => {
+            if (clip.reverted) return;
+            clip.lru.set(i0, bm);
+            clip.ready = true;
+            clip.render(clip.current);
+          }).then(finish);
+        }).catch(fail);
+      });
+  });
+}
+function loadAheadWindow(clip, t) {
+  if (!clip.ready) return;
+  const i = nearestIndex(clip, t);
+  for (let k = -2; k <= 6; k++) {
+    const j = i + k;
+    if (j < 0 || j >= clip.bank.length || clip.lru.has(j)) continue;
+    clip.lru.set(j, null);
+    createImageBitmap(clip.bank[j].blob).then(bm => {
+      clip.lru.set(j, bm);
+      if (clip.lru.size > 24) {
+        const it = clip.lru.keys();
+        for (let n = 0; n < clip.lru.size - 24; n++) {
+          const key = it.next().value, old = clip.lru.get(key);
+          if (old && old.close) old.close();
+          clip.lru.delete(key);
+        }
+      }
+    }).catch(() => clip.lru.delete(j));
+  }
+}
+if (document.readyState === 'complete') buildFrameBank(clip1, SRC_V1).then(() => buildFrameBank(clip2, SRC_V2));
+else addEventListener('load', () => buildFrameBank(clip1, SRC_V1).then(() => buildFrameBank(clip2, SRC_V2)));
+
+/* ─── scroll → progress map ───────────────────────────────────── */
+let S1 = 0, S2 = 0, max = 1;
+function measure() {
+  lines = groupLines();
+  const craftTop = document.getElementById('craft').offsetTop;
+  const craftHeight = document.getElementById('craft').offsetHeight;
+  S1 = craftTop + craftHeight * 0.03; // LINE_START-ish anchor into the pin
+  const shopTop = document.getElementById('collection').offsetTop;
+  S2 = shopTop - window.innerHeight;
+  max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+}
+measure();
+addEventListener('resize', () => { measure(); kick(); });
+if ('ResizeObserver' in window) new ResizeObserver(() => { measure(); kick(); }).observe(document.body);
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { measure(); kick(); });
+
+let queued = false, last = 0;
+function kick() { if (queued) return; queued = true; requestAnimationFrame(loop); }
+addEventListener('scroll', kick, { passive: true });
+
+function loop(now) {
+  queued = false;
+  const dt = last ? Math.min(64, now - last) : 16; last = now;
+  const y = window.pageYOffset;
+
+  /* entrance */
+  const heroTop = heroSection.getBoundingClientRect().top + y;
+  const heroH = heroSection.offsetHeight;
+  const p1 = clamp01((y - heroTop) / (heroH - window.innerHeight));
+
+  if (entranceStarted) {
+    const nowSec = (now - entranceStarted0) / 1000;
+    for (const el of loadNodes) writeReveal(el, entranceFor(el, nowSec), 0);
+  }
+
+  /* hero exit as pin progresses */
+  const EXIT_START = .06, STEP = .07, DUR = .45;
+  const heroNodes = [...document.querySelectorAll('.hero__stage [data-reveal]')];
+  heroNodes.forEach((el, idx) => {
+    const start = EXIT_START + idx * STEP;
+    const o = clamp01((p1 - start) / DUR);
+    const eo = expoOut(o);
+    const cur = state.get(el);
+    writeReveal(el, cur ? Math.max(cur.in, entranceStarted ? entranceFor(el, (now - entranceStarted0) / 1000) : 1) : 1, eo);
+  });
+  brandShrink(p1);
+
+  /* craft: line reveal + spec rows + exit */
+  const craftTop = document.getElementById('craft').offsetTop;
+  const craftH = document.getElementById('craft').offsetHeight;
+  const p2 = clamp01((y - craftTop) / (craftH - window.innerHeight));
+  const LINE_START = .03, LSTEP = .045, LDUR = .15;
+  const specRows = [...document.querySelectorAll('.specs__row')];
+  lines.forEach((lineWords, r) => {
+    const start = LINE_START + r * LSTEP;
+    const inV = expoOut(clamp01((p2 - start) / LDUR));
+    const outV = expoOut(clamp01((p2 - .82) / .12 - r * .02));
+    lineWords.forEach(w => writeReveal(w, inV, outV));
+    const row = specRows[r];
+    if (row) writeReveal(row, inV, outV);
+  });
+
+  /* materials collage */
+  const isFlow = getComputedStyle(document.querySelector('.mats')).position !== 'fixed' &&
+                 getComputedStyle(document.getElementById('craft')).position === 'relative' &&
+                 window.innerWidth <= 767;
+  updateMats(p2, isFlow);
+
+  /* shop + generic scroll-position reveals outside hero/craft */
+  document.querySelectorAll('[data-reveal="scroll"]').forEach(el => {
+    if (el.closest('.specs') || el.closest('#craft')) return;
+    const r = el.getBoundingClientRect();
+    const topFrac = r.top / window.innerHeight;
+    const i = Number(el.style.getPropertyValue('--i')) || 0;
+    const start = 0.92 - i * 0.11 * 0;
+    const raw = (0.92 - topFrac) / (0.92 - 0.62);
+    const e = cubicOut(clamp01(raw - i * 0.02));
+    writeReveal(el, e, 0);
+  });
+
+  /* video plate: clip1 0->S1, clip2 S1->S2, handoff crossfade, whiteout after S2 */
+  const targetP = clamp01((y) / max);
+  let vTarget1 = 0, vTarget2 = 0;
+  if (y <= S1) {
+    vTarget1 = clip1.dur ? clamp01(y / Math.max(1, S1)) * clip1.dur : 0;
+  } else {
+    vTarget1 = clip1.dur;
+    vTarget2 = clip2.dur ? clamp01((y - S1) / Math.max(1, S2 - S1)) * clip2.dur : 0;
+  }
+  const tau = 8, snap = 0.002;
+  if (reduced) { clip1.current = vTarget1; clip2.current = vTarget2; }
+  else {
+    clip1.current += (vTarget1 - clip1.current) * (1 - Math.exp(-dt / 1000 * tau * 60));
+    clip2.current += (vTarget2 - clip2.current) * (1 - Math.exp(-dt / 1000 * tau * 60));
+    if (Math.abs(vTarget1 - clip1.current) < snap) clip1.current = vTarget1;
+    if (Math.abs(vTarget2 - clip2.current) < snap) clip2.current = vTarget2;
+  }
+  clip1.render(clip1.current);
+  clip2.render(clip2.current);
+
+  const x2 = clamp01((y - (S1 - 12)) / 24);
+  root.style.setProperty('--x2', x2.toFixed(3));
+  layerB.classList.toggle('is-covered', false);
+  document.getElementById('layerA').classList.toggle('is-covered', x2 >= 1);
+
+  const stageOut = clamp01((y - S2) / (0.5 * window.innerHeight));
+  root.style.setProperty('--stage-out', stageOut.toFixed(3));
+  stageEl.classList.toggle('is-blurring', stageOut > 0 && stageOut < 1);
+  stageEl.classList.toggle('is-covered', stageOut >= 1);
+
+  loadAheadWindow(clip1, clip1.current);
+  loadAheadWindow(clip2, clip2.current);
+
+  if (!entranceStarted || p1 < 1 || p2 < 1 || Math.abs(vTarget1 - clip1.current) > snap || Math.abs(vTarget2 - clip2.current) > snap) {
+    kick();
+  } else {
+    last = 0;
+  }
+}
+
+/* ─── mobile menu (visual chrome only, per spec) ──────────────── */
+document.querySelector('.burger').addEventListener('click', function () {
+  const open = this.getAttribute('aria-expanded') === 'true';
+  this.setAttribute('aria-expanded', String(!open));
+});
+
+kick();
+</script>
+</body>
+</html>
+
+```
