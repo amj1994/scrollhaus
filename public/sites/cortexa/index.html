@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CORTEXA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:'Space Mono',monospace;
+  background:#000;color:#fff;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+#video-layer{position:fixed;inset:0;z-index:1;background:#000}
+#video-layer video{width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;will-change:transform,filter,opacity;display:block}
+#bottom-blur{position:fixed;bottom:0;left:0;right:0;height:150px;z-index:30;background:linear-gradient(to bottom,transparent,#000);-webkit-mask-image:linear-gradient(to top,#000 50%,transparent);mask-image:linear-gradient(to top,#000 50%,transparent);backdrop-filter:blur(4px);pointer-events:none}
+#main-header{position:fixed;top:0;left:0;right:0;height:80px;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 24px;opacity:0;transition:opacity 0.6s ease}
+#main-header.visible{opacity:1}
+.header-logo-pill{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(12px);border-radius:999px;padding:10px 20px;font-size:13px;font-weight:700;letter-spacing:0.08em;white-space:nowrap}
+.header-right{display:flex;align-items:center;gap:12px}
+.hamburger-pill{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(12px);border-radius:999px;height:44px;overflow:hidden;display:flex;align-items:center;width:48px;transition:width 0.35s cubic-bezier(0.22,1,0.36,1);cursor:pointer;position:relative}
+.hamburger-pill.open{width:290px}
+.hamburger-btn{flex-shrink:0;width:48px;height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;border:none;background:none;padding:0}
+.bar{width:18px;height:1.5px;background:#fff;border-radius:2px;transition:all 0.3s ease;transform-origin:center}
+.hamburger-pill.open .bar:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
+.hamburger-pill.open .bar:nth-child(2){opacity:0;transform:scaleX(0)}
+.hamburger-pill.open .bar:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+.menu-links{display:flex;align-items:center;gap:24px;padding:0 16px 0 4px;white-space:nowrap}
+.menu-links a{font-size:12px;font-weight:400;letter-spacing:0.06em;color:#fff;text-decoration:none;opacity:0.7;transition:opacity 0.2s}
+.menu-links a:hover{opacity:1}
+.download-pill{background:#fff;color:#000;border-radius:999px;padding:10px 20px;font-size:12px;font-weight:700;letter-spacing:0.06em;text-decoration:none;white-space:nowrap;transition:opacity 0.2s}
+.download-pill:hover{opacity:0.85}
+#mobile-header{display:none;position:fixed;top:0;left:0;right:0;height:80px;z-index:50;align-items:center;justify-content:space-between;padding:0 16px;opacity:0;transition:opacity 0.6s ease}
+#mobile-header.visible{opacity:1}
+.mobile-logo-pill{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(12px);border-radius:999px;padding:10px 18px;font-size:12px;font-weight:700;letter-spacing:0.08em;overflow:hidden;white-space:nowrap;width:108px;transition:width 0.35s cubic-bezier(0.22,1,0.36,1),opacity 0.35s ease,padding 0.35s ease}
+.mobile-logo-pill.collapsed{width:0;opacity:0;padding:0}
+.mobile-menu-pill{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.15);backdrop-filter:blur(12px);border-radius:999px;height:44px;display:flex;align-items:center;overflow:hidden;flex:1;margin-left:10px;transition:all 0.35s cubic-bezier(0.22,1,0.36,1);max-width:48px}
+.mobile-menu-pill.open{max-width:100%}
+.mobile-menu-links{display:flex;align-items:center;gap:20px;padding:0 16px 0 4px;opacity:0;transition:opacity 0.25s ease;white-space:nowrap}
+.mobile-menu-pill.open .mobile-menu-links{opacity:1}
+.mobile-menu-links a{font-size:12px;color:#fff;text-decoration:none;opacity:0.7}
+@media(max-width:639px){
+  #main-header{display:none}
+  #mobile-header{display:flex}
+}
+#main-content{position:relative;z-index:10;opacity:0;transition:opacity 0.8s ease}
+#main-content.visible{opacity:1}
+.dot-grid{position:fixed;inset:0;z-index:2;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,0.15) 1px,transparent 1px);background-size:32px 32px;opacity:0.05}
+#hero{position:relative;z-index:10;min-height:80vh;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr auto;padding:120px 48px 60px;gap:0}
+#hero-title-left{grid-column:1;grid-row:1;display:flex;flex-direction:column;justify-content:flex-start;align-items:flex-start;padding-top:40px}
+#hero-title-right{grid-column:2;grid-row:2;display:flex;flex-direction:column;justify-content:flex-end;align-items:flex-end;text-align:right}
+#hero-description{grid-column:1;grid-row:2;display:flex;align-items:flex-end;max-width:480px;padding-bottom:8px}
+.scramble-word{font-size:clamp(50px,8vw,100px);font-weight:200;letter-spacing:-0.045em;line-height:0.9;display:block;font-family:'Space Mono',monospace;white-space:pre}
+.hero-desc{font-size:14px;font-weight:400;line-height:1.7;color:rgba(255,255,255,0.65);letter-spacing:0.01em}
+@media(max-width:639px){
+  #hero{grid-template-columns:1fr;grid-template-rows:auto auto auto;padding:100px 24px 40px;min-height:70vh}
+  #hero-title-left{grid-column:1;grid-row:1}
+  #hero-title-right{grid-column:1;grid-row:2;align-items:flex-start;text-align:left}
+  #hero-description{grid-column:1;grid-row:3;padding-top:20px}
+  .scramble-word{font-size:clamp(36px,10vw,60px)}
+}
+#cinematic-section{position:relative;z-index:10;min-height:60vh;display:flex;align-items:center;justify-content:center;padding:80px 48px;perspective:400px}
+#cinematic-inner{transform-style:preserve-3d;max-width:700px;text-align:center}
+#cinematic-text{font-size:clamp(18px,2.2vw,28px);font-weight:400;line-height:1.6;color:rgba(255,255,255,0.85);letter-spacing:-0.01em}
+@media(max-width:639px){#cinematic-section{padding:60px 24px}#cinematic-text{font-size:16px}}
+#stats-section{position:relative;z-index:10;padding:80px 0 120px}
+#stats-section h2{font-size:12px;letter-spacing:0.12em;opacity:0.4;text-transform:uppercase;text-align:center;margin-bottom:40px}
+.swiper{overflow:visible!important;padding:20px 0!important}
+.swiper-slide{width:280px!important}
+.stat-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:32px 28px;height:320px;display:flex;flex-direction:column;justify-content:space-between;opacity:0;transform:translateY(40px) scale(0.96);transition:opacity 0.7s ease,transform 0.7s ease}
+.stat-card.revealed{opacity:1;transform:none}
+.stat-card-header{font-size:11px;letter-spacing:0.1em;opacity:0.45;text-transform:uppercase}
+.stat-card-value{font-size:52px;font-weight:700;letter-spacing:-0.04em;line-height:1}
+.stat-card-footer{font-size:11px;opacity:0.5;letter-spacing:0.04em}
+.stat-card-detail{font-size:11px;line-height:1.6;opacity:0.35;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;margin-top:auto}
+</style>
+</head>
+<body>
+<div id="video-layer">
+  <video id="hero-video" loop muted playsinline preload="auto" src="assets/video/hero.mp4"></video>
+</div>
+<div id="bottom-blur"></div>
+<div class="dot-grid"></div>
+
+<header id="main-header">
+  <div class="header-logo-pill">CORTEXA</div>
+  <div class="header-right">
+    <div class="hamburger-pill" id="desktop-hamburger">
+      <button class="hamburger-btn" aria-label="Menu">
+        <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      </button>
+      <div class="menu-links">
+        <a href="#">About</a>
+        <a href="#">Metrics</a>
+        <i class="bi bi-apple" style="opacity:0.6;font-size:14px"></i>
+      </div>
+    </div>
+    <a href="#" class="download-pill">Download</a>
+  </div>
+</header>
+
+<header id="mobile-header">
+  <div class="mobile-logo-pill" id="mobile-logo">CORTEXA</div>
+  <div class="mobile-menu-pill" id="mobile-hamburger">
+    <button class="hamburger-btn" aria-label="Menu">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+    </button>
+    <div class="mobile-menu-links">
+      <a href="#">About</a>
+      <a href="#">Metrics</a>
+      <i class="bi bi-apple" style="opacity:0.6;font-size:14px"></i>
+      <a href="#" style="background:#fff;color:#000;padding:6px 14px;border-radius:999px;font-weight:700;font-size:11px;opacity:1">Download</a>
+    </div>
+  </div>
+</header>
+
+<div id="main-content">
+  <section id="hero">
+    <div id="hero-title-left">
+      <span class="scramble-word" data-scramble-in data-text="Signal" data-delay="100">Signal</span>
+      <span class="scramble-word" data-scramble-in data-text="And Self" data-delay="300">And Self</span>
+    </div>
+    <div id="hero-title-right">
+      <span class="scramble-word" data-scramble-in data-text="One" data-delay="200">One</span>
+      <span class="scramble-word" data-scramble-in data-text="Lattice" data-delay="400">Lattice</span>
+    </div>
+    <div id="hero-description">
+      <p class="hero-desc">Built where neuroscience meets machine learning. CORTEXA maps neural pathways, cognitive load and physiological state into one adaptive intelligence layer that keeps re-reading you in real time.</p>
+    </div>
+  </section>
+
+  <section id="cinematic-section">
+    <div id="cinematic-inner">
+      <p id="cinematic-text">A neural interface shaped like the nervous system it listens to. CORTEXA turns synaptic activity into computation — every signal measurable, structured, visible. It rebuilds your internal state as a living map, filtering biological noise into patterns you can actually act on.</p>
+    </div>
+  </section>
+
+  <section id="stats-section">
+    <h2>Performance Metrics</h2>
+    <div class="swiper" id="stats-swiper">
+      <div class="swiper-wrapper" id="stats-wrapper"></div>
+    </div>
+  </section>
+</div>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────────────
+const VIDEO_URL = 'assets/video/hero.mp4';
+
+// ── State ────────────────────────────────────────────────────────────────────
+let scrollProgress = 0, smoothScrollProgress = 0;
+let phase = 'loading';
+let entranceStart = null;
+const ENTRANCE_DURATION = 1400;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function clamp01(v){return Math.max(0,Math.min(1,v))}
+function ease(t){return 1-Math.pow(1-t,3)}
+
+// ── Video setup ──────────────────────────────────────────────────────────────
+const video = document.getElementById('hero-video');
+video.autoplay = false;
+let videoReady = false, isSeeking = false, nextSeekTime = null;
+video.addEventListener('loadedmetadata', function(){video.pause(); videoReady=true; if(video.readyState>=3)tryStartEntrance();});
+video.addEventListener('canplay', function(){if(video.readyState>=3)tryStartEntrance();});
+video.addEventListener('seeked', function(){isSeeking=false; if(nextSeekTime!=null){var t=nextSeekTime;nextSeekTime=null;seekTo(t);}});
+function seekTo(t){if(isSeeking){nextSeekTime=t;return;} isSeeking=true; video.currentTime=t;}
+
+// ── Entrance ─────────────────────────────────────────────────────────────────
+function tryStartEntrance(){
+  if(phase!=='loading')return;
+  phase='animating';
+  entranceStart=performance.now();
+}
+// Safety timeout at 2000ms
+setTimeout(function(){tryStartEntrance();}, 2000);
+
+// ── ScrambleIn ───────────────────────────────────────────────────────────────
+var GLYPHS='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+~|}{[]:;?><';
+function rg(){return GLYPHS[Math.floor(Math.random()*GLYPHS.length)];}
+var scrambleEls=[];
+document.querySelectorAll('[data-scramble-in]').forEach(function(el){
+  var text=el.dataset.text||el.textContent;
+  var delay=parseInt(el.dataset.delay||'0');
+  el.dataset.text=text;
+  el.textContent=' '.repeat(text.length);
+  scrambleEls.push({el:el,text:text,delay:delay,state:'hidden',animStart:null,animDir:null,animDuration:0});
+});
+function triggerScramble(s,dir){
+  if(s.animDir===dir&&s.animStart!=null)return;
+  s.animDir=dir;
+  s.animDuration=dir==='in'?900:700;
+  s.animStart=performance.now();
+  s.state='animating';
+}
+function animateScramble(ts){
+  scrambleEls.forEach(function(s){
+    if(!s.animStart)return;
+    var elapsed=ts-s.animStart;
+    var prog=Math.min(1,elapsed/s.animDuration);
+    var rev=s.animDir==='in'?prog:1-prog;
+    var chars=s.text.split('').map(function(ch,i){
+      if(ch===' ')return ' ';
+      var threshold=i/s.text.length;
+      if(rev>threshold)return ch;
+      return rg();
+    });
+    s.el.textContent=chars.join('');
+    if(prog>=1){s.animStart=null;s.state=s.animDir==='in'?'visible':'hidden';}
+  });
+}
+
+// ── Stats data ───────────────────────────────────────────────────────────────
+var statsData=[
+  {title:'Neural Latency',value:'0.4ms',footer:'Signal processing',detail:'End-to-end synaptic signal capture and routing latency measured across 1,024 concurrent electrode channels.'},
+  {title:'Pathway Coverage',value:'98.7%',footer:'Cortical mapping',detail:'Percentage of primary motor and sensory cortex regions successfully mapped during baseline calibration sessions.'},
+  {title:'Cognitive Channels',value:'2048',footer:'Active streams',detail:'Simultaneous cognitive data streams processed per session across distributed neural pathway monitors.'},
+  {title:'Adaptation Cycle',value:'120Hz',footer:'Real-time refresh',detail:'Frequency at which CORTEXA re-evaluates and updates the internal state model based on incoming biological signals.'},
+  {title:'Pattern Accuracy',value:'99.2%',footer:'Classification rate',detail:'Accuracy of the machine learning classifier when identifying distinct neural patterns from physiological noise.'},
+  {title:'Load Reduction',value:'73%',footer:'Cognitive overhead',detail:'Average reduction in reported cognitive load among users after four weeks of adaptive intelligence calibration.'},
+];
+var wrapper=document.getElementById('stats-wrapper');
+statsData.forEach(function(s){
+  var slide=document.createElement('div');
+  slide.className='swiper-slide';
+  slide.innerHTML='<div class="stat-card"><div class="stat-card-header">'+s.title+'</div><div class="stat-card-value">'+s.value+'</div><div class="stat-card-footer">'+s.footer+'</div><div class="stat-card-detail">'+s.detail+'</div></div>';
+  wrapper.appendChild(slide);
+});
+
+var statsRevealed=false;
+function maybeRevealStats(){
+  if(statsRevealed)return;
+  var sect=document.getElementById('stats-section');
+  if(sect.getBoundingClientRect().top<window.innerHeight*0.9){
+    statsRevealed=true;
+    sect.querySelectorAll('.stat-card').forEach(function(c,i){setTimeout(function(){c.classList.add('revealed');},i*80);});
+  }
+}
+
+// ── RAF loop (started immediately — before any possible error) ───────────────
+function rafLoop(ts){
+  requestAnimationFrame(rafLoop);
+
+  // Entrance animation
+  if(phase==='animating'&&entranceStart!=null){
+    var t=Math.min(1,(ts-entranceStart)/ENTRANCE_DURATION);
+    var e=ease(t);
+    var zoom=1.12-0.12*e;
+    var opVideo=t>0.3?Math.min(1,(t-0.3)/0.5):0;
+    document.body.style.transform='scale('+zoom+') translateZ(0)';
+    document.body.style.transformOrigin='center center';
+    video.style.opacity=opVideo;
+    if(t>=1){
+      phase='complete';
+      document.body.style.transform='';
+      document.getElementById('main-header').classList.add('visible');
+      document.getElementById('mobile-header').classList.add('visible');
+      document.getElementById('main-content').classList.add('visible');
+      video.style.opacity='1';
+      scrambleEls.forEach(function(s){setTimeout(function(){triggerScramble(s,'in');},s.delay);});
+    }
+  }
+
+  // Scroll lerp
+  var delta=scrollProgress-smoothScrollProgress;
+  if(Math.abs(delta)>0.0001)smoothScrollProgress+=delta*0.12;
+  else smoothScrollProgress=scrollProgress;
+  var p=smoothScrollProgress;
+
+  // Seek video
+  if(videoReady&&video.duration&&Math.abs(delta)>0.008){
+    seekTo(p*video.duration);
+  }
+
+  // Video blur/scale
+  var subtleBase=clamp01((p-0.1)/0.45);
+  var progressive=clamp01((p-0.55)/0.4);
+  var blur=subtleBase*5+progressive*50;
+  var scale=1.03+clamp01((p-0.1)/0.9)*0.08;
+  video.style.transform='scale('+scale+')';
+  video.style.filter='blur('+blur+'px)';
+
+  // Hero parallax
+  var heroP=clamp01(p/0.26);
+  var hero=document.getElementById('hero');
+  hero.style.opacity=1-heroP;
+  hero.style.transform='scale('+(1-0.04*heroP)+')';
+
+  // Description parallax
+  var descP=clamp01(p/0.12);
+  var desc=document.getElementById('hero-description');
+  desc.style.opacity=1-descP;
+  desc.style.transform='translateY('+(-30*descP)+'px)';
+
+  // Cinematic
+  var cin=document.getElementById('cinematic-inner');
+  var sy=document.documentElement.scrollTop||document.body.scrollTop;
+  var transY=-120*Math.min(1,sy/1000);
+  var fracs=[0.08,0.22,0.42,0.65],opacs=[0,1,1,0],cinOp=0;
+  if(p<=fracs[0])cinOp=0;
+  else if(p<=fracs[1])cinOp=(p-fracs[0])/(fracs[1]-fracs[0]);
+  else if(p<=fracs[2])cinOp=1;
+  else if(p<=fracs[3])cinOp=1-(p-fracs[2])/(fracs[3]-fracs[2]);
+  else cinOp=0;
+  cin.style.transform='rotateX(24deg) translateY('+transY+'px) translateZ(15px)';
+  cin.style.opacity=cinOp;
+
+  maybeRevealStats();
+  animateScramble(ts);
+
+  // Scramble scroll trigger
+  if(phase==='complete'){
+    if(scrollProgress>0.015){
+      scrambleEls.forEach(function(s){if(s.state==='visible'||(s.animDir==='in'&&s.animStart))triggerScramble(s,'out');});
+    } else {
+      scrambleEls.forEach(function(s){if(s.state==='hidden'||(s.animDir==='out'&&s.animStart))triggerScramble(s,'in');});
+    }
+  }
+}
+requestAnimationFrame(rafLoop);
+
+// ── Scroll ───────────────────────────────────────────────────────────────────
+function updateScrollProgress(){
+  var el=document.documentElement;
+  scrollProgress=(el.scrollTop||document.body.scrollTop)/((el.scrollHeight-el.clientHeight)||1);
+}
+window.addEventListener('scroll',updateScrollProgress,{passive:true});
+
+// ── Lenis (desktop only, graceful failure) ────────────────────────────────────
+(function(){
+  var isMobile=/Mobi|Android/i.test(navigator.userAgent)||window.innerWidth<768;
+  if(!isMobile){
+    var s=document.createElement('script');
+    s.src='https://unpkg.com/@studio-freight/lenis@1.0.42/dist/lenis.min.js';
+    s.onload=function(){
+      try{
+        var lenis=new Lenis({duration:1.2,easing:function(t){return Math.min(1,1.001-Math.pow(2,-10*t));},smoothWheel:true});
+        window.__lenis=lenis;
+        lenis.on('scroll',updateScrollProgress);
+        (function lenisRaf(ts){lenis.raf(ts);requestAnimationFrame(lenisRaf);})(0);
+      }catch(e){}
+    };
+    document.head.appendChild(s);
+  }
+})();
+
+// ── Swiper (graceful failure) ─────────────────────────────────────────────────
+(function(){
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js';
+  s.onload=function(){
+    try{
+      new Swiper('#stats-swiper',{effect:'coverflow',slidesPerView:'auto',centeredSlides:true,loop:true,spaceBetween:32,coverflowEffect:{rotate:30,stretch:0,depth:100,modifier:1,slideShadows:false},grabCursor:true});
+    }catch(e){}
+  };
+  document.head.appendChild(s);
+})();
+
+// ── Hamburgers ────────────────────────────────────────────────────────────────
+document.getElementById('desktop-hamburger').addEventListener('click',function(){this.classList.toggle('open');});
+(function(){
+  var mh=document.getElementById('mobile-hamburger');
+  var ml=document.getElementById('mobile-logo');
+  mh.addEventListener('click',function(){
+    mh.classList.toggle('open');
+    ml.classList.toggle('collapsed');
+    var btn=mh.querySelector('.hamburger-btn');
+    if(btn)btn.classList.toggle('open');
+  });
+})();
+</script>
+</body>
+</html>

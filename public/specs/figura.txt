@@ -1,0 +1,393 @@
+FIGURA — Hero Section — complete build spec
+
+A finished, single-file-hero build supplied ready-made: a collectible-vinyl-
+figures hero on a warm persimmon background, a giant outlined "VINYL"
+wordmark sitting directly behind a hero figure render (two smaller companion
+figures flanking it), a left-aligned product blurb and a "GRAB YOURS" CTA in
+the bottom-right corner, plus a small prev/next control pair.
+
+Images: all four figure renders are already served through a Gumlet
+fetch-proxy at page-appropriate width and webp format
+(`?w=900&format=webp`) — no local asset copies needed; the local
+assets/img/ folder in the source zip is an unused raw-reference set.
+
+Motion: Lenis smooth scroll wired in (the page itself is a single fixed
+viewport, so there's nothing to scroll, but every showcase in this library
+ships Lenis by default). No `loading="lazy"` anywhere.
+
+Stack: Vite + React 18 + TypeScript + Tailwind CSS.
+
+## Setup
+`npm install`, then `npm run build`. Serve the built `dist/` (or `npm run dev`
+for local iteration).
+
+## Files
+
+### src/App.tsx
+```tsx
+import { useEffect } from 'react'
+import Lenis from 'lenis'
+import Hero from './components/Hero'
+
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) })
+    ;(window as unknown as { __lenis: Lenis }).__lenis = lenis
+    let raf = 0
+    function tick(time: number) {
+      lenis.raf(time)
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => {
+      cancelAnimationFrame(raf)
+      lenis.destroy()
+    }
+  }, [])
+}
+
+function App() {
+  useLenis()
+  return <Hero />
+}
+
+export default App
+```
+
+### src/components/Hero.tsx
+```tsx
+import { useEffect, useRef, useState, useCallback } from 'react'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
+
+const GUMLET_BASE = 'https://hanbitkorea.gumlet.io/fetch/'
+
+const IMAGES = [
+  {
+    src: `${GUMLET_BASE}https://pub.hyperagent.com/api/published/pbf01M2GTWN08_FMFY71J1ANEGXWBP/figura_orange.png?w=900&format=webp`,
+    bg: '#F4845F',
+    panel: '#F79B7F',
+  },
+  {
+    src: `${GUMLET_BASE}https://pub.hyperagent.com/api/published/pbf01M2GTWNFB_PBGQJ83R4QTCH5ZH/figura_green.png?w=900&format=webp`,
+    bg: '#6BBF7A',
+    panel: '#85CC92',
+  },
+  {
+    src: `${GUMLET_BASE}https://pub.hyperagent.com/api/published/pbf01M2GTWP2M_PFY0XM7E6C8JDDEZ/figura_pink.png?w=900&format=webp`,
+    bg: '#E882B4',
+    panel: '#ED9DC4',
+  },
+  {
+    src: `${GUMLET_BASE}https://pub.hyperagent.com/api/published/pbf01M2GTWPG1_RZ6XB3FY7TDYZ900/figura_blue.png?w=900&format=webp`,
+    bg: '#6EB5FF',
+    panel: '#8DC4FF',
+  },
+]
+
+// SVG grain noise data URI
+const grainSvg = `<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/></filter><rect width='200' height='200' filter='url(#n)' opacity='0.08'/></svg>`
+const grainDataUri = `url("data:image/svg+xml,${encodeURIComponent(grainSvg)}")`
+
+export default function Hero() {
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640)
+  const animTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Preload images
+  useEffect(() => {
+    IMAGES.forEach(({ src }) => {
+      const img = new Image()
+      img.src = src
+    })
+  }, [])
+
+  // Resize listener
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 640)
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const navigate = useCallback((dir: 'next' | 'prev') => {
+    if (isAnimating) return
+    setIsAnimating(true)
+    setActiveIndex(prev => dir === 'next' ? (prev + 1) % 4 : (prev + 3) % 4)
+    if (animTimerRef.current) clearTimeout(animTimerRef.current)
+    animTimerRef.current = setTimeout(() => setIsAnimating(false), 650)
+  }, [isAnimating])
+
+  // Keyboard navigation
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight') navigate('next')
+      if (e.key === 'ArrowLeft') navigate('prev')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [navigate])
+
+  const center = activeIndex
+  const left   = (activeIndex + 3) % 4
+  const right  = (activeIndex + 1) % 4
+  const back   = (activeIndex + 2) % 4
+
+  const roleOf = (i: number) => {
+    if (i === center) return 'center'
+    if (i === left)   return 'left'
+    if (i === right)  return 'right'
+    return 'back'
+  }
+
+  const itemStyle = (role: string): React.CSSProperties => {
+    // Figures are true alpha cut-outs (keyed with a per-row backdrop model — see
+    // README), so the ghost wordmark and the side/back figures stay visible behind the
+    // centre figure. An opaque card here would cover both and kill the composition.
+    const base: React.CSSProperties = {
+      position: 'absolute',
+      aspectRatio: '0.6 / 1',
+      transition: 'transform 650ms cubic-bezier(0.4,0,0.2,1), filter 650ms cubic-bezier(0.4,0,0.2,1), opacity 650ms cubic-bezier(0.4,0,0.2,1), left 650ms cubic-bezier(0.4,0,0.2,1), bottom 650ms cubic-bezier(0.4,0,0.2,1), height 650ms cubic-bezier(0.4,0,0.2,1)',
+      willChange: 'transform, filter, opacity',
+    }
+    switch (role) {
+      case 'center':
+        return {
+          ...base,
+          transform: `translateX(-50%) scale(${isMobile ? 0.92 : 1.0})`,
+          filter: 'none',
+          opacity: 1,
+          zIndex: 20,
+          left: '50%',
+          height: isMobile ? '60%' : '92%',
+          bottom: isMobile ? '22%' : 0,
+        }
+      case 'left':
+        return {
+          ...base,
+          transform: 'translateX(-50%) scale(1)',
+          filter: 'blur(2px)',
+          opacity: 0.85,
+          zIndex: 10,
+          left: isMobile ? '20%' : '30%',
+          height: isMobile ? '16%' : '28%',
+          bottom: isMobile ? '32%' : '12%',
+        }
+      case 'right':
+        return {
+          ...base,
+          transform: 'translateX(-50%) scale(1)',
+          filter: 'blur(2px)',
+          opacity: 0.85,
+          zIndex: 10,
+          left: isMobile ? '80%' : '70%',
+          height: isMobile ? '16%' : '28%',
+          bottom: isMobile ? '32%' : '12%',
+        }
+      case 'back':
+      default:
+        return {
+          ...base,
+          transform: 'translateX(-50%) scale(1)',
+          filter: 'blur(4px)',
+          opacity: 1,
+          zIndex: 5,
+          left: '50%',
+          height: isMobile ? '13%' : '22%',
+          bottom: isMobile ? '32%' : '12%',
+        }
+    }
+  }
+
+  return (
+    <div
+      style={{
+        backgroundColor: IMAGES[activeIndex].bg,
+        transition: 'background-color 650ms cubic-bezier(0.4,0,0.2,1)',
+        fontFamily: 'Inter, sans-serif',
+        position: 'relative',
+        width: '100%',
+        overflow: 'hidden',
+      }}
+    >
+      <div style={{ position: 'relative', width: '100%', height: '100vh', overflow: 'hidden' }}>
+
+        {/* 1. Grain overlay */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            pointerEvents: 'none',
+            zIndex: 50,
+            backgroundImage: grainDataUri,
+            backgroundSize: '200px 200px',
+            backgroundRepeat: 'repeat',
+            opacity: 0.4,
+          }}
+        />
+
+        {/* 2. Ghost text */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            top: '18%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 2,
+            fontFamily: 'Anton, sans-serif',
+            fontSize: 'clamp(90px, 28vw, 380px)',
+            fontWeight: 900,
+            color: 'white',
+            lineHeight: 1,
+            textTransform: 'uppercase',
+            letterSpacing: '-0.02em',
+            whiteSpace: 'nowrap',
+            opacity: 1,
+          }}
+        >
+          VINYL
+        </div>
+
+        {/* 3. Brand label */}
+        <div
+          className="absolute top-6 left-4 sm:left-8"
+          style={{
+            zIndex: 60,
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            color: 'white',
+            opacity: 0.9,
+            letterSpacing: '0.18em',
+          }}
+        >
+          FIGURA
+        </div>
+
+        {/* 4. Carousel */}
+        <div style={{ position: 'absolute', inset: 0, zIndex: 3 }}>
+          {IMAGES.map((img, i) => {
+            const role = roleOf(i)
+            return (
+              <div key={i} style={itemStyle(role)}>
+                <img
+                  src={img.src}
+                  alt={`Figura vinyl figure ${i + 1}`}
+                  draggable={false}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'bottom center',
+                    display: 'block',
+                  }}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+        {/* 5. Bottom-left block */}
+        <div
+          className="absolute bottom-6 left-4 sm:bottom-20 sm:left-24"
+          style={{ zIndex: 60, maxWidth: 320 }}
+        >
+          <p
+            className="mb-2 sm:mb-3 text-base sm:text-[22px]"
+            style={{
+              color: 'white',
+              opacity: 0.95,
+              textTransform: 'uppercase',
+              letterSpacing: '0.14em',
+              fontWeight: 800,
+              lineHeight: 1.15,
+            }}
+          >
+            FIGURA COLLECTIBLES
+          </p>
+          <p
+            className="hidden sm:block text-xs sm:text-sm mb-4 sm:mb-5"
+            style={{
+              color: 'white',
+              opacity: 0.85,
+              lineHeight: 1.6,
+            }}
+          >
+            Hand-finished resin, boxed and ready to ship. The paint is crisp, the sculpt is clean, the shelf presence is absurd. Grab one before the run sells out.
+          </p>
+          <div style={{ display: 'flex', gap: 12 }}>
+            {(['prev', 'next'] as const).map((dir) => (
+              <button
+                key={dir}
+                onClick={() => navigate(dir)}
+                aria-label={dir === 'prev' ? 'Previous figure' : 'Next figure'}
+                className="w-12 h-12 sm:w-16 sm:h-16"
+                style={{
+                  borderRadius: '50%',
+                  background: 'transparent',
+                  border: '2px solid white',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'transform 150ms, background-color 150ms',
+                  padding: 0,
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget
+                  el.style.transform = 'scale(1.08)'
+                  el.style.backgroundColor = 'rgba(255,255,255,0.12)'
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget
+                  el.style.transform = 'scale(1)'
+                  el.style.backgroundColor = 'transparent'
+                }}
+              >
+                {dir === 'prev'
+                  ? <ArrowLeft size={26} strokeWidth={2.25} />
+                  : <ArrowRight size={26} strokeWidth={2.25} />
+                }
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 6. Bottom-right link */}
+        <a
+          href="#"
+          className="absolute bottom-6 right-4 sm:bottom-20 sm:right-10"
+          style={{
+            zIndex: 60,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontFamily: 'Anton, sans-serif',
+            fontSize: 'clamp(20px, 4vw, 56px)',
+            fontWeight: 400,
+            color: 'white',
+            opacity: 0.95,
+            letterSpacing: '-0.02em',
+            lineHeight: 1,
+            textTransform: 'uppercase',
+            textDecoration: 'none',
+            transition: 'opacity 200ms',
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '1' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.opacity = '0.95' }}
+        >
+          GRAB YOURS
+          <ArrowRight className="w-5 h-5 sm:w-8 sm:h-8" strokeWidth={2.25} />
+        </a>
+
+      </div>
+    </div>
+  )
+}
+```
