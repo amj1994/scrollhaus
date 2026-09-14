@@ -175,7 +175,6 @@ export default function SiteCard({
           src={thumbOf(site.id)}
           alt=""
           aria-hidden="true"
-          loading="lazy"
           decoding="async"
           className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${ready ? 'opacity-0' : 'opacity-100'}`}
         />

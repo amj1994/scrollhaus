@@ -11,9 +11,13 @@ function observer() {
     entries => {
       for (const e of entries) cbs.get(e.target)?.(e.isIntersecting)
     },
-    // 300px of runway: a card is prepared before it is ever visible, so nothing
-    // ever visibly "pops in" while scrolling at a normal speed.
-    { rootMargin: '300px 0px', threshold: 0 },
+    // 1500px of runway each way: previews are re-encoded small now (avg well
+    // under 1MB), so a much bigger prep radius is affordable and it's what
+    // actually kills visible pop-in — 300px wasn't enough runway at normal
+    // scroll speed and a fast flick would outrun it entirely, which read as
+    // "lazy loading" even though the mount/unmount is really a memory bound,
+    // not a deliberate defer.
+    { rootMargin: '1500px 0px', threshold: 0 },
   )
   return io
 }
