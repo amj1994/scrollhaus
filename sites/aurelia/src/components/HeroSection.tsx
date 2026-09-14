@@ -1,0 +1,324 @@
+import { useState } from 'react'
+import { ArrowUpRight, Menu, X } from 'lucide-react'
+
+const GUMLET_VIDEO = 'assets/video/aurelia-hero-720p.mp4'
+
+const CUTOUT_ORIGIN = 'https://pub.hyperagent.com/api/published/pbf01M2GQ0ZPY_TPCMTB1DE4QSBE2X/figure_cutout.png'
+const AVATAR1_ORIGIN = 'https://pub.hyperagent.com/api/published/pbf01M2GPRSKD_V7BCR050TZFBPNG3/bedfa82b-1069-4691-a37d-9609aed207f3.png'
+const AVATAR2_ORIGIN = 'https://pub.hyperagent.com/api/published/pbf01M2GPRSVQ_MS1JTJT4FK8DA95X/7f27c635-b479-429d-8a9e-06d1c684af75.png'
+
+const FIGURE_URL = `https://hanbitkorea.gumlet.io/fetch/${CUTOUT_ORIGIN}?w=760&format=webp`
+const AVATAR1_URL = `https://hanbitkorea.gumlet.io/fetch/${AVATAR1_ORIGIN}?w=128&format=auto`
+const AVATAR2_URL = `https://hanbitkorea.gumlet.io/fetch/${AVATAR2_ORIGIN}?w=128&format=auto`
+
+const PRIMARY = '#3F7FA6'
+const ACCENT = '#E8FF8B'
+const STAT_BLUE = '#2F6E96'
+
+const navLinks = ['About', 'Treatments', 'Pricing', 'Reviews', 'Journal']
+const mobileNavLinks = ['About', 'Treatments', 'Pricing', 'Reviews', 'Journal']
+
+// Inline SVG tooth/arc logo mark
+function LogoMark({ className = '' }: { className?: string }) {
+  return (
+    <svg
+      width="32" height="36"
+      viewBox="0 0 32 36"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      aria-hidden="true"
+    >
+      {/* Outer tooth shape - white fill */}
+      <path
+        d="M16 1C10 1 5 5.5 5 11.5C5 16.5 6.5 21 8 25.5C9 28.5 9.5 32 11 34C11.8 35.2 13 35 13.5 34C14 32.5 14.5 28 16 28C17.5 28 18 32.5 18.5 34C19 35 20.2 35.2 21 34C22.5 32 23 28.5 24 25.5C25.5 21 27 16.5 27 11.5C27 5.5 22 1 16 1Z"
+        fill="white"
+      />
+      {/* Inner arc highlight in primary colour */}
+      <path
+        d="M16 5C11.5 5 8.5 8.5 8.5 12.5C8.5 15.5 9.5 18 10.5 21C11 22.5 11.5 24.5 12.5 25.5C13 26 13.5 25.5 13.5 25C13.5 23 14 20 16 20C18 20 18.5 23 18.5 25C18.5 25.5 19 26 19.5 25.5C20.5 24.5 21 22.5 21.5 21C22.5 18 23.5 15.5 23.5 12.5C23.5 8.5 20.5 5 16 5Z"
+        fill={PRIMARY}
+      />
+    </svg>
+  )
+}
+
+export default function HeroSection() {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  return (
+    <section
+      className="relative h-screen w-full overflow-hidden"
+      style={{ backgroundColor: PRIMARY }}
+    >
+      {/* Background video */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute object-cover animate-[fadeIn_1.2s_ease-out_0.2s_both]
+          hidden md:block md:inset-0 md:h-full md:w-full md:object-center"
+        style={{ objectFit: 'cover' }}
+      >
+        <source src={GUMLET_VIDEO} type="video/mp4" />
+      </video>
+      {/* Mobile video - bottom 70% */}
+      <video
+        autoPlay
+        muted
+        loop
+        playsInline
+        className="absolute w-full h-[70%] top-[30%] object-cover animate-[fadeIn_1.2s_ease-out_0.2s_both] md:hidden"
+        style={{ objectPosition: '80% center' }}
+      >
+        <source src={GUMLET_VIDEO} type="video/mp4" />
+      </video>
+
+      {/* Mobile gradient blend - fades primary color into video */}
+      <div
+        className="absolute md:hidden w-full"
+        style={{
+          top: '30%',
+          height: '128px',
+          background: `linear-gradient(to bottom, ${PRIMARY}, transparent)`,
+          zIndex: 1,
+        }}
+      />
+
+      {/* Overlay for readability */}
+      {/* Legibility bed. The generated plate is bright warm oak, and a FLAT dim
+          either leaves white type fighting the highlights or kills the imagery.
+          A directional scrim gives the left-hand text column a dark bed while the
+          right side of the frame stays bright — the type reads, the room still sells. */}
+      <div
+        className="absolute inset-0"
+        style={{
+          zIndex: 1,
+          background:
+            'linear-gradient(100deg, rgba(8,20,28,0.78) 0%, rgba(8,20,28,0.55) 32%, rgba(8,20,28,0.18) 62%, rgba(8,20,28,0.06) 100%)',
+        }}
+      />
+
+      {/* Navigation */}
+      <header
+        className="relative px-6 md:px-8 lg:px-16 pt-6 md:pt-8 lg:pt-12 flex items-center justify-between animate-[slideDown_0.7s_ease-out_0.1s_both]"
+        style={{ zIndex: 10 }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-2.5">
+          <LogoMark className="w-7 h-8 md:w-8 md:h-9" />
+          <span className="text-white text-xl md:text-2xl lg:text-[28px] font-medium tracking-tight">
+            Aurelia
+          </span>
+        </div>
+
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-8 lg:gap-12">
+          {navLinks.map((link, i) => (
+            <a
+              key={link}
+              href="#"
+              className={`text-lg transition-colors duration-200 hover:text-white ${
+                i === 0 ? 'text-white font-medium' : 'text-white/60'
+              }`}
+            >
+              {link}
+            </a>
+          ))}
+        </nav>
+
+        {/* Desktop CTA */}
+        <a
+          href="#"
+          className="hidden md:flex group items-center gap-2 bg-white rounded-full px-5 py-3 text-black text-lg font-medium hover:bg-white/90 transition-colors"
+        >
+          Book a visit
+          <span
+            className="w-7 h-7 rounded-full flex items-center justify-center transition-transform duration-200 group-hover:scale-110"
+            style={{ backgroundColor: ACCENT }}
+          >
+            <ArrowUpRight size={14} color={PRIMARY} strokeWidth={2.5} />
+          </span>
+        </a>
+
+        {/* Mobile hamburger */}
+        <button
+          className="md:hidden relative w-10 h-10 flex items-center justify-center text-white"
+          onClick={() => setMenuOpen(!menuOpen)}
+          aria-label="Toggle menu"
+        >
+          <span
+            className="absolute transition-all duration-300"
+            style={{
+              opacity: menuOpen ? 0 : 1,
+              transform: menuOpen ? 'rotate(90deg) scale(0.7)' : 'rotate(0deg) scale(1)',
+            }}
+          >
+            <Menu size={24} />
+          </span>
+          <span
+            className="absolute transition-all duration-300"
+            style={{
+              opacity: menuOpen ? 1 : 0,
+              transform: menuOpen ? 'rotate(0deg) scale(1)' : 'rotate(-90deg) scale(0.7)',
+            }}
+          >
+            <X size={24} />
+          </span>
+        </button>
+      </header>
+
+      {/* Mobile menu overlay */}
+      <div
+        className="fixed inset-0 md:hidden flex flex-col px-8 py-6"
+        style={{
+          zIndex: 50,
+          backgroundColor: `${PRIMARY}F2`,
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          opacity: menuOpen ? 1 : 0,
+          pointerEvents: menuOpen ? 'auto' : 'none',
+          transition: 'opacity 500ms cubic-bezier(0.16, 1, 0.3, 1)',
+        }}
+      >
+        {/* Close button */}
+        <button
+          className="absolute top-6 right-6 text-white"
+          onClick={() => setMenuOpen(false)}
+          aria-label="Close menu"
+        >
+          <X size={24} />
+        </button>
+
+        {/* Nav items */}
+        <nav className="flex flex-col gap-6 mt-20">
+          {mobileNavLinks.map((link, i) => (
+            <a
+              key={link}
+              href="#"
+              className="text-3xl font-light text-white"
+              onClick={() => setMenuOpen(false)}
+              style={{
+                opacity: menuOpen ? 1 : 0,
+                transform: menuOpen ? 'none' : 'translateY(20px)',
+                transition: `opacity 500ms cubic-bezier(0.16, 1, 0.3, 1) ${i * 60 + 100}ms, transform 500ms cubic-bezier(0.16, 1, 0.3, 1) ${i * 60 + 100}ms`,
+              }}
+            >
+              {link}
+            </a>
+          ))}
+        </nav>
+
+        {/* Mobile CTA pill */}
+        <div
+          className="mt-auto"
+          style={{
+            opacity: menuOpen ? 1 : 0,
+            transform: menuOpen ? 'none' : 'translateY(20px)',
+            transition: 'opacity 500ms cubic-bezier(0.16, 1, 0.3, 1) 400ms, transform 500ms cubic-bezier(0.16, 1, 0.3, 1) 400ms',
+          }}
+        >
+          <a
+            href="#"
+            className="inline-flex items-center gap-2 bg-white rounded-full px-5 py-3 text-black text-lg font-medium"
+            onClick={() => setMenuOpen(false)}
+          >
+            Book a visit
+            <span
+              className="w-7 h-7 rounded-full flex items-center justify-center"
+              style={{ backgroundColor: ACCENT }}
+            >
+              <ArrowUpRight size={14} color={PRIMARY} strokeWidth={2.5} />
+            </span>
+          </a>
+        </div>
+      </div>
+
+      {/* Main heading block */}
+      <main
+        className="relative px-6 md:px-8 lg:px-16 max-w-3xl mt-8 md:mt-6 lg:mt-10 text-center md:text-left animate-[blurIn_0.9s_ease-out_0.3s_both]"
+        style={{ zIndex: 10 }}
+      >
+        <h1
+          className="text-white font-normal tracking-tight"
+          style={{
+            fontSize: 'clamp(60px, 10vw, 72px)',
+            lineHeight: 0.9,
+          }}
+        >
+          <span className="block text-[72px] sm:text-6xl lg:text-[90px] xl:text-[100px] leading-[0.9] md:leading-[0.85] tracking-tight">
+            Dentistry
+          </span>
+          <span className="block text-[72px] sm:text-6xl lg:text-[90px] xl:text-[100px] leading-[0.9] md:leading-[0.85] tracking-tight">
+            Without The
+          </span>
+          <span className="block text-[72px] sm:text-6xl lg:text-[90px] xl:text-[100px] leading-[0.9] md:leading-[0.85] tracking-tight">
+            <span className="inline-flex items-end gap-4 lg:gap-6">
+              Dread
+              {/* Avatar group - hidden on mobile */}
+              <span className="hidden md:inline-flex items-center -space-x-2 mb-[0.1em]">
+                <img
+                  src={AVATAR1_URL}
+                  alt="Patient"
+                  className="w-10 h-10 lg:w-14 lg:h-14 rounded-full border-2 object-cover"
+                  style={{ borderColor: PRIMARY }}
+                />
+                <img
+                  src={AVATAR2_URL}
+                  alt="Patient"
+                  className="w-10 h-10 lg:w-14 lg:h-14 rounded-full border-2 object-cover"
+                  style={{ borderColor: PRIMARY }}
+                />
+                <span
+                  className="w-10 h-10 lg:w-14 lg:h-14 rounded-full border-2 flex items-center justify-center bg-white text-xs lg:text-base font-medium"
+                  style={{ borderColor: PRIMARY, color: STAT_BLUE }}
+                >
+                  +2k
+                </span>
+              </span>
+            </span>
+          </span>
+        </h1>
+
+        {/* Subtext - hidden on mobile */}
+        <p className="hidden md:block mt-5 lg:mt-6 max-w-md text-lg leading-tight">
+          <span className="text-white/60">Quiet rooms, honest pricing and </span>
+          <span className="text-white">unhurried appointments</span>
+          <span className="text-white/60">, so the only thing you feel is </span>
+          <span className="text-white">looked after.</span>
+        </p>
+      </main>
+
+      {/* Bottom-left stat + figure */}
+      <div
+        className="hidden md:block absolute bottom-0 left-4 lg:left-12 animate-[slideUp_0.9s_ease-out_0.8s_both]"
+        style={{ zIndex: 10 }}
+      >
+        {/* Stat overlay */}
+        <div className="absolute top-8 lg:top-12 left-3 lg:left-4 z-20 text-center">
+          <div
+            className="text-2xl lg:text-4xl font-bold"
+            style={{ color: STAT_BLUE }}
+          >
+            96%
+          </div>
+          <div
+            className="text-xs lg:text-sm font-medium text-center"
+            style={{ color: STAT_BLUE }}
+          >
+            patients who stay
+          </div>
+        </div>
+
+        {/* Cutout person figure */}
+        <img
+          src={FIGURE_URL}
+          alt="Aurelia Dental patient"
+          className="relative w-52 sm:w-64 lg:w-80 object-contain"
+          style={{ zIndex: 10 }}
+        />
+      </div>
+    </section>
+  )
+}

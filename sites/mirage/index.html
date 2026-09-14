@@ -1,0 +1,1150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MIRAGE® — Single-Take Film Studio</title>
+
+<!-- Preconnect before the font request fires so DNS + TLS are already warm -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!--
+  Font pairing:
+    Anton          — display / wordmark (uppercase, heavy)
+    Pinyon Script  — inline script accent (replaces 'A' in MIRAGE and the italic words)
+    Inter Tight    — UI chrome and body copy (400, 500)
+-->
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Pinyon+Script&family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+
+<!-- Sync: add .js before first paint so CSS can suppress entrance elements immediately.
+     A deferred script is too late — the unsuppressed paint would show for one frame. -->
+<script>document.documentElement.classList.add('js');</script>
+
+<style>
+/* ─── Reset ─────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ─── Design tokens ──────────────────────────────────────────────────────── */
+:root {
+  --acid: #D9FF3D;          /* Accent — used ONLY for focus rings, nowhere else */
+  --font-display: 'Anton', sans-serif;
+  --font-script:  'Pinyon Script', cursive;
+  --font-ui:      'Inter Tight', sans-serif;
+}
+
+/* ─── Base ────────────────────────────────────────────────────────────────── */
+html { font-size: 16px; scroll-behavior: auto; }
+body {
+  background: #000;
+  color: #fff;
+  font-family: var(--font-ui);
+  font-weight: 400;
+  overflow-x: hidden;
+  /* overflow-y scrolls the .runway; all visuals are fixed */
+}
+
+:focus-visible { outline: 2px solid var(--acid); outline-offset: 3px; }
+
+/* ─── Layer stack ──────────────────────────────────────────────────────────
+   z0  .stage      background plate (video + canvas)
+   z5  .reveal--a  angled wipe A    (video + canvas)
+   z6  .sec2       works strip
+   z7  .reveal--b  full-frame wipe B (video + canvas)
+   z10 .chrome     UI (header, title, counter)
+   ─────────────────────────────────────────────────────────────────────── */
+
+/* Visibility kill-switch — set by JS once a higher layer fully covers this one */
+.is-covered { visibility: hidden; }
+
+/* ─── Stage (z=0) ─────────────────────────────────────────────────────────── */
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  /* opacity driven by JS during the reveal-A tail [0.93, 0.98] */
+}
+.stage__video,
+.stage__canvas {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100vw; height: 100vh;
+  object-fit: cover;
+}
+.stage__canvas { pointer-events: none; }
+
+/* ─── Reveal layers ──────────────────────────────────────────────────────────
+   Each .reveal is NOT a mask — it is an overflow:hidden box that ROTATES and
+   WIDENS. Its media counter-rotates by exactly the negative angle so the picture
+   stays upright; the clip is the rotated bounding box of the reveal div itself.
+
+   Span widths are derived from the "rotated rectangle that must cover W×H":
+     required span = W·|cos θ| + H·|sin θ|
+   At θ = 45°: span = (W + H)·(1/√2) ≈ 0.707(W+H).
+   We use 72vw + 72vh (≈ 0.72(W+H)) for a safe margin.
+   At θ = 0° the span is simply 102vw × 102vh (slightly over-size to avoid
+   a single-pixel gap at the edges).
+
+   --reveal (JS-set, 0→1) drives:
+     - width  = calc(var(--reveal) * var(--span-w))
+     - --rot  = calc(var(--reveal) * var(--angle))   ← CSS can multiply unitless × deg
+   The inner wrapper counter-rotates by calc(var(--reveal) * var(--counter-angle)).
+   ─────────────────────────────────────────────────────────────────────── */
+.reveal {
+  position: fixed;
+  /* Centred on viewport — transform shifts by -50%/-50% before rotation */
+  top: 50%; left: 50%;
+  overflow: hidden;
+  /* height always covers viewport; width grows from 0 */
+}
+
+/* Reveal-A: diagonal wipe at -45° */
+.reveal--a {
+  z-index: 5;
+  --span-w: calc(72vw + 72vh);  /* covers viewport when rotated 45° */
+  --span-h: calc(72vw + 72vh);
+  --angle:  -45deg;
+  width:  calc(var(--reveal, 0) * var(--span-w));
+  height: var(--span-h);
+  transform:
+    translate3d(-50%, -50%, 0)
+    rotate(calc(var(--reveal, 0) * var(--angle)));
+}
+
+/* Inner wrapper: counter-rotate so the media stays axis-aligned.
+   scale(1.01) closes the 1–2 px fringe Chrome draws along the clip edge.
+   translateZ(0) + backface-visibility:hidden suppress that fringe further. */
+.reveal--a .reveal__inner {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100vw; height: 100vh;
+  transform:
+    translate(-50%, -50%)
+    rotate(calc(var(--reveal, 0) * 45deg))   /* opposite sign of --angle */
+    scale(1.01)
+    translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Reveal-B: full-frame wipe at 0° (no rotation needed, pure width expansion) */
+.reveal--b {
+  z-index: 7;
+  --span-w: 102vw;
+  --span-h: 102vh;
+  width:  calc(var(--reveal, 0) * var(--span-w));
+  height: var(--span-h);
+  transform: translate3d(-50%, -50%, 0); /* no rotation */
+}
+
+.reveal--b .reveal__inner {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 100vw; height: 100vh;
+  transform: translate(-50%, -50%) scale(1.01) translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Shared video + canvas inside both reveal inners */
+.reveal__video,
+.reveal__canvas {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+.reveal__canvas { pointer-events: none; }
+
+/* ─── Section 2 — works strip (z=6) ─────────────────────────────────────── */
+.sec2 {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  /* visibility/opacity driven by JS; starts invisible */
+  opacity: 0;
+}
+
+.sec2__strip {
+  width: min(860px, 88vw);
+  /* vertical position driven by JS via inline transform */
+}
+
+.sec2__eye {
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 1.25rem;
+}
+
+.sec2__title {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 5.5vw, 4rem);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+  /* fade+blur driven by JS */
+}
+
+/* Inline script accent inside sec2 title */
+.sec2__title .script {
+  font-family: var(--font-script);
+  font-size: 1.1em;
+  text-transform: none;
+  font-style: normal;
+  /* line-height:0 so Pinyon Script's tall ascenders don't push the parent line taller */
+  line-height: 0;
+  display: inline-block;
+  vertical-align: baseline;
+  letter-spacing: 0;
+}
+
+.sec2__descs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem 3rem;
+  margin-bottom: 3rem;
+}
+
+.sec2__desc {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  opacity: 0.7;
+}
+
+/* Works grid: two columns, L right-aligned, R left-aligned */
+.sec2__works {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 4rem;
+}
+
+.sec2__col { display: flex; flex-direction: column; gap: 0.6rem; }
+.sec2__col--left  { text-align: right; }
+.sec2__col--right { text-align: left; }
+
+.sec2__row {
+  font-family: var(--font-ui);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+  /* transform/opacity driven by JS for the fly-apart */
+  will-change: transform, opacity;
+}
+
+.sec2__row u {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+/* ─── Chrome layer (z=10) ───────────────────────────────────────────────── */
+.chrome {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  /* Perspective creates the 3-D rendering context for .exit-3d children.
+     Origin defaults to centre of the containing box (= viewport centre). */
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.header {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2rem 2.5rem;
+  pointer-events: auto;
+}
+
+.header__logo {
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.header__nav {
+  display: flex;
+  gap: 2.5rem;
+  font-family: var(--font-ui);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.header__nav span { cursor: pointer; }
+
+/* Entrance suppression + animation (requires .js on <html>) */
+.js .header__logo,
+.js .header__nav span {
+  opacity: 0;
+  filter: blur(6px);
+  transform: translateY(-8px);
+  transition:
+    opacity   0.7s cubic-bezier(0.16,1,0.3,1),
+    filter    0.7s cubic-bezier(0.16,1,0.3,1),
+    transform 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+.js.is-ready .header__logo        { opacity:1; filter:blur(0); transform:none; transition-delay: 0ms; }
+.js.is-ready .header__nav span:nth-child(1) { opacity:1; filter:blur(0); transform:none; transition-delay:300ms; }
+.js.is-ready .header__nav span:nth-child(2) { opacity:1; filter:blur(0); transform:none; transition-delay:360ms; }
+.js.is-ready .header__nav span:nth-child(3) { opacity:1; filter:blur(0); transform:none; transition-delay:420ms; }
+
+/* ─── Title (wordmark + tag) ─────────────────────────────────────────────── */
+.title {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  /* 3-D exit driven by --exit via .exit-3d on this element */
+}
+
+.title__word {
+  font-family: var(--font-display);
+  font-size: clamp(4.5rem, 13vw, 11rem);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  /* overflow:visible so the script A glyph can paint outside the block */
+  overflow: visible;
+}
+
+/* The 'A' in MIR-A-GE rendered in Pinyon Script.
+   line-height:0 — critical: Pinyon Script has very tall ascenders (~1.8× cap height).
+   Setting line-height:0 on this inline-block means the browser uses the outer
+   Anton line-height for the shared line box, so the wordmark stays a single
+   compact line regardless of the script face's metrics. The glyph still renders
+   visually via overflow:visible on the parent.
+   Font-size 1.15em brings Pinyon Script's cap height visually close to Anton's. */
+.title__script-letter {
+  font-family: var(--font-script);
+  font-size: 1.15em;
+  text-transform: none;
+  line-height: 0;
+  display: inline-block;
+  vertical-align: baseline;
+  letter-spacing: -0.01em;
+}
+
+.title__tag {
+  font-family: var(--font-ui);
+  font-size: clamp(0.6rem, 1.4vw, 0.875rem);
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-top: 1.5rem;
+}
+
+/* Entrance suppression */
+.js .title {
+  opacity: 0;
+  filter: blur(10px);
+  transform: translate(-50%, calc(-50% + 12px));
+  transition:
+    opacity   0.9s cubic-bezier(0.16,1,0.3,1),
+    filter    0.9s cubic-bezier(0.16,1,0.3,1),
+    transform 0.9s cubic-bezier(0.16,1,0.3,1);
+  transition-delay: 80ms;
+}
+.js.is-ready .title {
+  opacity: 1; filter: blur(0);
+  transform: translate(-50%, -50%);
+}
+
+/* ─── About line ─────────────────────────────────────────────────────────── */
+.about {
+  position: absolute;
+  bottom: 12vh; left: 50%;
+  transform: translateX(-50%);
+  width: min(600px, 80vw);
+  text-align: center;
+  font-size: clamp(0.7rem, 1.3vw, 0.875rem);
+  font-weight: 400;
+  line-height: 1.75;
+  letter-spacing: 0.03em;
+  opacity: 0.75;
+}
+
+/* ─── .rise primitive ────────────────────────────────────────────────────────
+   --in (0→1) controls visibility. translateY drops 2em when in=0.
+   Blur is gated behind .is-anim to avoid a permanent composited blur surface. */
+.rise {
+  opacity: var(--in, 0);
+  transform: translateY(calc((1 - var(--in, 0)) * 2em));
+  will-change: opacity, transform;
+}
+.rise.is-anim {
+  /* squared blur so it ramps aggressively near 0 and disappears near 1 */
+  filter: blur(calc((1 - var(--in, 0)) * (1 - var(--in, 0)) * 6px));
+}
+
+/* ─── .exit-3d primitive ──────────────────────────────────────────────────────
+   --exit (0→1) pushes the element toward the viewer on Z then out of frame.
+   The chrome perspective origin is viewport-centre; title sits below it, so
+   +Z translation both scales the block UP and pushes it DOWN — pure projection,
+   so the Z ramp can be LINEAR and still FEEL exponential.
+   opacity: (1 - exit²) — squared for a gentler start, sharper finish.
+   Blur is gated behind .is-exiting (same as .rise) to skip GPU layers at rest.
+   .is-gone sets visibility:hidden once fully exited so the layer doesn't occlude
+   pointer events or composite unnecessarily. */
+.exit-3d {
+  transform: translate3d(0, 0, calc(var(--exit, 0) * var(--exit-z, 680px)));
+  opacity: calc(1 - var(--exit, 0) * var(--exit, 0));
+  will-change: transform, opacity;
+}
+.exit-3d.is-exiting {
+  filter: blur(calc(var(--exit, 0) * var(--exit, 0) * 9px));
+}
+.exit-3d.is-gone { visibility: hidden; }
+
+/* Title uses default --exit-z: 680px */
+
+/* ─── Counter ─────────────────────────────────────────────────────────────── */
+.counter {
+  position: absolute;
+  right: 2.5rem; bottom: 2.5rem;
+  text-align: right;
+  /* Counter sits closer to the vanishing point than the title,
+     so it needs less Z to exit — 464px keeps proportional motion */
+  --exit-z: 464px;
+}
+
+.counter__label {
+  font-family: var(--font-ui);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  margin-bottom: 0.25rem;
+}
+
+.counter__num {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 4vw, 3rem);
+  letter-spacing: -0.02em;
+}
+
+/* ─── Runway (scroll driver) ─────────────────────────────────────────────── */
+.runway {
+  height: 900vh;
+  width: 1px; /* zero visual footprint */
+  pointer-events: none;
+}
+
+/* ─── Reduced motion ─────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  /* Keep fades, drop travel distances and blur */
+  .exit-3d {
+    transform: none !important;
+    filter: none !important;
+  }
+  .exit-3d.is-gone { visibility: hidden; }
+
+  .rise {
+    transform: none !important;
+    filter: none !important;
+  }
+
+  /* Pin the sec2 strip (no slide-up travel) */
+  .sec2__strip { transform: none !important; }
+
+  .sec2__row {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  /* Header entrance still fades, no transform */
+  .js .header__logo,
+  .js .header__nav span {
+    transform: none !important;
+  }
+  .js .title {
+    transform: translate(-50%, -50%) !important;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- ─── z0: Stage — background plate ─────────────────────────────────────── -->
+<div class="stage" id="stage">
+  <video class="stage__video" id="vid0"
+    src="assets/video/mirage-plate-720p.mp4"
+    muted playsinline preload="auto" crossorigin="anonymous"
+    aria-hidden="true"></video>
+  <canvas class="stage__canvas" id="cv0" aria-hidden="true"></canvas>
+</div>
+
+<!-- ─── z5: Reveal A — diagonal wipe (-45°) ──────────────────────────────── -->
+<div class="reveal reveal--a" id="revealA" aria-hidden="true">
+  <div class="reveal__inner" id="revealAInner">
+    <video class="reveal__video" id="vid1"
+      src="assets/video/mirage-plate-720p.mp4"
+      muted playsinline preload="auto" crossorigin="anonymous"></video>
+    <canvas class="reveal__canvas" id="cv1"></canvas>
+  </div>
+</div>
+
+<!-- ─── z6: Sec2 — works strip ───────────────────────────────────────────── -->
+<div class="sec2" id="sec2" aria-hidden="true">
+  <div class="sec2__strip" id="sec2Strip">
+
+    <p class="sec2__eye">Selected work</p>
+
+    <h2 class="sec2__title" id="sec2Title">
+      Nothing staged, nothing <span class="script">(cut)</span>®
+    </h2>
+
+    <div class="sec2__descs">
+      <p class="sec2__desc">
+        Every frame begins as a plate. We light it, we roll it, we keep what the lens
+        kept. The only trick is that you can't find one.
+      </p>
+      <p class="sec2__desc">
+        Pure capture. No cuts, no ramping, no slow motion, no titles, no cutting away
+        to a second angle.
+      </p>
+    </div>
+
+    <div class="sec2__works">
+      <!-- Left column — right-aligned: year / brand / name -->
+      <div class="sec2__col sec2__col--left" id="worksLeft">
+        <div class="sec2__row" data-row="0">2025 / <u>Solein</u> / One continuous take</div>
+        <div class="sec2__row" data-row="1">2024 / <u>Harrowgate</u> / No second angle</div>
+        <div class="sec2__row" data-row="2">2023 / <u>Petrichor</u> / No titles</div>
+      </div>
+      <!-- Right column — left-aligned: brand / name / year -->
+      <div class="sec2__col sec2__col--right" id="worksRight">
+        <div class="sec2__row" data-row="0"><u>Lantern</u> / No speed ramping / 2026</div>
+        <div class="sec2__row" data-row="1"><u>Oarfish</u> / No cuts / 2025</div>
+        <div class="sec2__row" data-row="2"><u>Tessellate</u> / One light source / 2024</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ─── z7: Reveal B — full-frame wipe (0°) ──────────────────────────────── -->
+<div class="reveal reveal--b" id="revealB" aria-hidden="true">
+  <div class="reveal__inner" id="revealBInner">
+    <video class="reveal__video" id="vid2"
+      src="assets/video/mirage-plate-720p.mp4"
+      muted playsinline preload="auto" crossorigin="anonymous"></video>
+    <canvas class="reveal__canvas" id="cv2"></canvas>
+  </div>
+</div>
+
+<!-- ─── z10: Chrome — UI ──────────────────────────────────────────────────── -->
+<div class="chrome" id="chrome">
+
+  <header class="header" id="header">
+    <div class="header__logo">MIRAGE®</div>
+    <nav class="header__nav" aria-label="Navigation">
+      <span tabindex="0">Menu</span>
+      <span tabindex="0">Index</span>
+      <span tabindex="0">Contact</span>
+    </nav>
+  </header>
+
+  <!-- Title uses .exit-3d: --exit (0→1) pushes it to z=680px and fades opacity² -->
+  <div class="title exit-3d" id="title">
+    <div class="title__word" aria-label="MIRAGE®">
+      MIR<span class="title__script-letter" aria-hidden="true">A</span>GE®
+    </div>
+    <p class="title__tag">Single-Take Film Studio</p>
+  </div>
+
+  <!-- About line uses .rise: --in (0→1) fades + translates from 2em below -->
+  <p class="about rise" id="about">
+    Scenes that never happened, shot as if they did. One take, one light, nothing
+    stitched. The lens never blinks, so neither do you.
+  </p>
+
+  <!-- Counter uses .exit-3d with reduced --exit-z (sits nearer the vanishing point) -->
+  <div class="counter exit-3d" id="counter">
+    <p class="counter__label">Takes</p>
+    <p class="counter__num">(01)</p>
+  </div>
+
+</div>
+
+<!-- ─── Scroll runway (900 vh) ────────────────────────────────────────────── -->
+<div class="runway" id="runway"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var lenis = new Lenis({ duration: 1.0, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+  window.__lenis = lenis;
+  requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
+}
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     SCROLL ENGINE + FRAME BANK
+     ═══════════════════════════════════════════════════════════════════════ -->
+<script type="module">
+/* ─── Constants ────────────────────────────────────────────────────────────── */
+const VIDEO_URL = 'assets/video/mirage-plate-720p.mp4';
+
+// Scroll-map parameters (all fractions of total scroll progress 0→1)
+const A        = 1/3;      // reveal-A trigger point
+const B        = 2/3;      // reveal-B trigger point
+const TITLE_Q  = 0.25;     // title exit/return quick-factor: exits over A*TITLE_Q
+const WIPE_LEAD = 1;       // seconds of video offset per layer (for visual separation)
+const N_LAYERS  = 3;       // stage + reveal-A + reveal-B
+
+// Computed title thresholds
+const TITLE_OUT_END   = A * TITLE_Q;          // 0.0833 — title fully exited
+const TITLE_IN_START  = 1 - A * TITLE_Q;      // 0.9167 — title starts returning
+
+/* ─── DOM refs ─────────────────────────────────────────────────────────────── */
+const runway    = document.getElementById('runway');
+const stageEl   = document.getElementById('stage');
+const vid0      = document.getElementById('vid0');
+const cv0       = document.getElementById('cv0');
+const revealA   = document.getElementById('revealA');
+const vid1      = document.getElementById('vid1');
+const cv1       = document.getElementById('cv1');
+const sec2El    = document.getElementById('sec2');
+const sec2Strip = document.getElementById('sec2Strip');
+const sec2Title = document.getElementById('sec2Title');
+const worksLeft = document.getElementById('worksLeft');
+const worksRight= document.getElementById('worksRight');
+const revealB   = document.getElementById('revealB');
+const vid2      = document.getElementById('vid2');
+const cv2       = document.getElementById('cv2');
+const titleEl   = document.getElementById('title');
+const aboutEl   = document.getElementById('about');
+const counterEl = document.getElementById('counter');
+
+/* ─── Per-layer row lists (for fly-apart) ─────────────────────────────────── */
+const leftRows  = Array.from(worksLeft.querySelectorAll('.sec2__row'));
+const rightRows = Array.from(worksRight.querySelectorAll('.sec2__row'));
+
+/* ─── Geometry (re-measured on resize) ────────────────────────────────────── */
+let W, H, wipeDistA, wipeDistB;
+
+function measure() {
+  W = window.innerWidth;
+  H = window.innerHeight;
+  // Reveal-A: span = 72vw + 72vh. Wipe distance = 80vh / span, clamped to 0.28.
+  const spanWA = 0.72 * W + 0.72 * H;
+  wipeDistA = Math.min(0.28, (0.80 * H) / spanWA);
+  // Reveal-B: span = 102vw. Wipe distance = 80vh / (102vw).
+  wipeDistB = Math.min(0.28, (0.80 * H) / (1.02 * W));
+}
+measure();
+
+/* ─── Scroll progress ──────────────────────────────────────────────────────── */
+function getP() {
+  const maxScroll = runway.offsetHeight - window.innerHeight;
+  return maxScroll > 0 ? Math.min(1, window.scrollY / maxScroll) : 0;
+}
+
+/* ─── Easing functions ─────────────────────────────────────────────────────── */
+const easeOutCubic  = t => 1 - Math.pow(1 - t, 3);
+const easeOutExpo   = t => t >= 1 ? 1 : 1 - Math.pow(2, -10 * t);
+const easeInCubic   = t => t * t * t;
+
+/** Clamp t to [0,1] */
+const clamp01 = t => Math.max(0, Math.min(1, t));
+
+/** Map v from [inA,inB] to [0,1], clamped, then optionally eased */
+function invlerp(inA, inB, v, ease) {
+  const t = clamp01((v - inA) / (inB - inA));
+  return ease ? ease(t) : t;
+}
+
+/* ─── Video timing ─────────────────────────────────────────────────────────── */
+let videoDuration = 8; // fallback; overwritten when metadata loads
+
+function videoTimes(p) {
+  // Reserve (N_LAYERS-1)*WIPE_LEAD at the end so the top layer hits the last frame at p=1
+  const available = Math.max(0.001, videoDuration - (N_LAYERS - 1) * WIPE_LEAD);
+  const base = p * available;
+  return [base, base + WIPE_LEAD, base + 2 * WIPE_LEAD];
+}
+
+/* ─── Frame bank ────────────────────────────────────────────────────────────
+   Attempts to decode the video via MP4Box + VideoDecoder, drawing every
+   sample to an offscreen canvas and caching WebP blobs. Falls back silently
+   to video.currentTime scrubbing if any step fails.
+
+   Because Gumlet returns no Access-Control-Allow-Origin header, the fetch()
+   will be blocked by CORS and the bank will catch the error and permanently
+   revert to element scrubbing. The <video> elements still play fine because
+   browsers exempt video[src] from CORS for media fetch — only the JS fetch()
+   call needs the header.
+   ─────────────────────────────────────────────────────────────────────── */
+let frameBank  = null;   // Array<{ts:number, blob:Blob}> sorted by ts
+let bitmapLRU  = [];     // [{idx, bmp}] — live ImageBitmaps, cap ~24
+let useBankMode = false; // set true once bank is built successfully
+
+const LRU_CAP   = 24;
+const WARM_RADIUS = 2; // warm ±2 frames around current
+
+async function buildFrameBank(videoUrl, retryHardware = false) {
+  // Guard: need VideoDecoder and MP4Box
+  if (typeof VideoDecoder === 'undefined') throw new Error('no VideoDecoder');
+
+  // Dynamic import of mp4box from jsDelivr
+  const mp4boxMod = await import('https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js');
+  if (typeof MP4Box === 'undefined' && typeof mp4boxMod.default !== 'undefined') {
+    // mp4box exports as a global AND as a module default depending on bundler
+    window.MP4Box = mp4boxMod.default;
+  }
+  if (typeof MP4Box === 'undefined') throw new Error('no MP4Box');
+
+  // Fetch the raw bytes — this is where CORS blocks us if the server
+  // doesn't send Access-Control-Allow-Origin
+  const resp = await fetch(videoUrl, { mode: 'cors' });
+  if (!resp.ok) throw new Error(`fetch ${resp.status}`);
+  const buf = await resp.arrayBuffer();
+
+  // Demux
+  const mp4file = MP4Box.createFile();
+  let trackInfo = null;
+  const samples = [];
+
+  await new Promise((resolve, reject) => {
+    mp4file.onReady = info => {
+      const vt = info.videoTracks[0];
+      if (!vt) return reject(new Error('no video track'));
+      trackInfo = vt;
+      mp4file.setExtractionOptions(vt.id, null, { nbSamples: Infinity });
+      mp4file.start();
+    };
+    mp4file.onSamples = (id, user, samps) => samples.push(...samps);
+    mp4file.onError = reject;
+    mp4file.onFlush = resolve;
+
+    // Feed the whole buffer in one shot
+    buf.fileStart = 0;
+    mp4file.appendBuffer(buf);
+    mp4file.flush();
+  });
+
+  if (!samples.length) throw new Error('no samples');
+
+  // Determine the actual duration from samples
+  const lastSample = samples[samples.length - 1];
+  videoDuration = (lastSample.dts + lastSample.duration) / lastSample.timescale;
+
+  // Decode every sample — apply backpressure so we never hold >LRU_CAP frames at once
+  const bank = [];
+  const codecStr = trackInfo.codec;
+  const desc = trackInfo.video;
+
+  // Find the avcC / hvcC box for the decoder config
+  let decoderConfig;
+  try {
+    const trakBox = mp4file.getTrackById(trackInfo.id);
+    // mp4box stores the codec-specific box on the track sample entry
+    const entry = trakBox && trakBox.mdia && trakBox.mdia.minf &&
+                  trakBox.mdia.minf.stbl && trakBox.mdia.minf.stbl.stsd &&
+                  trakBox.mdia.minf.stbl.stsd.entries[0];
+    const box = entry && (entry.avcC || entry.hvcC || entry['av1C']);
+    if (box) {
+      const ds = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
+      box.write(ds);
+      decoderConfig = { codec: codecStr, codedWidth: desc.width, codedHeight: desc.height,
+                        description: new Uint8Array(ds.buffer) };
+    } else {
+      decoderConfig = { codec: codecStr, codedWidth: desc.width, codedHeight: desc.height };
+    }
+  } catch {
+    decoderConfig = { codec: codecStr, codedWidth: desc.width, codedHeight: desc.height };
+  }
+  if (retryHardware) decoderConfig.hardwareAcceleration = 'prefer-software';
+
+  const offscreen = new OffscreenCanvas(desc.width, desc.height);
+  const ctx2d = offscreen.getContext('2d');
+  let pendingFrames = 0;
+  const MAX_PENDING = LRU_CAP;
+
+  await new Promise((resolve, reject) => {
+    const decoder = new VideoDecoder({
+      output: async frame => {
+        ctx2d.drawImage(frame, 0, 0);
+        frame.close();
+        pendingFrames--;
+        const blob = await offscreen.convertToBlob({ type: 'image/webp', quality: 0.82 });
+        bank.push({ ts: frame.timestamp / 1e6, blob }); // ts in seconds
+      },
+      error: e => reject(e),
+    });
+
+    decoder.configure(decoderConfig);
+
+    (async () => {
+      for (const s of samples) {
+        // Back-pressure: stall if too many frames are being decoded
+        while (pendingFrames >= MAX_PENDING) {
+          await new Promise(r => setTimeout(r, 4));
+        }
+        const chunk = new EncodedVideoChunk({
+          type: s.is_sync ? 'key' : 'delta',
+          timestamp: s.dts * (1e6 / s.timescale),
+          duration:  s.duration * (1e6 / s.timescale),
+          data: s.data,
+        });
+        pendingFrames++;
+        decoder.decode(chunk);
+      }
+      await decoder.flush();
+      // Wait for all pending frames to complete
+      while (pendingFrames > 0) await new Promise(r => setTimeout(r, 4));
+      resolve();
+    })().catch(reject);
+  });
+
+  bank.sort((a, b) => a.ts - b.ts);
+  return bank;
+}
+
+/** Find nearest bank index for a given time in seconds */
+function nearestIdx(ts) {
+  let lo = 0, hi = frameBank.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (frameBank[mid].ts < ts) lo = mid + 1; else hi = mid;
+  }
+  // Check lo-1 in case it's closer
+  if (lo > 0 && Math.abs(frameBank[lo-1].ts - ts) < Math.abs(frameBank[lo].ts - ts)) lo--;
+  return lo;
+}
+
+/** Ensure an ImageBitmap is in the LRU and return it */
+async function getBitmap(idx) {
+  const hit = bitmapLRU.find(e => e.idx === idx);
+  if (hit) return hit.bmp;
+
+  const bmp = await createImageBitmap(frameBank[idx].blob);
+  if (bitmapLRU.length >= LRU_CAP) {
+    const evicted = bitmapLRU.shift();
+    evicted.bmp.close();
+  }
+  bitmapLRU.push({ idx, bmp });
+  return bmp;
+}
+
+/** Render one timestamp to a canvas (bank mode) */
+async function renderToCanvas(ts, canvas, ctx) {
+  if (!frameBank || !frameBank.length) return;
+  const idx = nearestIdx(ts);
+
+  // Warm ±2
+  for (let d = -WARM_RADIUS; d <= WARM_RADIUS; d++) {
+    const i = idx + d;
+    if (i >= 0 && i < frameBank.length) getBitmap(i); // fire and forget
+  }
+
+  const bmp = await getBitmap(idx);
+  ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
+}
+
+/* Canvas 2D contexts — sized and set up once */
+function sizeCanvas(canvas, w, h) {
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w; canvas.height = h;
+  }
+}
+
+const ctx0 = cv0.getContext('2d');
+const ctx1 = cv1.getContext('2d');
+const ctx2 = cv2.getContext('2d');
+
+function resizeCanvases() {
+  sizeCanvas(cv0, W, H);
+  sizeCanvas(cv1, W, H);
+  sizeCanvas(cv2, W, H);
+}
+
+/* ─── Initialise frame bank (async, with fallback chain) ─────────────────── */
+let bankReady = false;
+let permanentFallback = false; // true once we know the bank will never work
+
+async function initFrameBank() {
+  try {
+    frameBank = await buildFrameBank(VIDEO_URL);
+    bankReady = true;
+    useBankMode = true;
+    // Hide the <video> elements; canvases take over
+    [vid0, vid1, vid2].forEach(v => { v.style.opacity = '0'; });
+    console.info('[mirage] frame bank ready,', frameBank.length, 'frames');
+  } catch (err) {
+    // First failure: retry with software decoder (cures hidden-tab GPU refusal)
+    if (!permanentFallback && err.name !== 'TypeError') {
+      try {
+        frameBank = await buildFrameBank(VIDEO_URL, true);
+        bankReady = true;
+        useBankMode = true;
+        [vid0, vid1, vid2].forEach(v => { v.style.opacity = '0'; });
+        console.info('[mirage] frame bank ready (software decoder),', frameBank.length, 'frames');
+        return;
+      } catch { /* fall through */ }
+    }
+    permanentFallback = true;
+    useBankMode = false;
+    // CORS note: Gumlet's /main.mp4 endpoint returns no Access-Control-Allow-Origin,
+    // so this fetch() is blocked. <video src> still works because browsers use
+    // a separate media-fetch path that bypasses CORS for playback. We revert
+    // to video.currentTime scrubbing — the canvases are hidden, the videos play.
+    [cv0, cv1, cv2].forEach(c => { c.style.display = 'none'; });
+    console.warn('[mirage] frame bank unavailable, using element scrubbing:', err.message);
+  }
+}
+
+/* Keep metadata-driven duration in sync for element-scrubbing mode */
+[vid0, vid1, vid2].forEach(v => {
+  v.addEventListener('loadedmetadata', () => {
+    if (v.duration && isFinite(v.duration)) videoDuration = v.duration;
+  }, { once: true });
+});
+
+/* ─── Main drive function ───────────────────────────────────────────────────
+   Accepts progress p in [0,1]. Exposed on window.__mirage.drive() so you can
+   call it from DevTools at arbitrary positions without scrolling. */
+function drive(p) {
+  p = clamp01(p);
+
+  /* ── Title exit / return ──────────────────────────────────────────────── */
+  let exitVal;
+  if (p <= TITLE_OUT_END) {
+    // Exiting: 0→1 over [0, TITLE_OUT_END]
+    exitVal = p / (TITLE_OUT_END || 0.001);
+  } else if (p >= TITLE_IN_START) {
+    // Returning: 1→0 over [TITLE_IN_START, 1]
+    exitVal = 1 - (p - TITLE_IN_START) / (1 - TITLE_IN_START || 0.001);
+  } else {
+    exitVal = 1; // fully exited in the middle
+  }
+  exitVal = clamp01(exitVal);
+  titleEl.style.setProperty('--exit', exitVal);
+  const tExiting = exitVal > 0.01 && exitVal < 0.99;
+  const tGone    = exitVal >= 0.99 && p > TITLE_OUT_END && p < TITLE_IN_START;
+  titleEl.classList.toggle('is-exiting', tExiting);
+  titleEl.classList.toggle('is-gone',    tGone);
+
+  /* ── Reveal A ─────────────────────────────────────────────────────────── */
+  const revA = clamp01((p - A) / (wipeDistA || 0.001));
+  revealA.style.setProperty('--reveal', revA);
+  // Once fully revealed, hide the stage below (avoids compositing an invisible layer)
+  stageEl.classList.toggle('is-covered', revA >= 0.999);
+
+  /* ── About line ───────────────────────────────────────────────────────── */
+  let inVal;
+  if (p < 0.18) {
+    inVal = 0;
+  } else if (p < 0.27) {
+    inVal = easeOutExpo(invlerp(0.18, 0.27, p));
+  } else if (p < 0.333) {
+    inVal = 1; // holds
+  } else {
+    inVal = 1 - invlerp(0.333, 0.373, p); // faster exit, linear
+  }
+  inVal = clamp01(inVal);
+  aboutEl.style.setProperty('--in', inVal);
+  aboutEl.classList.toggle('is-anim', inVal > 0.01 && inVal < 0.99);
+
+  /* ── Section 2 ────────────────────────────────────────────────────────── */
+  const inSec2 = p >= 0.43 && p <= 0.77;
+  sec2El.style.opacity = inSec2 ? 1 : 0;
+  sec2El.style.pointerEvents = inSec2 ? 'auto' : 'none';
+  sec2El.setAttribute('aria-hidden', inSec2 ? 'false' : 'true');
+
+  if (inSec2) {
+    // Strip slides up from off-screen bottom [0.44, 0.56], then pins
+    const stripT = easeOutCubic(invlerp(0.44, 0.56, p));
+    sec2Strip.style.transform = `translateY(${(1 - stripT) * 80}vh)`;
+
+    // Title: fade + blur in [0.44, 0.49]
+    const titleT = invlerp(0.44, 0.49, p);
+    sec2Title.style.opacity = titleT;
+    sec2Title.style.filter  = `blur(${(1 - titleT) * (1 - titleT) * 14}px)`;
+
+    // Work rows fly apart: left goes left, right goes right
+    // range [0.565, 0.655], stagger 0.20, duration share 0.60
+    const FLY_START = 0.565;
+    const FLY_END   = 0.655;
+    const FLY_DUR   = FLY_END - FLY_START;        // 0.090
+    const STAGGER   = 0.20;                         // fraction of FLY_DUR per row
+    const DUR_SHARE = 0.60;                         // fraction of FLY_DUR for animation
+
+    for (let i = 0; i < 3; i++) {
+      const offset  = i * STAGGER * FLY_DUR;
+      const rowDur  = FLY_DUR * DUR_SHARE;
+      const rowT    = easeInCubic(clamp01((p - FLY_START - offset) / (rowDur || 0.001)));
+      const dist    = rowT * 130;
+      const rowAlpha = 1 - rowT;
+
+      leftRows[i].style.transform  = `translateX(${-dist}px)`;
+      leftRows[i].style.opacity    = rowAlpha;
+      rightRows[i].style.transform = `translateX(${dist}px)`;
+      rightRows[i].style.opacity   = rowAlpha;
+    }
+  }
+
+  /* ── Reveal B ─────────────────────────────────────────────────────────── */
+  const revB = clamp01((p - B) / (wipeDistB || 0.001));
+  revealB.style.setProperty('--reveal', revB);
+  // Hide lower layers once reveal-B fully covers them
+  revealA.classList.toggle('is-covered', revB >= 0.999);
+  sec2El.classList.toggle('is-covered',  revB >= 0.999);
+
+  /* ── Counter ──────────────────────────────────────────────────────────── */
+  // slot = (TITLE_IN_START - 0.74) / nCounters = 0.1767
+  const C_START = 0.74;
+  const SLOT    = TITLE_IN_START - C_START; // 0.1767
+  const C_ARR   = C_START + 0.34 * SLOT;   // arriving ends
+  const C_HOLD  = C_ARR   + 0.40 * SLOT;   // holding ends
+  const C_END   = C_START + SLOT;           // = TITLE_IN_START
+
+  let cExit;
+  if (p < C_START) {
+    cExit = 1;
+  } else if (p < C_ARR) {
+    cExit = 1 - invlerp(C_START, C_ARR, p); // arriving: exit 1→0
+  } else if (p < C_HOLD) {
+    cExit = 0;                               // holding visible
+  } else if (p < C_END) {
+    cExit = invlerp(C_HOLD, C_END, p);      // leaving: exit 0→1
+  } else {
+    cExit = 1;
+  }
+  cExit = clamp01(cExit);
+  counterEl.style.setProperty('--exit', cExit);
+  counterEl.classList.toggle('is-exiting', cExit > 0.01 && cExit < 0.99);
+  counterEl.classList.toggle('is-gone',    cExit >= 0.99 && p < C_START);
+
+  /* ── Stage opacity fade (in reveal-A tail) ────────────────────────────── */
+  // Stage fades out over [0.93, 0.98] — reveal-A is already fully open here,
+  // so this cleans up the edge artefact when reveal-B comes in behind it.
+  const stageFade = invlerp(0.93, 0.98, p);
+  stageEl.style.opacity = String(1 - stageFade);
+
+  /* ── Video time ───────────────────────────────────────────────────────── */
+  const times = videoTimes(p);
+
+  if (useBankMode && bankReady) {
+    resizeCanvases();
+    // Fire-and-forget async renders (they each resolve within a frame or two)
+    renderToCanvas(times[0], cv0, ctx0);
+    renderToCanvas(times[1], cv1, ctx1);
+    renderToCanvas(times[2], cv2, ctx2);
+  } else if (permanentFallback) {
+    // Element scrubbing: directly seek each <video> element
+    if (vid0.readyState >= 2) vid0.currentTime = clamp01(times[0] / videoDuration) * (vid0.duration || videoDuration);
+    if (vid1.readyState >= 2) vid1.currentTime = clamp01(times[1] / videoDuration) * (vid1.duration || videoDuration);
+    if (vid2.readyState >= 2) vid2.currentTime = clamp01(times[2] / videoDuration) * (vid2.duration || videoDuration);
+  }
+}
+
+/* ─── RAF scroll loop ───────────────────────────────────────────────────── */
+let lastP = -1;
+let rafId = null;
+
+function onRAF() {
+  const p = getP();
+  if (p !== lastP) {
+    lastP = p;
+    drive(p);
+  }
+  rafId = requestAnimationFrame(onRAF);
+}
+
+/* ─── Resize / orientation handler (debounced 120 ms) ────────────────────── */
+let resizeTimer = null;
+function onResize() {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    measure();
+    resizeCanvases();
+    drive(getP()); // repaint immediately after new geometry
+  }, 120);
+}
+window.addEventListener('resize', onResize, { passive: true });
+window.addEventListener('orientationchange', onResize, { passive: true });
+
+/* ─── Entrance animation ──────────────────────────────────────────────────── */
+// Fire immediately if fonts are cached, otherwise on the promise, with a failsafe.
+function markReady() {
+  document.documentElement.classList.add('is-ready');
+}
+
+const readyFailsafe = setTimeout(markReady, 2500);
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => {
+    clearTimeout(readyFailsafe);
+    markReady();
+  });
+} else {
+  window.addEventListener('load', () => {
+    clearTimeout(readyFailsafe);
+    markReady();
+  }, { once: true });
+}
+
+/* ─── Video preload ────────────────────────────────────────────────────────── */
+// Mute + play all three elements so they buffer;
+// we use currentTime scrubbing only in fallback mode.
+[vid0, vid1, vid2].forEach(v => {
+  v.muted = true;
+  v.pause(); // don't auto-play — we scrub manually
+  v.load();
+});
+
+/* ─── Boot sequence ────────────────────────────────────────────────────────── */
+// Start RAF loop, then kick off frame-bank build.
+// Skip bank entirely for reduced-motion users (scrub is equivalent, less CPU).
+const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+rafId = requestAnimationFrame(onRAF);
+
+if (!prefersReduced) {
+  initFrameBank().catch(() => { permanentFallback = true; });
+} else {
+  permanentFallback = true;
+  [cv0, cv1, cv2].forEach(c => { c.style.display = 'none'; });
+}
+
+/* ─── Diagnostic object ─────────────────────────────────────────────────────
+   window.__mirage is read-only and safe to inspect in DevTools.
+   drive(p) lets you test any scroll position without touching the scroll bar. */
+window.__mirage = Object.freeze({
+  drive,
+  get p()          { return getP(); },
+  get videoDuration() { return videoDuration; },
+  get bankFrames() { return frameBank ? frameBank.length : 0; },
+  get useBankMode(){ return useBankMode; },
+  scrollMap: Object.freeze({ A, B, TITLE_Q, WIPE_LEAD, TITLE_OUT_END, TITLE_IN_START }),
+  clips: Object.freeze({
+    get revealA() { return parseFloat(document.getElementById('revealA').style.getPropertyValue('--reveal') || 0); },
+    get revealB() { return parseFloat(document.getElementById('revealB').style.getPropertyValue('--reveal') || 0); },
+    get stageFade(){ return 1 - parseFloat(document.getElementById('stage').style.opacity || 1); },
+  }),
+});
+
+console.info('[mirage] scroll engine active. window.__mirage.drive(p) to test.');
+</script>
+</body>
+</html>
