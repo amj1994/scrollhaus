@@ -127,6 +127,7 @@ export const FREE_SITES: Site[] = [
   { id: 'aurelia', title: 'Aurelia Dental', category: 'Wellness', added: '2026-09-15', free: true, live: true },
   { id: 'mirage', title: 'Mirage', category: 'Portfolio', added: '2026-09-15', free: true, live: true },
   { id: 'halogen', title: 'Halogen', category: 'Agency', added: '2026-09-15', free: true, live: true },
+  { id: 'mercer', title: '@mercerbuilt', category: 'Portfolio', added: '2026-09-15', free: true, live: true },
 ]
 
 export const ALL_SITES: Site[] = [...SITES, ...FREE_SITES]

@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>@mercerbuilt — Fewer Clicks. More Signed Deals.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100;200;300;400;500;600;700;800;900&family=Newsreader:ital,wght@1,200;1,300;1,400&display=swap" rel="stylesheet" />
+  <!-- React 18 UMD (stable, proven UMD builds) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Register a preset that forces the classic JSX runtime (React.createElement)
+    Babel.registerPreset('react-classic', {
+      plugins: [
+        [Babel.availablePlugins['transform-react-jsx'], {
+          runtime: 'classic',
+          pragma: 'React.createElement',
+          pragmaFrag: 'React.Fragment',
+        }]
+      ]
+    });
+  </script>
+  <style>
+    html, body {
+      display: grid; margin: 0; padding: 0; overflow: hidden;
+      height: 100%; width: 100%; background: #000;
+      user-select: none; touch-action: none;
+      font-size: clamp(9px, 0.55vw + 0.65vh + 3px, 16px);
+    }
+    #root { display: grid; width: 100%; height: 100%; }
+    .scene {
+      display: grid; overflow: hidden; perspective: 35em;
+      width: 100vw; height: 100vh;
+    }
+    .a3d {
+      display: grid; place-self: end center;
+      margin-bottom: 12em; transform-style: preserve-3d;
+    }
+    .card {
+      --w: 24em; --h: calc(var(--w) * 1);
+      width: var(--w); height: var(--h);
+      grid-area: 1/1; border-radius: 12px;
+      overflow: hidden; backface-visibility: hidden;
+    }
+    @keyframes blink  { 0%,100%{opacity:1} 50%{opacity:0} }
+    @keyframes fadeIn { from{opacity:0;transform:translateY(-2em)} to{opacity:1;transform:translateY(0)} }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(4em)}  to{opacity:1;transform:translateY(0)} }
+    .cur { display:inline-block; animation:blink 1s step-end infinite; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.min.js"></script>
+<script>
+if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+  var lenis = new Lenis({ duration: 1.0, easing: function (t) { return Math.min(1, 1.001 - Math.pow(2, -10 * t)); } });
+  window.__lenis = lenis;
+  requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
+}
+</script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans:  ['Geist','Inter Tight','sans-serif'],
+          serif: ['Newsreader','serif'],
+        }
+      }
+    }
+  };
+</script>
+<script type="text/babel" data-presets="react-classic">
+  const {
+    useState, useEffect, useRef, useCallback,
+    useImperativeHandle, forwardRef, useMemo
+  } = React;
+  const { createRoot } = ReactDOM;
+
+  /* ═══════════════════════════════════════════════════════════
+     MOTION SHIM  (no external dep)
+  ═══════════════════════════════════════════════════════════ */
+  function parseFM(obj) {
+    if (!obj) return {};
+    const { x, y, scale, rotate, opacity, filter, ...rest } = obj;
+    const t = [];
+    if (x      !== undefined) t.push(`translateX(${typeof x==='number'?x+'px':x})`);
+    if (y      !== undefined) t.push(`translateY(${typeof y==='number'?y+'px':y})`);
+    if (scale  !== undefined) t.push(`scale(${scale})`);
+    if (rotate !== undefined) t.push(`rotate(${typeof rotate==='number'?rotate+'deg':rotate})`);
+    const out = {};
+    if (t.length)              out.transform = t.join(' ');
+    if (opacity !== undefined) out.opacity   = opacity;
+    if (filter  !== undefined) out.filter    = filter;
+    return Object.assign(out, rest);
+  }
+
+  function buildTrans(t) {
+    if (!t) return 'opacity .4s ease,transform .4s ease,filter .4s ease';
+    const dur   = t.duration != null ? t.duration : (t.type==='spring' ? 0.48 : 0.4);
+    const delay = t.delay || 0;
+    const ease  = t.ease
+      ? (Array.isArray(t.ease) ? `cubic-bezier(${t.ease.join(',')})` : t.ease)
+      : t.type==='spring' ? 'cubic-bezier(0.34,1.3,0.64,1)' : 'ease';
+    return ['opacity','transform','filter']
+      .map(p=>`${p} ${dur}s ${ease} ${delay}s`).join(',');
+  }
+
+  function makeMotion(tag) {
+    return forwardRef(function M({
+      initial, animate, exit, transition,
+      style={}, className, children, onClick,
+      onMouseEnter, onMouseLeave, ...rest
+    }, ref) {
+      const [active, setActive] = useState(false);
+      const [cur,    setCur]    = useState(animate);
+      const prev = useRef(null);
+
+      useEffect(() => {
+        const id = requestAnimationFrame(() => setActive(true));
+        return () => cancelAnimationFrame(id);
+      }, []);
+
+      useEffect(() => {
+        const j = JSON.stringify(animate);
+        if (j !== prev.current) { prev.current = j; setCur(animate); }
+      });
+
+      const base  = active ? parseFM(cur) : parseFM(initial);
+      const trans = active ? buildTrans(transition) : 'none';
+      return React.createElement(tag, {
+        ref, className, onClick, onMouseEnter, onMouseLeave,
+        style: { transition: trans, ...base, ...style },
+        ...rest
+      }, children);
+    });
+  }
+
+  const motion = new Proxy({}, { get: (_, t) => makeMotion(t) });
+  function AnimatePresence({ children }) { return children || null; }
+
+  /* ═══════════════════════════════════════════════════════════
+     CONSTANTS
+  ═══════════════════════════════════════════════════════════ */
+  const N         = 12;
+  const CARD_W    = 24;                                        // em
+  const radiusEm  = (0.5 * CARD_W + 0.5) / Math.tan(Math.PI / N); // ≈46.66 em
+  const BA        = 360 / N;                                  // 30 deg / card
+
+  const G = (pub, w) =>
+    `https://hanbitkorea.gumlet.io/fetch/${pub}?w=${w}&format=auto&compress=true`;
+  const P = id =>
+    `https://pub.hyperagent.com/api/published/${id}`;
+
+  const IMGS = {
+    c1: G(P('pbf01M2GPJKVM_BMAGYD8FJJJ8DFKQ/a8f4e9f4-6514-466d-a5d9-9b39e0378297.png'), 640),
+    c2: G(P('pbf01M2GPJM8D_EAY6MCNC30B85NEX/32d3d537-bfaa-4b45-8dce-5f13a18992d7.png'), 640),
+    c3: G(P('pbf01M2GPJMVX_9JVPHXR7KDC97YDV/d6e571b1-e4b6-4a18-8c14-658bdf3d492b.png'), 640),
+    c4: G(P('pbf01M2GPJNG7_VQB57WWH9NRMMNMZ/be8b7f54-cf87-4ed5-ba6a-84a5818efe61.png'), 640),
+    c5: G(P('pbf01M2GPJNZB_AQW28PMKG3EFDGKC/114934b4-d4f9-4f56-a710-aeb24d25d0f8.png'), 640),
+    c6: G(P('pbf01M2GPJPBX_B4XQ9TRGTERVCF81/fd49bfa7-de9c-4a16-aa43-34ca7ca2e509.png'), 640),
+    av: G(P('pbf01M2GPJPNS_T0WPX8W3E0G74S9Y/ba3d6761-732e-49bd-89a0-9b863f489e1b.png'), 128),
+  };
+  const UNIQUE = [IMGS.c1,IMGS.c2,IMGS.c3,IMGS.c4,IMGS.c5,IMGS.c6];
+  const CARDS  = [0,1,2,3,4,5,0,1,2,3,4,5].map(i => UNIQUE[i]);
+
+  /* ═══════════════════════════════════════════════════════════
+     PRELOADER
+  ═══════════════════════════════════════════════════════════ */
+  function Preloader({ onComplete }) {
+    const [progress, setProgress] = useState(0);
+    const [idx,      setIdx]      = useState(0);
+    const [fading,   setFading]   = useState(false);
+
+    useEffect(() => {
+      UNIQUE.forEach(s => { const i = new Image(); i.src = s; });
+      const ct = setInterval(() => setIdx(p => (p+1) % UNIQUE.length), 85);
+      const pt = setInterval(() => {
+        setProgress(p => {
+          if (p >= 100) { clearInterval(pt); return 100; }
+          return Math.min(100, p + (p > 85 ? Math.random()+1 : Math.random()*5+2));
+        });
+      }, 45);
+      return () => { clearInterval(ct); clearInterval(pt); };
+    }, []);
+
+    useEffect(() => {
+      if (progress >= 100) {
+        const t = setTimeout(() => {
+          setFading(true);
+          setTimeout(onComplete, 500);
+        }, 200);
+        return () => clearTimeout(t);
+      }
+    }, [progress]);
+
+    const blur  = Math.pow(progress/100, 4) * 18;
+    const scale = 1 - (progress/100) * 0.1;
+
+    return (
+      <div style={{
+        position:'fixed', inset:0, background:'#000', zIndex:9999,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        opacity: fading ? 0 : 1,
+        transition: fading ? 'opacity 0.5s ease' : 'none',
+        pointerEvents: fading ? 'none' : 'auto',
+      }}>
+        <div style={{
+          width:100, height:100, borderRadius:12, overflow:'hidden',
+          filter:`blur(${blur}px)`, transform:`scale(${scale})`,
+          transition:'filter .1s, transform .1s',
+        }}>
+          <img src={UNIQUE[idx]} alt=""
+            style={{width:'100%',height:'100%',objectFit:'cover'}} />
+        </div>
+        <div style={{
+          position:'fixed', bottom:32, right:32, fontSize:'5rem',
+          color:'rgba(255,255,255,0.6)', fontFamily:'Geist,sans-serif',
+          fontWeight:100, lineHeight:1,
+          filter:`blur(${blur*0.6}px)`, transition:'filter .1s',
+        }}>
+          {Math.round(progress)}%
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     KINETIC TEXT
+  ═══════════════════════════════════════════════════════════ */
+  function useReducedMotion() {
+    const [v, setV] = useState(() =>
+      window.matchMedia('(prefers-reduced-motion:reduce)').matches);
+    useEffect(() => {
+      const mq = window.matchMedia('(prefers-reduced-motion:reduce)');
+      const h = e => setV(e.matches);
+      mq.addEventListener('change', h);
+      return () => mq.removeEventListener('change', h);
+    }, []);
+    return v;
+  }
+
+  const KineticText = forwardRef(function KineticText({
+    text, splitBy='words', staggerFrom='start', staggerDuration=0.055,
+    distance=40, style={}, Tag='div', animateOnMount=true,
+  }, ref) {
+    const reduced = useReducedMotion();
+    const [key,    setKey]    = useState(0);
+    const [active, setActive] = useState(animateOnMount);
+
+    useImperativeHandle(ref, () => ({
+      play:  () => { setKey(k=>k+1); setActive(true); },
+      reset: () => setActive(false),
+    }));
+
+    const segs = useMemo(() => {
+      if (splitBy === 'characters') {
+        try {
+          return [...new Intl.Segmenter(undefined,{granularity:'grapheme'})
+            .segment(text)].map(s => s.segment);
+        } catch { return [...text]; }
+      }
+      if (splitBy === 'words') return text.split(' ').map((w,i,a) => i<a.length-1?w+' ':w);
+      if (splitBy === 'lines') return text.split('\n');
+      return [text];
+    }, [text, splitBy]);
+
+    const getDelay = i => {
+      const n = segs.length;
+      if (staggerFrom==='start')  return i*staggerDuration;
+      if (staggerFrom==='end')    return (n-1-i)*staggerDuration;
+      if (staggerFrom==='center') return Math.abs(i-(n-1)/2)*staggerDuration;
+      if (staggerFrom==='edges')  return Math.min(i,n-1-i)*staggerDuration;
+      if (staggerFrom==='random') return Math.random()*staggerDuration*n;
+      if (typeof staggerFrom==='number') return Math.abs(i-staggerFrom)*staggerDuration;
+      return i*staggerDuration;
+    };
+
+    return (
+      <Tag style={style}>
+        {segs.map((seg,i) => (
+          <span key={`${key}-${i}`}
+            style={{display:'inline-block',overflow:'hidden',verticalAlign:'bottom'}}>
+            <motion.span
+              style={{display:'inline-block'}}
+              initial={{ opacity:0, y: reduced?0:distance, filter: reduced?'none':'blur(6px)' }}
+              animate={active
+                ? { opacity:1, y:0, filter:'blur(0px)' }
+                : { opacity:0, y:distance, filter:'blur(6px)' }}
+              transition={reduced
+                ? { duration:0.3 }
+                : { duration:0.72, ease:[0.22,1,0.36,1], delay:getDelay(i) }}
+            >
+              {seg}
+            </motion.span>
+          </span>
+        ))}
+      </Tag>
+    );
+  });
+
+  /* ═══════════════════════════════════════════════════════════
+     PROGRESSIVE BLUR
+  ═══════════════════════════════════════════════════════════ */
+  function ProgressiveBlur({ side }) {
+    const L = side === 'left';
+    return (
+      <div style={{
+        position:'absolute', top:0, bottom:0, width:'5rem', zIndex:2,
+        [L?'left':'right']:0, pointerEvents:'none',
+        background:`linear-gradient(to ${L?'right':'left'},#000 0%,transparent 100%)`,
+      }} />
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     MARQUEE TICKER
+  ═══════════════════════════════════════════════════════════ */
+  function Marquee({ rotRef }) {
+    const textRef  = useRef(null);
+    const [tW, setTW] = useState(1200);
+    const offRef   = useRef(0);
+    const lastRot  = useRef(0);
+    const [, tick] = useState(0);
+
+    useEffect(() => {
+      if (!textRef.current) return;
+      const ro = new ResizeObserver(() =>
+        setTW(textRef.current?.offsetWidth || 1200));
+      ro.observe(textRef.current);
+      return () => ro.disconnect();
+    }, []);
+
+    useEffect(() => {
+      let raf;
+      const loop = () => {
+        const rot = rotRef.current || 0;
+        offRef.current = ((offRef.current + (rot - lastRot.current) * -1.35) % tW + tW) % tW;
+        lastRot.current = rot;
+        tick(n => n+1);
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(raf);
+    }, [tW]);
+
+    const S1 = 'We design sites that close.';
+    const S2 = 'Built to cut hesitation and surface intent.';
+
+    return (
+      <div style={{
+        position:'absolute', bottom:0, left:0, right:0, height:'2.5rem',
+        overflow:'hidden', display:'flex', alignItems:'center', zIndex:10,
+      }}>
+        <ProgressiveBlur side="left" />
+        <ProgressiveBlur side="right" />
+        <div style={{
+          transform:`translateX(${-offRef.current}px)`,
+          whiteSpace:'nowrap', display:'flex',
+        }}>
+          {[0,1,2,3].map(r => (
+            <span key={r} ref={r===0?textRef:null}
+              style={{display:'inline-flex',alignItems:'center'}}>
+              <span style={{
+                color:'rgba(255,255,255,0.8)', fontFamily:'Geist,sans-serif',
+                fontWeight:300, fontSize:'0.8rem', letterSpacing:'0.04em', paddingRight:'2.5rem',
+              }}>{S1}</span>
+              <span style={{
+                color:'rgba(255,255,255,0.3)', fontFamily:'Geist,sans-serif',
+                fontWeight:300, fontSize:'0.8rem', letterSpacing:'0.04em', paddingRight:'2.5rem',
+              }}>{S2}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     3-D CAROUSEL
+  ═══════════════════════════════════════════════════════════ */
+  function Carousel3D({ rotRef, kickRef }) {
+    const sceneRef = useRef(null);
+    const a3dRef   = useRef(null);
+    const cardRefs = useRef([]);
+    const velRef   = useRef(0.24);
+    const dirRef   = useRef(1);
+    const defVRef  = useRef(0);
+    const defFRef  = useRef(0);
+    const drag     = useRef({active:false,startX:0,startRot:0,lastX:0,lastT:0});
+    const snapRef  = useRef(null);
+
+    useEffect(() => {
+      let lastT = performance.now(), raf;
+      const loop = t => {
+        const dt = t - lastT; lastT = t;
+        const ff = dt / 16.666;
+
+        if (kickRef.current !== null) {
+          const k = kickRef.current; kickRef.current = null;
+          velRef.current += k;
+          if (k !== 0) dirRef.current = Math.sign(k);
+        }
+
+        if (snapRef.current !== null) {
+          const d = snapRef.current - rotRef.current;
+          if (Math.abs(d) < 0.05) {
+            rotRef.current = snapRef.current;
+            snapRef.current = null;
+            velRef.current = 0.24 * dirRef.current;
+          } else {
+            rotRef.current += d * 0.08 * ff;
+          }
+        } else if (!drag.current.active) {
+          const idle = 0.24 * dirRef.current;
+          velRef.current = velRef.current * 0.982 + idle * (1 - 0.982);
+          rotRef.current += velRef.current * ff;
+        }
+
+        // deformation spring: k=0.16, c=0.52
+        const instV = velRef.current;
+        const force = -0.16 * (defVRef.current - instV) - 0.52 * defFRef.current;
+        defFRef.current  = Math.max(-8,  Math.min(8,  defFRef.current  + force * ff));
+        defVRef.current  = Math.max(-25, Math.min(25, defVRef.current  + defFRef.current * ff));
+        if (Math.abs(defVRef.current) < 0.001 && Math.abs(defFRef.current) < 0.001
+            && Math.abs(instV) < 0.001) {
+          defVRef.current = 0; defFRef.current = 0;
+        }
+        const av = Math.abs(defVRef.current);
+
+        if (a3dRef.current) {
+          a3dRef.current.style.setProperty('--vel',     defVRef.current.toFixed(4));
+          a3dRef.current.style.setProperty('--abs-vel', av.toFixed(4));
+          a3dRef.current.style.transform = `rotateY(${rotRef.current.toFixed(4)}deg)`;
+        }
+
+        // card visibility beyond 90°
+        cardRefs.current.forEach((el, i) => {
+          if (!el) return;
+          const diff = ((rotRef.current - i * BA) % 360 + 540) % 360 - 180;
+          el.style.opacity       = Math.abs(diff) > 90 ? '0' : '1';
+          el.style.pointerEvents = Math.abs(diff) > 90 ? 'none' : 'auto';
+        });
+
+        raf = requestAnimationFrame(loop);
+      };
+      raf = requestAnimationFrame(loop);
+      return () => cancelAnimationFrame(raf);
+    }, []);
+
+    // wheel
+    useEffect(() => {
+      const el = sceneRef.current; if (!el) return;
+      const h = e => {
+        e.preventDefault();
+        const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        if (d !== 0) dirRef.current = Math.sign(d);
+        velRef.current = velRef.current * 0.45 + Math.max(-8, Math.min(8, -d * 0.052)) * 0.55;
+        snapRef.current = null;
+      };
+      el.addEventListener('wheel', h, { passive: false });
+      return () => el.removeEventListener('wheel', h);
+    }, []);
+
+    // pointer drag
+    useEffect(() => {
+      const el = sceneRef.current; if (!el) return;
+      const dn = e => {
+        drag.current = {active:true,startX:e.clientX,startRot:rotRef.current,lastX:e.clientX,lastT:performance.now()};
+        velRef.current = 0; snapRef.current = null; el.setPointerCapture(e.pointerId);
+      };
+      const mv = e => {
+        if (!drag.current.active) return;
+        const now=performance.now(), dx=e.clientX-drag.current.lastX, dt=now-drag.current.lastT;
+        velRef.current = (dx / (dt>0?dt/16.666:1)) * 0.18;
+        rotRef.current = drag.current.startRot + (e.clientX - drag.current.startX) * 0.18;
+        drag.current.lastX=e.clientX; drag.current.lastT=now;
+      };
+      const up = () => {
+        if (!drag.current.active) return;
+        drag.current.active = false;
+        velRef.current = Math.max(-12, Math.min(12, velRef.current));
+        if (Math.abs(velRef.current) > 0.1) dirRef.current = Math.sign(velRef.current);
+      };
+      el.addEventListener('pointerdown', dn);
+      el.addEventListener('pointermove', mv);
+      el.addEventListener('pointerup',   up);
+      el.addEventListener('pointercancel', up);
+      return () => {
+        el.removeEventListener('pointerdown', dn);
+        el.removeEventListener('pointermove', mv);
+        el.removeEventListener('pointerup',   up);
+        el.removeEventListener('pointercancel', up);
+      };
+    }, []);
+
+    // keyboard
+    useEffect(() => {
+      const h = e => {
+        if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','PageUp','PageDown'].includes(e.key)) return;
+        e.preventDefault();
+        const d = ['ArrowRight','ArrowDown','PageDown'].includes(e.key) ? 1 : -1;
+        snapRef.current = (Math.round(rotRef.current / BA) + d) * BA;
+      };
+      window.addEventListener('keydown', h);
+      return () => window.removeEventListener('keydown', h);
+    }, []);
+
+    const clickCard = i => {
+      const a = i * BA, lap = Math.floor(rotRef.current / 360);
+      const cs = [lap*360+a, (lap+1)*360+a, (lap-1)*360+a];
+      snapRef.current = cs.reduce((b,c) =>
+        Math.abs(c - rotRef.current) < Math.abs(b - rotRef.current) ? c : b);
+    };
+
+    const zStr = `calc(-1 * ${radiusEm.toFixed(4)}em)`;
+
+    return (
+      <div ref={sceneRef} className="scene" style={{cursor:'grab'}}>
+        <div ref={a3dRef} className="a3d" style={{
+          '--vel':'0', '--abs-vel':'0',
+          '--n':String(N), '--ba':`${BA}deg`, '--z-trans':zStr,
+        }}>
+          {CARDS.map((src, i) => (
+            <div
+              key={i}
+              ref={el => cardRefs.current[i] = el}
+              className="card"
+              style={{
+                '--i': String(i),
+                '--card-rz':     'clamp(-20deg,calc(var(--vel)*1.0deg),20deg)',
+                '--card-skew-x': 'clamp(-10deg,calc(var(--vel)*0.4deg),10deg)',
+                '--card-z-offset': 'calc(var(--abs-vel)*-2px)',
+                '--card-scale':  'calc(1 - var(--abs-vel)*0.0025)',
+                transform: [
+                  'rotateY(calc(var(--i)*var(--ba)))',
+                  'translateZ(calc(var(--z-trans)+var(--card-z-offset)))',
+                  'rotateZ(var(--card-rz))',
+                  'skewX(var(--card-skew-x))',
+                  'scale(var(--card-scale))',
+                ].join(' '),
+                cursor: 'pointer',
+              }}
+              onClick={() => clickCard(i)}
+            >
+              <img src={src} alt=""
+                style={{width:'100%',height:'100%',objectFit:'cover',display:'block'}} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     FUNNEL
+  ═══════════════════════════════════════════════════════════ */
+  function fmtB(raw) {
+    const [ip, dp] = raw.split(',');
+    const f = ip.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return dp !== undefined ? `${f},${dp}` : f;
+  }
+  function scaleFactor(digits, hasDec) {
+    const t = [1,1,1,1,0.85,0.75,0.65,0.55,0.45,0.35,0.25];
+    return (t[Math.min(digits, t.length-1)] || 0.25) - (hasDec ? 0.08 : 0);
+  }
+
+  function Funnel({ kickRef }) {
+    const [step, setStep] = useState(1);
+    const [bgt,  setBgt]  = useState('');
+    const [em,   setEm]   = useState('');
+    const [f1,   setF1]   = useState(false);
+    const [f2,   setF2]   = useState(false);
+    const [done, setDone] = useState(false);
+    const r1 = useRef(null), r2 = useRef(null);
+
+    const onBgt = e => {
+      let v = e.target.value.replace(/[^0-9,]/g, '');
+      const p = v.split(',');
+      if (p.length > 2) v = p[0] + ',' + p.slice(1).join('');
+      if (p[1]?.length > 2) v = p[0] + ',' + p[1].slice(0,2);
+      const [ip, dp] = v.split(',');
+      const ci = (ip||'').replace(/^0+(?=\d)/, '');
+      setBgt(dp !== undefined ? `${ci},${dp}` : ci);
+    };
+
+    const num    = parseFloat((bgt||'0').replace(/\./g,'').replace(',','.')) || 0;
+    const canNxt = num >= 1000;
+    const canSub = em.length >= 4;
+
+    const doNext = () => {
+      if (!canNxt) return;
+      setStep(2); kickRef.current = 4.5;
+      setTimeout(() => r2.current?.focus(), 100);
+    };
+    const doSub = () => {
+      if (!canSub) return;
+      setDone(true); kickRef.current = 7.5;
+    };
+
+    const digits = bgt.replace(/,.*/,'').length;
+    const hasDec = bgt.includes(',');
+    const bs     = scaleFactor(digits, hasDec);
+    const tLen   = step===1 ? bgt.length : em.length;
+    const hBlur  = Math.min(12, tLen * 1.5);
+    const hOp    = tLen > 0 ? 0.45 : 1;
+
+    if (done) return (
+      <div style={{display:'flex',flexDirection:'column',gap:'0.2em'}}>
+        <KineticText text="Brief" Tag="div" splitBy="characters" animateOnMount
+          style={{fontSize:'3.5em',fontFamily:'Geist,sans-serif',fontWeight:300,color:'#fff',lineHeight:1}} />
+        <KineticText text="received." Tag="div" splitBy="characters" staggerFrom="start" animateOnMount
+          style={{fontSize:'3.5em',fontFamily:'Newsreader,serif',fontStyle:'italic',fontWeight:300,color:'#fff',lineHeight:1}} />
+        <p style={{color:'rgba(255,255,255,0.5)',fontFamily:'Geist,sans-serif',fontWeight:300,
+          fontSize:'0.9em',margin:'0.75em 0 0 0'}}>
+          You'll hear from me within a day.
+        </p>
+      </div>
+    );
+
+    return (
+      <div style={{display:'flex',flexDirection:'column',gap:'1rem'}}>
+        {/* headline blurs as user types */}
+        <div style={{
+          filter:`blur(${hBlur}px)`, opacity:hOp,
+          transition:'filter .2s,opacity .2s', pointerEvents:'none',
+        }}>
+          <div style={{fontSize:'2.6em',fontFamily:'Geist,sans-serif',fontWeight:300,color:'#fff',lineHeight:1.1}}>
+            Fewer Clicks.
+          </div>
+          <div style={{fontSize:'2.6em',fontFamily:'Newsreader,serif',fontStyle:'italic',fontWeight:300,color:'#fff',lineHeight:1.1}}>
+            More Signed Deals.
+          </div>
+        </div>
+
+        {/* Step 1 — budget */}
+        {step===1 && (
+          <div style={{display:'flex',alignItems:'center',gap:'1rem',flexWrap:'wrap'}}>
+            <div style={{position:'relative',display:'inline-flex',alignItems:'center',
+              fontSize:`${bs*2.2}em`}}>
+              <span style={{color:'rgba(255,255,255,0.2)',fontFamily:'Geist,sans-serif',fontWeight:300}}>€</span>
+              <span style={{color:'#fff',fontFamily:'Geist,sans-serif',fontWeight:300}}>
+                {bgt ? fmtB(bgt) : ''}
+              </span>
+              {f1 && <span className="cur" style={{color:'#fff',marginLeft:1}}>|</span>}
+              {!bgt && !f1 && (
+                <span style={{color:'rgba(255,255,255,0.25)',fontFamily:'Geist,sans-serif',
+                  fontWeight:300,marginLeft:4}}>your budget</span>
+              )}
+              <input
+                ref={r1} type="text" inputMode="decimal" value={bgt}
+                onChange={onBgt}
+                onFocus={() => setF1(true)} onBlur={() => setF1(false)}
+                onKeyDown={e => e.key==='Enter' && doNext()}
+                style={{position:'absolute',inset:0,opacity:0,width:'100%',
+                  cursor:'text',fontSize:'inherit'}}
+                autoFocus
+              />
+            </div>
+            {canNxt && (
+              <button onClick={doNext} style={{
+                padding:'0.45em 1.1em', background:'#fff', color:'#000',
+                border:'none', borderRadius:9999, cursor:'pointer',
+                fontFamily:'Geist,sans-serif', fontWeight:500, fontSize:'0.85em',
+                animation:'fadeIn 0.3s ease',
+              }}>Next →</button>
+            )}
+          </div>
+        )}
+
+        {/* Step 2 — email */}
+        {step===2 && (
+          <div style={{display:'flex',alignItems:'center',gap:'1rem',flexWrap:'wrap'}}>
+            <div style={{position:'relative',display:'inline-flex',alignItems:'center',fontSize:'2em'}}>
+              <span style={{color:'#fff',fontFamily:'Geist,sans-serif',fontWeight:300}}>{em}</span>
+              {f2 && <span className="cur" style={{color:'#fff',marginLeft:1}}>|</span>}
+              {!em && !f2 && (
+                <span style={{color:'rgba(255,255,255,0.25)',fontFamily:'Geist,sans-serif',fontWeight:300}}>
+                  your email
+                </span>
+              )}
+              <input
+                ref={r2} type="email" value={em}
+                onChange={e => setEm(e.target.value)}
+                onFocus={() => setF2(true)} onBlur={() => setF2(false)}
+                onKeyDown={e => e.key==='Enter' && doSub()}
+                style={{position:'absolute',inset:0,opacity:0,width:'100%',
+                  cursor:'text',fontSize:'inherit'}}
+                autoFocus
+              />
+            </div>
+            {canSub && (
+              <button onClick={doSub} style={{
+                padding:'0.45em 1.1em', background:'#fff', color:'#000',
+                border:'none', borderRadius:9999, cursor:'pointer',
+                fontFamily:'Geist,sans-serif', fontWeight:500, fontSize:'0.85em',
+                animation:'fadeIn 0.3s ease',
+              }}>Submit →</button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     COOKIE BANNER
+  ═══════════════════════════════════════════════════════════ */
+  function CookieBanner() {
+    const [show, setShow] = useState(false);
+    useEffect(() => {
+      try {
+        if (!localStorage.getItem('mb_cc')) setTimeout(() => setShow(true), 1800);
+      } catch(e) {}
+    }, []);
+    const act = v => {
+      try { localStorage.setItem('mb_cc', v); } catch(e) {}
+      setShow(false);
+    };
+
+    if (!show) return null;
+    return (
+      <div style={{
+        position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)',
+        zIndex:1000, maxWidth:520, width:'90vw',
+        animation:'fadeUp 0.45s cubic-bezier(0.34,1.3,0.64,1)',
+      }}>
+        <div style={{
+          background:'rgba(255,255,255,0.08)',
+          backdropFilter:'blur(20px)', WebkitBackdropFilter:'blur(20px)',
+          borderRadius:16, border:'1px solid rgba(255,255,255,0.1)',
+          padding:'1.25rem 1.5rem', display:'flex', flexDirection:'column', gap:'0.85rem',
+        }}>
+          <p style={{color:'rgba(255,255,255,0.75)',fontFamily:'Geist,sans-serif',
+            fontWeight:300,fontSize:'0.82rem',lineHeight:1.6,margin:0}}>
+            This site stores a small cookie to remember your preferences and measure how
+            visitors navigate it. No data is sold or shared with third parties.{' '}
+            <a href="/privacy"
+              style={{color:'rgba(255,255,255,0.5)',textDecoration:'underline'}}>
+              Privacy Policy
+            </a>
+          </p>
+          <div style={{display:'flex',justifyContent:'flex-end',gap:'0.6rem'}}>
+            <button onClick={() => act('declined')} style={{
+              padding:'0.35em 1em', borderRadius:9999, background:'transparent',
+              border:'1px solid rgba(255,255,255,0.2)',
+              color:'rgba(255,255,255,0.55)',
+              fontFamily:'Geist,sans-serif', fontSize:'0.8rem', cursor:'pointer',
+            }}>Decline</button>
+            <button onClick={() => act('accepted')} style={{
+              padding:'0.35em 1em', borderRadius:9999,
+              background:'#fff', border:'none', color:'#000',
+              fontFamily:'Geist,sans-serif', fontWeight:500, fontSize:'0.8rem', cursor:'pointer',
+            }}>Accept</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     HEADER
+  ═══════════════════════════════════════════════════════════ */
+  function Header() {
+    const [mOpen, setMOpen] = useState(false);
+    const links = ['Work','About','Contact'];
+    return (
+      <div style={{
+        position:'fixed', top:0, left:0, right:0, zIndex:50,
+        padding:'1rem 1.5rem', display:'flex', alignItems:'center',
+        justifyContent:'space-between',
+        animation:'fadeIn 0.5s ease 0.15s both',
+      }}>
+        {/* Avatar pill */}
+        <div style={{
+          display:'flex', alignItems:'center', gap:'0.5rem',
+          background:'rgba(255,255,255,0.1)', backdropFilter:'blur(12px)',
+          WebkitBackdropFilter:'blur(12px)', borderRadius:9999,
+          padding:'0.35rem 0.8rem 0.35rem 0.4rem',
+          border:'1px solid rgba(255,255,255,0.1)',
+        }}>
+          <img src={IMGS.av} alt="@mercerbuilt"
+            style={{width:26,height:26,borderRadius:'50%',objectFit:'cover'}} />
+          <span style={{color:'rgba(255,255,255,0.8)',fontFamily:'Geist,sans-serif',
+            fontWeight:300,fontSize:'0.82rem'}}>@mercerbuilt</span>
+        </div>
+
+        {/* Desktop nav */}
+        <nav style={{display:'flex',gap:'2rem',alignItems:'center'}}>
+          {links.map(l => (
+            <a key={l} href="#" style={{
+              color:'rgba(255,255,255,0.55)', fontFamily:'Geist,sans-serif',
+              fontWeight:300, fontSize:'0.85rem', textDecoration:'none',
+              transition:'color .2s',
+            }}
+            onMouseEnter={e => e.target.style.color='#fff'}
+            onMouseLeave={e => e.target.style.color='rgba(255,255,255,0.55)'}
+            >{l}</a>
+          ))}
+        </nav>
+      </div>
+    );
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     APP ROOT
+  ═══════════════════════════════════════════════════════════ */
+  function App() {
+    const [loaded, setLoaded] = useState(false);
+    const rotRef  = useRef(0);
+    const kickRef = useRef(null);
+
+    return (
+      <div style={{position:'relative',width:'100%',height:'100%',background:'#000'}}>
+        {!loaded && <Preloader onComplete={() => setLoaded(true)} />}
+        <Header />
+        <div style={{position:'relative',width:'100%',height:'100%'}}>
+          <Carousel3D rotRef={rotRef} kickRef={kickRef} />
+          <div style={{
+            position:'absolute', inset:0, display:'flex',
+            alignItems:'flex-end', justifyContent:'flex-start',
+            pointerEvents:'none',
+          }}>
+            <div style={{pointerEvents:'auto',padding:'2rem 2rem 5rem 2rem'}}>
+              {loaded && <Funnel kickRef={kickRef} />}
+            </div>
+          </div>
+          <Marquee rotRef={rotRef} />
+        </div>
+        <CookieBanner />
+      </div>
+    );
+  }
+
+  createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
