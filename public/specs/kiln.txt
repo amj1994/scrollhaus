@@ -844,8 +844,8 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   var v = document.getElementById('scene-video');
   if (!scene || !v) return;
 
-  var SRC_HD = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/3ff5211a-13d0-4205-ab67-f05eab8b598f.mp4';
-  var SRC_SD = 'https://d2ol7oe51mr4n9.cloudfront.net/user_3Gpc1uBfShDZ8FrEtDLXM23sY6t/b099988a-3dfc-42d8-9660-fc96ae72805d.mp4';
+  var SRC_HD = 'assets/hero-hd.mp4';
+  var SRC_SD = 'assets/hero-sd.mp4';
 
   var px = Math.max(window.innerWidth, window.innerHeight) * Math.min(window.devicePixelRatio || 1, 2);
   var saveData = !!(navigator.connection && navigator.connection.saveData);
