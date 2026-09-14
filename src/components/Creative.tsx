@@ -179,7 +179,7 @@ export default function Creative() {
             {filteredSkills.map((s, i) => (
               <div key={s.slug} className="group card-cv" style={{ ...cardRise, animationDelay: `${Math.min(i, 12) * 30}ms` }}>
                 <div className="relative aspect-video overflow-hidden rounded-lg bg-white ring-1 ring-white/10">
-                  <img src={s.preview} alt={`${s.name} design skill preview`} loading="lazy" decoding="async" className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]" />
+                  <img src={s.preview} alt={`${s.name} design skill preview`} decoding="async" className="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <CopyButton

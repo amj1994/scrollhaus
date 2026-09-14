@@ -251,7 +251,7 @@ function ImageMarquee() {
       >
         {[...IMAGES, ...IMAGES].map((src, i) => (
           <div key={i} className="h-80 w-60 flex-shrink-0 overflow-hidden rounded-2xl sm:h-[32rem] sm:w-80">
-            <img src={src} alt="" loading="lazy" draggable={false} className="pointer-events-none h-full w-full object-cover" />
+            <img src={src} alt="" draggable={false} className="pointer-events-none h-full w-full object-cover" />
           </div>
         ))}
       </div>
