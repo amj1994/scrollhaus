@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import SiteDetail from '@/components/SiteDetail'
@@ -8,11 +8,6 @@ import AuthModal from '@/components/AuthModal'
 import { bentoSpan } from '@/lib/bento'
 import { useMasonry } from '@/lib/masonry'
 import { useAuth } from '@/lib/auth'
-
-// Three.js is a ~600KB chunk on its own — split it out so the core library
-// (header, grid, cards) never waits on it. It streams in behind everything
-// else and just fades into place once ready.
-const AmbientBackground = lazy(() => import('@/components/AmbientBackground'))
 
 const BRAND = 'Scrollhaus'
 
@@ -78,9 +73,6 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen bg-[#080808]">
-      <Suspense fallback={null}>
-        <AmbientBackground />
-      </Suspense>
 
       <header className="sticky top-0 z-50 border-b border-white/[0.07] bg-[#080808]/85 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1600px] items-center gap-6 px-4 py-3.5 sm:px-6">
