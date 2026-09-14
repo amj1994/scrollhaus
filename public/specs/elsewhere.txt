@@ -1,0 +1,859 @@
+ELSEWHERE — complete build spec
+
+Recreation of a pasted "Step Into Wonder" scroll-experience spec: a single-component React 18 app (portal-archway entrance, mouse-parallax rAF loop, scroll-scrubbed world/portal/curtain zoom, a nine-card arc slider that rotates 80° across the scroll range). Rebranded as Elsewhere, a bespoke travel-and-expedition house — the portal/curtain/floating-destination-arc language already reads as travel, so only the text changed: brand name, hero headline, nav labels, card titles and descriptions, and the two display/body typefaces (Viaoda Libre + Imprima -> Italiana + Jost). All five background/portal/curtain images and the three hero preview photos are the source spec's own asset URLs, used exactly as given — per this repo's rebrand policy (see /CLAUDE.md §1), only the copy changes, not the imagery.
+
+Scroll runway shortened 480vh -> 320vh: every reveal threshold in the file is a fraction of scroll progress (0..1), so the same choreography now completes in noticeably less physical scroll distance — the "fast scroll" standard (/CLAUDE.md §1a), not a mechanics change.
+
+Stack: Vite + React 18 + TypeScript + Tailwind CSS v3 (default config, via postcss).
+Dependencies: react@^18.3.1, react-dom@^18.3.1.
+Dev dependencies: @types/react@^18.3.12, @types/react-dom@^18.3.1, @vitejs/plugin-react@^4.3.4, autoprefixer@^10.4.20, postcss@^8.4.49, tailwindcss@^3.4.15, typescript@^5.6.3, vite@^5.4.11.
+
+## Setup
+1. `npm create vite@latest . -- --template react-ts`
+2. Install the exact dependencies listed above.
+3. Run `npx tailwindcss init -p` to create tailwind.config.js and postcss.config.js (default config, content globs covering index.html and src/**/*.{js,ts,jsx,tsx}).
+4. Replace the generated files below with the exact contents given — every file, verbatim.
+
+## Files
+
+### index.html
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Elsewhere — Bespoke Journeys to the Unknown</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Italiana&family=Jost:wght@300;400;500&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+```
+
+### src/index.css
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  background: #0a0608;
+  scroll-behavior: auto;
+}
+
+body {
+  font-family: 'Jost', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+@keyframes bobUp {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+```
+
+### src/main.tsx
+```tsx
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App'
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+
+```
+
+### src/App.tsx
+```tsx
+import { useEffect, useMemo, useRef, useState } from 'react'
+
+/* ─────────────────────────────────────────────────────────────
+   Recreation of a pasted "Step Into Wonder" scroll-experience spec.
+   Same assets, same scroll/parallax/arc-slider mechanics — only the
+   copy, nav labels, card names, and typefaces change (Viaoda Libre +
+   Imprima -> Italiana + Jost), rebranded as Elsewhere, a bespoke
+   travel-and-expedition house. The portal-archway / curtain-reveal /
+   floating-destination-arc language already reads as travel, so the
+   structure needed no reshaping.
+
+   Runway shortened 480vh -> 320vh: every threshold in this file is a
+   fraction of scroll progress (0..1), so the whole sequence just
+   completes in less physical scroll distance — the "fast scroll"
+   standard for every Scrollhaus showcase, not a mechanics change.
+   ───────────────────────────────────────────────────────────── */
+
+const PORTAL_BG =
+  'https://flick-award-65707097.figma.site/_assets/v11/bbc8d4f1308d5df012c4b0a657b44c6d92609c24.png'
+const CURTAIN_LEFT =
+  'https://flick-award-65707097.figma.site/_assets/v11/535b5bc4f8b600a7758bc74dc3540f405f0b89a6.png'
+const CURTAIN_RIGHT =
+  'https://flick-award-65707097.figma.site/_assets/v11/ab14033a7fe6dcedbae303726331b6a26d9d201c.png'
+const WORLD_BG =
+  'https://flick-award-65707097.figma.site/_assets/v11/4f4f0651516e75fbfeebf87e12be372c0683a7fd.png'
+const BOTTOM_CLOUDS =
+  'https://flick-award-65707097.figma.site/_assets/v11/fb811f79bccceab1c4cdbb81b5524632cffc9c52.png'
+
+const CARD_IMAGES = [
+  'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260525_160507_2ccbb4eb-1469-484f-af25-59168ad9a233.png&w=1280&q=85',
+  'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260525_160644_072a7f68-a101-4ded-a332-7d37707dbdd1.png&w=1280&q=85',
+  'https://images.higgs.ai/?default=1&output=webp&url=https%3A%2F%2Fd8j0ntlcm91z4.cloudfront.net%2Fuser_38xzZboKViGWJOttwIXH07lWA1P%2Fhf_20260525_160706_1c153d04-0dfb-4ac9-a4ef-e74f301c329c.png&w=1280&q=85',
+]
+
+type Card = { title: string; desc: string; color: string }
+
+const CARDS: Card[] = [
+  { title: 'Secret Shores', desc: 'Luminous coastlines unseen by wandering eyes', color: '#f3cdd6' },
+  { title: 'Wild Frontiers', desc: 'Dissolve into untamed horizons and deep calm', color: '#dcedc2' },
+  { title: 'Quiet Retreats', desc: 'Remote escapes far beyond ordinary reach', color: '#c3e3f4' },
+  { title: 'Bespoke Routes', desc: 'Journeys shaped around your vision and soul', color: '#f0e4c0' },
+  { title: 'Vivid Passages', desc: 'Surreal routes through breathtaking terrain', color: '#dcd2f2' },
+  { title: 'Mystic Summits', desc: 'Timeless ridgelines wrapped in cloud and myth', color: '#f3cdd6' },
+  { title: 'Deep Waters', desc: 'Glowing depths alive with uncharted wonder', color: '#c3e3f4' },
+  { title: 'Gilded Horizons', desc: 'Amber skies that stretch past all reason', color: '#f0e4c0' },
+  { title: 'Glass Tides', desc: 'Calm waters holding skies of pure stillness', color: '#dcedc2' },
+]
+
+const RUNWAY_VH = 320 // was 480 in the source spec — tightened per the fast-scroll standard
+
+function easeInOut(t: number) {
+  return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
+}
+function lerp(a: number, b: number, t: number) {
+  return a + (b - a) * t
+}
+function clamp(v: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, v))
+}
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const onChange = () => setIsMobile(mq.matches)
+    onChange()
+    if (mq.addEventListener) mq.addEventListener('change', onChange)
+    else mq.addListener(onChange)
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange)
+      else mq.removeListener(onChange)
+    }
+  }, [])
+  return isMobile
+}
+
+function StarLogo() {
+  return (
+    <svg width={28} height={28} viewBox="0 0 28 28" aria-hidden="true">
+      <path
+        d="M14 2l2.09 6.42H23l-5.45 3.96 2.09 6.42L14 14.84l-5.64 4.06 2.09-6.42L4.96 8.42h6.95L14 2z"
+        fill="#fff"
+        opacity={0.9}
+      />
+      <circle cx={14} cy={24} r={1.5} fill="#fff" opacity={0.6} />
+      <circle cx={6} cy={6} r={1} fill="#fff" opacity={0.4} />
+      <circle cx={22} cy={6} r={1} fill="#fff" opacity={0.4} />
+    </svg>
+  )
+}
+
+function PlayGlyph() {
+  return (
+    <svg width={10} height={12} viewBox="0 0 10 12" aria-hidden="true">
+      <path d="M1 1l8 5-8 5V1z" fill="#1a0a00" />
+    </svg>
+  )
+}
+
+function ArcCardSlider({
+  cards,
+  rotationOffset,
+  isMobile,
+}: {
+  cards: Card[]
+  rotationOffset: number
+  isMobile: boolean
+}) {
+  const cardSpacingDeg = isMobile ? 12 : 9
+  const centerIndex = 4
+  const arcRadius = isMobile ? 700 : 1100
+  const cardW = isMobile ? 160 : 220
+  const cardH = isMobile ? 175 : 230
+
+  return (
+    <div
+      style={{
+        height: isMobile ? 260 : 360,
+        width: '100vw',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'flex-end',
+        overflow: 'visible',
+        position: 'relative',
+      }}
+    >
+      {cards.map((card, i) => {
+        const baseDeg = (i - centerIndex) * cardSpacingDeg
+        const deg = baseDeg - rotationOffset + centerIndex * cardSpacingDeg
+        const rad = (deg * Math.PI) / 180
+        const x = Math.sin(rad) * arcRadius
+        const y = arcRadius - Math.cos(rad) * arcRadius
+        const bottom = -y + (isMobile ? 140 : 200)
+
+        return (
+          <div
+            key={card.title}
+            style={{
+              position: 'absolute',
+              bottom,
+              left: `calc(50% + ${x}px - ${cardW / 2}px)`,
+              transform: `rotate(${deg}deg)`,
+              transformOrigin: `${cardW / 2}px ${arcRadius}px`,
+              transition: 'transform 0.05s linear',
+              willChange: 'transform',
+            }}
+          >
+            <div
+              style={{
+                width: cardW,
+                height: cardH,
+                borderRadius: isMobile ? 18 : 26,
+                background: card.color,
+                boxShadow: '0 8px 40px rgba(80,40,60,0.18)',
+                padding: isMobile ? '12px' : '18px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    border: '1.5px solid rgba(80,50,60,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: 'Jost, sans-serif',
+                    fontSize: 10,
+                    color: 'rgba(80,50,60,0.6)',
+                  }}
+                >
+                  {String(i + 1).padStart(2, '0')}
+                </div>
+              </div>
+              <div>
+                <h3
+                  style={{
+                    fontFamily: 'Italiana, serif',
+                    fontSize: isMobile ? 22 : 30,
+                    color: '#3a2530',
+                    lineHeight: 1.15,
+                    margin: isMobile ? '0 0 4px' : '0 0 8px',
+                  }}
+                >
+                  {card.title}
+                </h3>
+                <p
+                  style={{
+                    fontFamily: 'Jost, sans-serif',
+                    fontSize: isMobile ? 12 : 15,
+                    color: 'rgba(58,37,48,0.65)',
+                    lineHeight: 1.5,
+                    margin: 0,
+                  }}
+                >
+                  {card.desc}
+                </p>
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+export default function App() {
+  const isMobile = useIsMobile()
+
+  const [scrollProgress, setScrollProgress] = useState(0)
+  const scrollRef = useRef(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  const [curtainsOpen, setCurtainsOpen] = useState(false)
+  const [uiVisible, setUiVisible] = useState(false)
+  const [entranceDone, setEntranceDone] = useState(false)
+
+  const worldRef = useRef<HTMLDivElement>(null)
+  const cloudsRef = useRef<HTMLDivElement>(null)
+  const portalRef = useRef<HTMLDivElement>(null)
+  const curtainLRef = useRef<HTMLDivElement>(null)
+  const curtainRRef = useRef<HTMLDivElement>(null)
+
+  const raw = useRef({ x: 0, y: 0 })
+  const smooth = useRef({ x: 0, y: 0 })
+
+  // entrance sequence
+  useEffect(() => {
+    const t1 = setTimeout(() => setCurtainsOpen(true), 100)
+    const t2 = setTimeout(() => setUiVisible(true), 600)
+    const t3 = setTimeout(() => setEntranceDone(true), 2200)
+    return () => {
+      clearTimeout(t1)
+      clearTimeout(t2)
+      clearTimeout(t3)
+    }
+  }, [])
+
+  // scroll progress
+  useEffect(() => {
+    const onScroll = () => {
+      const el = containerRef.current
+      if (!el) return
+      const max = el.scrollHeight - window.innerHeight
+      const p = clamp(max > 0 ? window.scrollY / max : 0, 0, 1)
+      scrollRef.current = p
+      setScrollProgress(p)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
+  // mouse parallax
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      raw.current.x = (e.clientX / window.innerWidth - 0.5) * 2
+      raw.current.y = (e.clientY / window.innerHeight - 0.5) * 2
+    }
+    window.addEventListener('mousemove', onMove, { passive: true })
+    return () => window.removeEventListener('mousemove', onMove)
+  }, [])
+
+  // rAF loop driving layer transforms
+  useEffect(() => {
+    let raf = 0
+    const tick = () => {
+      smooth.current.x = lerp(smooth.current.x, raw.current.x, 0.07)
+      smooth.current.y = lerp(smooth.current.y, raw.current.y, 0.07)
+      const rx = -smooth.current.x
+      const ry = -smooth.current.y
+      const ep = easeInOut(scrollRef.current)
+
+      if (worldRef.current) {
+        const s = lerp(1, 1.18, ep)
+        worldRef.current.style.transform = `scale(${s}) translate(${rx * 6}px, ${ry * 6}px)`
+        worldRef.current.style.transformOrigin = '50% 50%'
+      }
+      if (cloudsRef.current) {
+        const s = lerp(1, 1.4, ep)
+        cloudsRef.current.style.transform = `scale(${s}) translate(${rx * 9}px, ${ry * 9 * 0.4}px)`
+        cloudsRef.current.style.transformOrigin = '50% 100%'
+      }
+      if (portalRef.current) {
+        const s = lerp(1, 7.5, ep)
+        portalRef.current.style.transform = `scale(${s}) translate(${rx * 7}px, ${ry * 7}px)`
+        portalRef.current.style.transformOrigin = '52% 38%'
+      }
+      const curtainTransition = entranceDone ? 'none' : 'transform 1.8s cubic-bezier(0.16, 1, 0.3, 1)'
+      if (curtainLRef.current) {
+        const totalShift = (curtainsOpen ? 62 : 0) + lerp(0, 150, ep)
+        const s = lerp(1, 1.3, ep)
+        curtainLRef.current.style.transform = `translateX(calc(-${totalShift}% + ${rx * 14}px)) translateY(${ry * 14 * 0.3}px) scale(${s})`
+        curtainLRef.current.style.transformOrigin = 'left center'
+        curtainLRef.current.style.transition = curtainTransition
+      }
+      if (curtainRRef.current) {
+        const totalShift = (curtainsOpen ? 62 : 0) + lerp(0, 150, ep)
+        const s = lerp(1, 1.3, ep)
+        curtainRRef.current.style.transform = `translateX(calc(${totalShift}% + ${rx * 14}px)) translateY(${ry * 14 * 0.3}px) scale(${s})`
+        curtainRRef.current.style.transformOrigin = 'right center'
+        curtainRRef.current.style.transition = curtainTransition
+      }
+
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [curtainsOpen, entranceDone])
+
+  const p = scrollProgress
+  const portalOpacity = p < 0.65 ? 1 : clamp(1 - (p - 0.65) / 0.2, 0, 1)
+  const cloudsOpacity = p < 0.05 ? lerp(0.7, 1, p / 0.05) : 1
+  const scene1Opacity = clamp(1 - p / 0.22, 0, 1)
+  const scene2Opacity = clamp((p - 0.68) / 0.16, 0, 1)
+  const arcSweepDeg = (9 - 1) * 10
+  const arcRotationOffset = lerp(0, arcSweepDeg, clamp((p - 0.7) / 0.3, 0, 1))
+
+  const enter = (delaySec: number, fromY = 24) =>
+    ({
+      opacity: uiVisible ? 1 : 0,
+      transform: uiVisible ? 'translateY(0)' : `translateY(${fromY}px)`,
+      transition: `opacity 0.9s ease ${delaySec}s, transform 0.9s ease ${delaySec}s`,
+    }) as const
+
+  const heading = useMemo(
+    () => (
+      <>
+        <span>DRIFT </span>
+        <span style={{ color: 'rgba(255,220,180,0.7)', fontSize: '0.8em' }}>&rsaquo;</span>
+        <em style={{ fontStyle: 'italic' }}> TO</em>
+      </>
+    ),
+    [],
+  )
+
+  return (
+    <div ref={containerRef} style={{ height: `${RUNWAY_VH}vh`, position: 'relative' }}>
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          width: '100%',
+          height: '100vh',
+          overflow: 'hidden',
+          background: '#0a0608',
+        }}
+      >
+        {/* 1. WORLD */}
+        <div ref={worldRef} className="absolute inset-0" style={{ willChange: 'transform' }}>
+          <img src={WORLD_BG} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+
+        {/* 2. BOTTOM CLOUDS */}
+        <div
+          ref={cloudsRef}
+          className="absolute left-0 right-0 bottom-0"
+          style={{ zIndex: 10, opacity: cloudsOpacity, willChange: 'transform' }}
+        >
+          <img src={BOTTOM_CLOUDS} alt="" style={{ width: '100%', height: 'auto', display: 'block' }} />
+        </div>
+
+        {/* 3. ARC CARD SLIDER */}
+        <div
+          className="absolute flex justify-center items-end"
+          style={{
+            zIndex: 9,
+            bottom: isMobile ? 60 : 80,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '100%',
+            opacity: scene2Opacity,
+            pointerEvents: scene2Opacity < 0.05 ? 'none' : 'auto',
+          }}
+        >
+          <ArcCardSlider cards={CARDS} rotationOffset={arcRotationOffset} isMobile={isMobile} />
+        </div>
+
+        {/* 4. PORTAL */}
+        <div ref={portalRef} className="absolute inset-0" style={{ zIndex: 15, opacity: portalOpacity, willChange: 'transform' }}>
+          <img src={PORTAL_BG} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        </div>
+
+        {/* 5. BOTTOM FADE */}
+        <div
+          className="absolute left-0 right-0 bottom-0"
+          style={{
+            zIndex: 16,
+            height: '40%',
+            background: 'linear-gradient(to top, rgba(0,0,0,0.45) 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* 6/7. CURTAINS */}
+        <div ref={curtainLRef} className="absolute inset-0" style={{ zIndex: 16, willChange: 'transform' }}>
+          <img src={CURTAIN_LEFT} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'right center', display: 'block' }} />
+        </div>
+        <div ref={curtainRRef} className="absolute inset-0" style={{ zIndex: 16, willChange: 'transform' }}>
+          <img src={CURTAIN_RIGHT} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center', display: 'block' }} />
+        </div>
+
+        {/* 8. TOP FADE */}
+        <div
+          className="absolute left-0 right-0 top-0"
+          style={{
+            zIndex: 45,
+            height: '42vh',
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)',
+            pointerEvents: 'none',
+          }}
+        />
+
+        {/* 9. NAV */}
+        <div
+          className="absolute top-0 left-0 right-0 flex items-center justify-between"
+          style={{ zIndex: 50, padding: isMobile ? '18px 20px' : '22px 48px' }}
+        >
+          {isMobile ? (
+            <>
+              <span style={navLinkStyle}>Explore</span>
+              <StarLogo />
+              <span style={navLinkStyle}>Inquire</span>
+            </>
+          ) : (
+            <>
+              <div style={{ display: 'flex', gap: 36 }}>
+                <a href="#" style={navLinkStyle}>Destinations</a>
+                <a href="#" style={navLinkStyle}>Journeys</a>
+                <a href="#" style={navLinkStyle}>Expeditions</a>
+              </div>
+              <StarLogo />
+              <div style={{ display: 'flex', gap: 36 }}>
+                <a href="#" style={navLinkStyle}>Concierge</a>
+                <a href="#" style={navLinkStyle}>Journal</a>
+                <a href="#" style={navLinkStyle}>Inquire</a>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* 10. SCENE 1 UI */}
+        <div style={{ opacity: scene1Opacity, transition: 'opacity 0.1s linear', pointerEvents: scene1Opacity < 0.05 ? 'none' : 'auto' }}>
+          {/* Desktop */}
+          <div className="hidden xl:block">
+            <div
+              className="absolute"
+              style={{
+                zIndex: 20,
+                top: '46%',
+                left: 60,
+                maxWidth: 440,
+                transform: uiVisible ? 'translateY(-50%)' : 'translateY(calc(-50% + 24px))',
+                opacity: uiVisible ? 1 : 0,
+                transition: 'opacity 0.9s ease 0.3s, transform 0.9s ease 0.3s',
+              }}
+            >
+              <h1
+                style={{
+                  fontFamily: 'Italiana, serif',
+                  textShadow: '0 2px 24px rgba(0,0,0,0.7), 0 1px 4px rgba(0,0,0,0.9)',
+                }}
+              >
+                <div style={{ fontSize: 'clamp(32px,4.5vw,54px)', lineHeight: 1.1, color: '#fff', letterSpacing: '0.04em' }}>
+                  {heading}
+                </div>
+                <div style={{ fontSize: 'clamp(50px,7.5vw,88px)', lineHeight: 0.9, color: '#fff', letterSpacing: '-0.02em' }}>
+                  ELSEWHERE
+                </div>
+              </h1>
+              <p
+                style={{
+                  fontFamily: 'Jost, sans-serif',
+                  fontSize: 18,
+                  lineHeight: 1.7,
+                  color: 'rgba(255,245,235,0.88)',
+                  marginTop: 18,
+                  maxWidth: 300,
+                  textShadow: '0 1px 12px rgba(0,0,0,0.8)',
+                }}
+              >
+                Bespoke journeys to the world&rsquo;s most extraordinary corners, curated for travelers who want the story, not just the destination.
+              </p>
+            </div>
+
+            <div
+              className="absolute flex"
+              style={{
+                zIndex: 20,
+                right: 40,
+                top: '50%',
+                gap: 12,
+                transform: uiVisible ? 'translateY(-50%)' : 'translateY(calc(-50% + 32px))',
+                opacity: uiVisible ? 1 : 0,
+                transition: 'opacity 0.9s ease 0.55s, transform 0.9s ease 0.55s',
+              }}
+            >
+              {CARD_IMAGES.map((src, i) => (
+                <div
+                  key={src}
+                  style={{
+                    width: 158,
+                    height: 158,
+                    borderRadius: 28,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+                    overflow: 'hidden',
+                    cursor: 'pointer',
+                    position: 'relative',
+                    backgroundImage: `url(${src})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  <div
+                    className="absolute left-0 right-0 bottom-0"
+                    style={{
+                      height: '60%',
+                      background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 60%, transparent 100%)',
+                    }}
+                  />
+                  <div
+                    className="absolute left-0 right-0 bottom-0"
+                    style={{
+                      height: '44%',
+                      backdropFilter: 'blur(6px)',
+                      WebkitBackdropFilter: 'blur(6px)',
+                      WebkitMaskImage: 'linear-gradient(to top, black 40%, transparent 100%)',
+                      maskImage: 'linear-gradient(to top, black 40%, transparent 100%)',
+                    }}
+                  />
+                  <div className="absolute flex items-center" style={{ bottom: 12, left: 12, right: 12, gap: 8 }}>
+                    {i === 1 ? (
+                      <>
+                        <span style={{ fontFamily: 'Italiana, serif', fontSize: 36, color: '#fff', lineHeight: 1, textShadow: '0 2px 10px rgba(0,0,0,0.4)' }}>32</span>
+                        <span style={{ fontFamily: 'Jost, sans-serif', fontSize: 18, color: 'rgba(255,255,255,0.9)' }}>Journeys Led</span>
+                      </>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            width: 30,
+                            height: 30,
+                            borderRadius: '50%',
+                            background: 'rgba(255,255,255,0.88)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <PlayGlyph />
+                        </div>
+                        <span style={{ fontFamily: 'Jost, sans-serif', fontSize: 18, color: '#fff', lineHeight: 1.3 }}>View Reel</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              className="absolute flex"
+              style={{ zIndex: 20, bottom: 40, left: 60, gap: 7, transition: 'opacity 0.9s ease 0.8s', opacity: uiVisible ? 1 : 0 }}
+            >
+              {[28, 14, 14, 14].map((w, i) => (
+                <div key={i} style={{ height: 4, width: w, borderRadius: 2, background: i === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)' }} />
+              ))}
+            </div>
+
+            <div
+              className="absolute flex flex-col items-center"
+              style={{ zIndex: 20, bottom: 36, left: '50%', transform: 'translateX(-50%)', gap: 8, transition: 'opacity 0.9s ease 0.9s', opacity: uiVisible ? 1 : 0 }}
+            >
+              <span style={{ fontFamily: 'Jost, sans-serif', fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>
+                DESCEND
+              </span>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: '50%',
+                  border: '1.5px solid rgba(255,255,255,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  animation: 'bobUp 1.8s ease-in-out infinite',
+                }}
+              >
+                <svg width={12} height={8} viewBox="0 0 12 8" aria-hidden="true">
+                  <path d="M1 1.5l5 4.5 5-4.5" stroke="rgba(255,255,255,0.7)" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Tablet */}
+          <div className="hidden md:flex xl:hidden flex-col items-center gap-7 px-8 pt-20 pb-24" style={enter(0.3)}>
+            <h1 style={{ fontFamily: 'Italiana, serif', textAlign: 'center' }}>
+              <div style={{ fontSize: 'clamp(28px,5vw,44px)', letterSpacing: '0.06em', lineHeight: 1.15, color: '#3b1a0a' }}>
+                <span>DRIFT </span>
+                <span style={{ color: '#6b2e0e' }}>&rsaquo;</span>
+                <em> TO</em>
+              </div>
+              <div style={{ fontSize: 'clamp(60px,12vw,86px)', letterSpacing: '-0.02em', lineHeight: 1, color: '#3b1a0a' }}>ELSEWHERE</div>
+            </h1>
+            <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 16, maxWidth: 400, color: '#5c2d0e', textAlign: 'center' }}>
+              Bespoke journeys to the world&rsquo;s most extraordinary corners, curated for travelers who want the story, not just the destination.
+            </p>
+            <div className="flex" style={{ gap: 14 }}>
+              {CARD_IMAGES.map((src, i) => (
+                <div
+                  key={src}
+                  style={{
+                    width: 140,
+                    height: 140,
+                    borderRadius: 22,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.45)',
+                    overflow: 'hidden',
+                    position: 'relative',
+                    backgroundImage: `url(${src})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                  }}
+                >
+                  <div
+                    className="absolute left-0 right-0 bottom-0"
+                    style={{ height: '60%', background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.18) 60%, transparent 100%)' }}
+                  />
+                  <div
+                    className="absolute left-0 right-0 bottom-0"
+                    style={{
+                      height: '44%',
+                      backdropFilter: 'blur(6px)',
+                      WebkitBackdropFilter: 'blur(6px)',
+                      WebkitMaskImage: 'linear-gradient(to top, black 40%, transparent 100%)',
+                      maskImage: 'linear-gradient(to top, black 40%, transparent 100%)',
+                    }}
+                  />
+                  <div className="absolute flex items-center" style={{ bottom: 10, left: 10, right: 10, gap: 6 }}>
+                    {i === 1 ? (
+                      <>
+                        <span style={{ fontFamily: 'Italiana, serif', fontSize: 28, color: '#fff', lineHeight: 1 }}>32</span>
+                        <span style={{ fontFamily: 'Jost, sans-serif', fontSize: 14, color: 'rgba(255,255,255,0.9)' }}>Journeys Led</span>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width={8} height={10} viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1l8 5-8 5V1z" fill="#1a0a00" /></svg>
+                        </div>
+                        <span style={{ fontFamily: 'Jost, sans-serif', fontSize: 14, color: '#fff' }}>View Reel</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mobile */}
+          <div className="flex md:hidden flex-col items-center px-6 pt-20 pb-24" style={enter(0.3)}>
+            <h1 style={{ fontFamily: 'Italiana, serif', textAlign: 'center' }}>
+              <div style={{ fontSize: 'clamp(26px,7vw,42px)', color: '#3b1a0a' }}>
+                <span>DRIFT </span>
+                <span style={{ color: '#6b2e0e' }}>&rsaquo;</span>
+                <em> TO</em>
+              </div>
+              <div style={{ fontSize: 'clamp(52px,16vw,80px)', color: '#3b1a0a' }}>ELSEWHERE</div>
+            </h1>
+            <p style={{ fontFamily: 'Jost, sans-serif', fontSize: 15, lineHeight: 1.6, maxWidth: 280, color: '#5c2d0e', textAlign: 'center', marginTop: 16 }}>
+              Bespoke journeys to the world&rsquo;s most extraordinary corners, curated for travelers who want the story.
+            </p>
+            <div
+              className="relative"
+              style={{
+                marginTop: 24,
+                width: 140,
+                height: 140,
+                borderRadius: 22,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                overflow: 'hidden',
+                backgroundImage: `url(${CARD_IMAGES[0]})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+              }}
+            >
+              <div
+                className="absolute left-0 right-0 bottom-0"
+                style={{ height: '60%', background: 'linear-gradient(to top, rgba(0,0,0,0.72) 0%, transparent 100%)' }}
+              />
+              <div className="absolute flex items-center" style={{ bottom: 10, left: 10, right: 10, gap: 6 }}>
+                <div style={{ width: 26, height: 26, borderRadius: '50%', background: 'rgba(255,255,255,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width={8} height={10} viewBox="0 0 10 12" aria-hidden="true"><path d="M1 1l8 5-8 5V1z" fill="#1a0a00" /></svg>
+                </div>
+                <span style={{ fontFamily: 'Jost, sans-serif', fontSize: 13, color: '#fff' }}>View Reel</span>
+              </div>
+            </div>
+
+            <div className="flex" style={{ marginTop: 24, gap: 7 }}>
+              {[28, 14, 14, 14].map((w, i) => (
+                <div key={i} style={{ height: 4, width: w, borderRadius: 2, background: i === 0 ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.35)' }} />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* 11. SCENE 2 UI */}
+        <div
+          className="absolute inset-0 flex flex-col items-center"
+          style={{ zIndex: 46, opacity: scene2Opacity, pointerEvents: scene2Opacity < 0.05 ? 'none' : 'auto' }}
+        >
+          <div style={{ marginTop: isMobile ? '8vh' : '12vh', textAlign: 'center', padding: '0 20px' }}>
+            <h2
+              style={{
+                fontFamily: 'Italiana, serif',
+                fontSize: isMobile ? 'clamp(28px,8vw,44px)' : 'clamp(38px,6.5vw,78px)',
+                color: '#fff',
+                letterSpacing: '0.03em',
+                lineHeight: 1.05,
+                textShadow: '0 2px 20px rgba(0,0,0,0.4)',
+              }}
+            >
+              WANDER BEYOND THE MAP
+            </h2>
+            <p
+              style={{
+                fontFamily: 'Jost, sans-serif',
+                fontSize: isMobile ? 14 : 20,
+                lineHeight: 1.6,
+                letterSpacing: '-0.01em',
+                marginTop: 12,
+                maxWidth: isMobile ? 260 : 480,
+                color: 'rgba(255,255,255,0.82)',
+                marginLeft: 'auto',
+                marginRight: 'auto',
+              }}
+            >
+              Singular voyages to astonishing corners of the earth, shaped for travelers who seek beauty beyond the ordinary and the known.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const navLinkStyle: React.CSSProperties = {
+  fontFamily: 'Jost, sans-serif',
+  fontSize: 12,
+  letterSpacing: '0.12em',
+  textTransform: 'uppercase',
+  color: '#fff',
+  textDecoration: 'none',
+  opacity: 0.9,
+}
+
+```
