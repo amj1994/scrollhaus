@@ -16,7 +16,27 @@ Dev dependencies: @types/react@^19.0.10, @types/react-dom@^19.0.4, @vitejs/plugi
 
 ### src/App.tsx
 ```tsx
+import { useEffect } from 'react';
 import { ArrowRight, Facebook, Instagram, Youtube, Aperture as ApertureIcon, Sparkle, Compass, Gem, Hexagon, Target } from 'lucide-react';
+import Lenis from 'lenis';
+
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    (window as unknown as { __lenis: Lenis }).__lenis = lenis;
+    let raf = 0;
+    function tick(time: number) {
+      lenis.raf(time);
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      lenis.destroy();
+    };
+  }, []);
+}
 
 const BG_VIDEO =
   'https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260328_102305_3a7cab3b-7a86-46e8-a0f9-6937f035b087.mp4';
@@ -36,6 +56,7 @@ const CLIENTS = [
 ];
 
 export default function App() {
+  useLenis();
   return (
     <div
       className="h-screen overflow-hidden flex flex-col bg-white"
@@ -179,7 +200,6 @@ export default function App() {
     </div>
   );
 }
-
 ```
 
 ### src/index.css

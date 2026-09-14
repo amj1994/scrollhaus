@@ -1,5 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Lenis from "lenis";
+
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    (window as unknown as { __lenis: Lenis }).__lenis = lenis;
+    let raf = 0;
+    function tick(time: number) {
+      lenis.raf(time);
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      lenis.destroy();
+    };
+  }, []);
+}
 import {
   Leaf,
   Zap,
@@ -42,6 +61,7 @@ type Toast = { id: number; message: string };
 type CartItem = { id: string; name: string; price: number; qty: number };
 
 export default function App() {
+  useLenis();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);

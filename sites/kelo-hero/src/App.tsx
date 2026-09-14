@@ -1,5 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import Lenis from "lenis";
+
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    (window as unknown as { __lenis: Lenis }).__lenis = lenis;
+    let raf = 0;
+    function tick(time: number) {
+      lenis.raf(time);
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      lenis.destroy();
+    };
+  }, []);
+}
 
 // Original, live-drawn motion background — not a hosted video asset, not
 // generated media. A slow particle field in the same indigo/fuchsia/cyan
@@ -118,6 +137,7 @@ function Wordmark({ label }: { label: string }) {
 }
 
 export default function App() {
+  useLenis();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (

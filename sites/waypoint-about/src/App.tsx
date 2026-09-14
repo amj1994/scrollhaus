@@ -1,6 +1,25 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Sparkle } from "lucide-react";
+import Lenis from "lenis";
+
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    (window as unknown as { __lenis: Lenis }).__lenis = lenis;
+    let raf = 0;
+    function tick(time: number) {
+      lenis.raf(time);
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      lenis.destroy();
+    };
+  }, []);
+}
 
 const HEADLINE =
   "Whether you crave summit air, coastal quiet, or the pulse of a new city, there's a route built for you.";
@@ -42,6 +61,7 @@ function ScrollWord({
 }
 
 export default function App() {
+  useLenis();
   const [active, setActive] = useState("All");
   const headlineRef = useRef<HTMLHeadingElement>(null);
   const { scrollYProgress } = useScroll({

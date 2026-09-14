@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { Menu, X, Star, ArrowRight, Lock, Terminal, Bug, Code2, CheckCircle2, Zap, Cpu, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Lenis from "lenis";
+
+function useLenis() {
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const lenis = new Lenis({ duration: 1.0, easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)) });
+    (window as unknown as { __lenis: Lenis }).__lenis = lenis;
+    let raf = 0;
+    function tick(time: number) {
+      lenis.raf(time);
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      lenis.destroy();
+    };
+  }, []);
+}
 
 // Original, live-drawn motion background — not a hosted video asset, not
 // generated media. The source spec's hero video was a hotlinked clip from
@@ -84,6 +103,7 @@ function FallingStreams() {
 }
 
 export default function App({ className }: { className?: string }) {
+  useLenis();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   return (
