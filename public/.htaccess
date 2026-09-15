@@ -1,0 +1,23 @@
+# SPA fallback for Apache/LiteSpeed-style static hosting.
+#
+# The live host (scrollhaus.website) answers every request directly —
+# including 404s — with headers reading `platform: hostinger`, `Server: hcdn`,
+# not Netlify's edge. That means netlify.toml's own catch-all redirect (which
+# IS correct, and stays in the repo in case the pipeline ever changes) has no
+# effect on the domain that's actually live. Confirmed empirically: a direct
+# hit on /templates 404s with Hostinger's own branded error page, while the
+# root path and every in-app client-side navigation (history.pushState, no
+# server round-trip) both work fine — this rule only matters for a hard
+# load/refresh/bookmark of a non-root path.
+#
+# Rewrite anything that isn't a real file or directory on disk to index.html,
+# so React's own routing (see App.tsx's VIEW_PATH/viewFromPath) takes over
+# client-side exactly as it does when you arrive via a nav click instead.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule ^ index.html [L]
+</IfModule>

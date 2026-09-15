@@ -1,0 +1,5 @@
+# Same SPA fallback as public/.htaccess, in Netlify's own redirect-file
+# syntax. netlify.toml already has this rule too — this is a second attempt
+# in case whatever's building/publishing this domain reads _redirects
+# specifically rather than netlify.toml. Harmless if the host ignores it.
+/*  /index.html  200
