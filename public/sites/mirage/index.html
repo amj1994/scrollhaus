@@ -72,6 +72,11 @@ body {
   object-fit: cover;
 }
 .stage__canvas { pointer-events: none; }
+/* The <video> elements no longer have a src (frames come from the sequence
+   cache instead) — kept in the DOM as inert placeholders, always invisible,
+   so nothing behind the canvas is relying on their old "hide once bank mode
+   is ready" JS toggle, which no longer exists now that bank mode is always on. */
+.stage__video, .reveal__video { opacity: 0; }
 
 /* ─── Reveal layers ──────────────────────────────────────────────────────────
    Each .reveal is NOT a mask — it is an overflow:hidden box that ROTATES and
@@ -486,18 +491,14 @@ body {
 <!-- ─── z0: Stage — background plate ─────────────────────────────────────── -->
 <div class="stage" id="stage">
   <video class="stage__video" id="vid0"
-    src="assets/video/mirage-plate-720p.mp4"
-    muted playsinline preload="auto" crossorigin="anonymous"
-    aria-hidden="true"></video>
+    muted playsinline aria-hidden="true"></video>
   <canvas class="stage__canvas" id="cv0" aria-hidden="true"></canvas>
 </div>
 
 <!-- ─── z5: Reveal A — diagonal wipe (-45°) ──────────────────────────────── -->
 <div class="reveal reveal--a" id="revealA" aria-hidden="true">
   <div class="reveal__inner" id="revealAInner">
-    <video class="reveal__video" id="vid1"
-      src="assets/video/mirage-plate-720p.mp4"
-      muted playsinline preload="auto" crossorigin="anonymous"></video>
+    <video class="reveal__video" id="vid1" muted playsinline></video>
     <canvas class="reveal__canvas" id="cv1"></canvas>
   </div>
 </div>
@@ -544,9 +545,7 @@ body {
 <!-- ─── z7: Reveal B — full-frame wipe (0°) ──────────────────────────────── -->
 <div class="reveal reveal--b" id="revealB" aria-hidden="true">
   <div class="reveal__inner" id="revealBInner">
-    <video class="reveal__video" id="vid2"
-      src="assets/video/mirage-plate-720p.mp4"
-      muted playsinline preload="auto" crossorigin="anonymous"></video>
+    <video class="reveal__video" id="vid2" muted playsinline></video>
     <canvas class="reveal__canvas" id="cv2"></canvas>
   </div>
 </div>
@@ -597,7 +596,6 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
 }
 </script>
 
-<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
 <!-- ═══════════════════════════════════════════════════════════════════════════
      SCROLL ENGINE + FRAME BANK
      ═══════════════════════════════════════════════════════════════════════ -->
@@ -684,181 +682,86 @@ function videoTimes(p) {
   return [base, base + WIPE_LEAD, base + 2 * WIPE_LEAD];
 }
 
-/* ─── Frame bank ────────────────────────────────────────────────────────────
-   Attempts to decode the video via MP4Box + VideoDecoder, drawing every
-   sample to an offscreen canvas and caching WebP blobs. Falls back silently
-   to video.currentTime scrubbing if any step fails.
-
-   Because Gumlet returns no Access-Control-Allow-Origin header, the fetch()
-   will be blocked by CORS and the bank will catch the error and permanently
-   revert to element scrubbing. The <video> elements still play fine because
-   browsers exempt video[src] from CORS for media fetch — only the JS fetch()
-   call needs the header.
+/* ─── Frame sequence ────────────────────────────────────────────────────────
+   Used to decode the whole 17.4MB video via MP4Box + WebCodecs before any of
+   the three reveal layers could scrub — and mirage's footage (rain, steam,
+   grain) is exactly the content that fights video-codec compression hardest,
+   so shrinking that file (tried separately, see optimize-hero-videos.sh
+   history) cost more visible quality than it was worth. Individual frames
+   don't have that problem: 96 stills at 1280x720 WebP, ~125KB average, and
+   nothing downloads until a layer actually needs it. Same idea as Cortexa's
+   createSequence, adapted here because THIS page draws three independent
+   playheads (stage + two wipe reveals) from ONE shared frame cache rather
+   than a single canvas — renderToCanvas's signature is unchanged below, only
+   how a frame's bitmap gets into memory changed.
    ─────────────────────────────────────────────────────────────────────── */
-let frameBank  = null;   // Array<{ts:number, blob:Blob}> sorted by ts
-let bitmapLRU  = [];     // [{idx, bmp}] — live ImageBitmaps, cap ~24
-let useBankMode = false; // set true once bank is built successfully
+const SEQ_COUNT = 96;
+const seqUrl = i => 'assets/sequence/' + String(i + 1).padStart(3, '0') + '.webp';
 
-const LRU_CAP   = 24;
+let bitmapCache = new Map(); // idx -> ImageBitmap
+let pending     = new Map(); // idx -> true (in flight)
+let useBankMode = true;      // always on now — nothing left to fall back from
+let bankReady   = true;
+
+const LRU_CAP     = 28;
 const WARM_RADIUS = 2; // warm ±2 frames around current
 
-async function buildFrameBank(videoUrl, retryHardware = false) {
-  // Guard: need VideoDecoder and MP4Box
-  if (typeof VideoDecoder === 'undefined') throw new Error('no VideoDecoder');
-
-  // Dynamic import of mp4box from jsDelivr
-  const mp4boxMod = await import('https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js');
-  if (typeof MP4Box === 'undefined' && typeof mp4boxMod.default !== 'undefined') {
-    // mp4box exports as a global AND as a module default depending on bundler
-    window.MP4Box = mp4boxMod.default;
+function evictFar(center) {
+  if (bitmapCache.size <= LRU_CAP) return;
+  const idxs = Array.from(bitmapCache.keys()).sort((a, b) => Math.abs(b - center) - Math.abs(a - center));
+  while (bitmapCache.size > LRU_CAP && idxs.length) {
+    const i = idxs.shift(), bmp = bitmapCache.get(i);
+    if (bmp && bmp.close) bmp.close();
+    bitmapCache.delete(i);
   }
-  if (typeof MP4Box === 'undefined') throw new Error('no MP4Box');
-
-  // Fetch the raw bytes — this is where CORS blocks us if the server
-  // doesn't send Access-Control-Allow-Origin
-  const resp = await fetch(videoUrl, { mode: 'cors' });
-  if (!resp.ok) throw new Error(`fetch ${resp.status}`);
-  const buf = await resp.arrayBuffer();
-
-  // Demux
-  const mp4file = MP4Box.createFile();
-  let trackInfo = null;
-  const samples = [];
-
-  await new Promise((resolve, reject) => {
-    mp4file.onReady = info => {
-      const vt = info.videoTracks[0];
-      if (!vt) return reject(new Error('no video track'));
-      trackInfo = vt;
-      mp4file.setExtractionOptions(vt.id, null, { nbSamples: Infinity });
-      mp4file.start();
-    };
-    mp4file.onSamples = (id, user, samps) => samples.push(...samps);
-    mp4file.onError = reject;
-    mp4file.onFlush = resolve;
-
-    // Feed the whole buffer in one shot
-    buf.fileStart = 0;
-    mp4file.appendBuffer(buf);
-    mp4file.flush();
-  });
-
-  if (!samples.length) throw new Error('no samples');
-
-  // Determine the actual duration from samples
-  const lastSample = samples[samples.length - 1];
-  videoDuration = (lastSample.dts + lastSample.duration) / lastSample.timescale;
-
-  // Decode every sample — apply backpressure so we never hold >LRU_CAP frames at once
-  const bank = [];
-  const codecStr = trackInfo.codec;
-  const desc = trackInfo.video;
-
-  // Find the avcC / hvcC box for the decoder config
-  let decoderConfig;
-  try {
-    const trakBox = mp4file.getTrackById(trackInfo.id);
-    // mp4box stores the codec-specific box on the track sample entry
-    const entry = trakBox && trakBox.mdia && trakBox.mdia.minf &&
-                  trakBox.mdia.minf.stbl && trakBox.mdia.minf.stbl.stsd &&
-                  trakBox.mdia.minf.stbl.stsd.entries[0];
-    const box = entry && (entry.avcC || entry.hvcC || entry['av1C']);
-    if (box) {
-      const ds = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
-      box.write(ds);
-      decoderConfig = { codec: codecStr, codedWidth: desc.width, codedHeight: desc.height,
-                        description: new Uint8Array(ds.buffer) };
-    } else {
-      decoderConfig = { codec: codecStr, codedWidth: desc.width, codedHeight: desc.height };
-    }
-  } catch {
-    decoderConfig = { codec: codecStr, codedWidth: desc.width, codedHeight: desc.height };
-  }
-  if (retryHardware) decoderConfig.hardwareAcceleration = 'prefer-software';
-
-  const offscreen = new OffscreenCanvas(desc.width, desc.height);
-  const ctx2d = offscreen.getContext('2d');
-  let pendingFrames = 0;
-  const MAX_PENDING = LRU_CAP;
-
-  await new Promise((resolve, reject) => {
-    const decoder = new VideoDecoder({
-      output: async frame => {
-        ctx2d.drawImage(frame, 0, 0);
-        frame.close();
-        pendingFrames--;
-        const blob = await offscreen.convertToBlob({ type: 'image/webp', quality: 0.82 });
-        bank.push({ ts: frame.timestamp / 1e6, blob }); // ts in seconds
-      },
-      error: e => reject(e),
-    });
-
-    decoder.configure(decoderConfig);
-
-    (async () => {
-      for (const s of samples) {
-        // Back-pressure: stall if too many frames are being decoded
-        while (pendingFrames >= MAX_PENDING) {
-          await new Promise(r => setTimeout(r, 4));
-        }
-        const chunk = new EncodedVideoChunk({
-          type: s.is_sync ? 'key' : 'delta',
-          timestamp: s.dts * (1e6 / s.timescale),
-          duration:  s.duration * (1e6 / s.timescale),
-          data: s.data,
-        });
-        pendingFrames++;
-        decoder.decode(chunk);
-      }
-      await decoder.flush();
-      // Wait for all pending frames to complete
-      while (pendingFrames > 0) await new Promise(r => setTimeout(r, 4));
-      resolve();
-    })().catch(reject);
-  });
-
-  bank.sort((a, b) => a.ts - b.ts);
-  return bank;
 }
 
-/** Find nearest bank index for a given time in seconds */
+/** Fire-and-forget fetch + decode of one frame into the shared cache */
+function requestFrame(idx) {
+  if (idx < 0 || idx >= SEQ_COUNT || bitmapCache.has(idx) || pending.has(idx)) return;
+  pending.set(idx, true);
+  fetch(seqUrl(idx))
+    .then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+    .then(b => createImageBitmap(b))
+    .then(bmp => {
+      pending.delete(idx);
+      bitmapCache.set(idx, bmp);
+      // onRAF only calls drive() when scroll progress CHANGES — at rest
+      // (e.g. the very first frame, before any scroll has happened) nothing
+      // else would ever re-trigger a draw once this fetch resolves after
+      // the frame that originally asked for it. Forcing one redraw here
+      // catches that: cheap once frames are cached, and exactly what makes
+      // the stage appear the instant frame 0 lands instead of only on the
+      // next scroll tick.
+      drive(getP());
+    })
+    .catch(() => pending.delete(idx));
+}
+
+/** Map a video-seconds timestamp to the nearest frame index */
 function nearestIdx(ts) {
-  let lo = 0, hi = frameBank.length - 1;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (frameBank[mid].ts < ts) lo = mid + 1; else hi = mid;
-  }
-  // Check lo-1 in case it's closer
-  if (lo > 0 && Math.abs(frameBank[lo-1].ts - ts) < Math.abs(frameBank[lo].ts - ts)) lo--;
-  return lo;
+  return Math.max(0, Math.min(SEQ_COUNT - 1, Math.round((ts / videoDuration) * (SEQ_COUNT - 1))));
 }
 
-/** Ensure an ImageBitmap is in the LRU and return it */
-async function getBitmap(idx) {
-  const hit = bitmapLRU.find(e => e.idx === idx);
-  if (hit) return hit.bmp;
-
-  const bmp = await createImageBitmap(frameBank[idx].blob);
-  if (bitmapLRU.length >= LRU_CAP) {
-    const evicted = bitmapLRU.shift();
-    evicted.bmp.close();
-  }
-  bitmapLRU.push({ idx, bmp });
-  return bmp;
-}
-
-/** Render one timestamp to a canvas (bank mode) */
+/** Render one timestamp to a canvas — same signature as the old bank mode,
+    just backed by an on-demand fetch instead of a pre-decoded array. */
 async function renderToCanvas(ts, canvas, ctx) {
-  if (!frameBank || !frameBank.length) return;
   const idx = nearestIdx(ts);
 
-  // Warm ±2
-  for (let d = -WARM_RADIUS; d <= WARM_RADIUS; d++) {
-    const i = idx + d;
-    if (i >= 0 && i < frameBank.length) getBitmap(i); // fire and forget
-  }
+  // Warm ±2 around the target, same as before
+  for (let d = -WARM_RADIUS; d <= WARM_RADIUS; d++) requestFrame(idx + d);
+  evictFar(idx);
 
-  const bmp = await getBitmap(idx);
+  let bmp = bitmapCache.get(idx);
+  if (!bmp) {
+    // Not cached yet — kick off the fetch and wait for THIS one call so the
+    // caller still gets a frame drawn (fire-and-forget above just warms
+    // neighbours for the next tick).
+    requestFrame(idx);
+    await new Promise(r => setTimeout(r, 0));
+    bmp = bitmapCache.get(idx);
+    if (!bmp) return; // still loading — next raf tick will pick it up
+  }
   ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
 }
 
@@ -879,47 +782,10 @@ function resizeCanvases() {
   sizeCanvas(cv2, W, H);
 }
 
-/* ─── Initialise frame bank (async, with fallback chain) ─────────────────── */
-let bankReady = false;
-let permanentFallback = false; // true once we know the bank will never work
-
-async function initFrameBank() {
-  try {
-    frameBank = await buildFrameBank(VIDEO_URL);
-    bankReady = true;
-    useBankMode = true;
-    // Hide the <video> elements; canvases take over
-    [vid0, vid1, vid2].forEach(v => { v.style.opacity = '0'; });
-    console.info('[mirage] frame bank ready,', frameBank.length, 'frames');
-  } catch (err) {
-    // First failure: retry with software decoder (cures hidden-tab GPU refusal)
-    if (!permanentFallback && err.name !== 'TypeError') {
-      try {
-        frameBank = await buildFrameBank(VIDEO_URL, true);
-        bankReady = true;
-        useBankMode = true;
-        [vid0, vid1, vid2].forEach(v => { v.style.opacity = '0'; });
-        console.info('[mirage] frame bank ready (software decoder),', frameBank.length, 'frames');
-        return;
-      } catch { /* fall through */ }
-    }
-    permanentFallback = true;
-    useBankMode = false;
-    // CORS note: Gumlet's /main.mp4 endpoint returns no Access-Control-Allow-Origin,
-    // so this fetch() is blocked. <video src> still works because browsers use
-    // a separate media-fetch path that bypasses CORS for playback. We revert
-    // to video.currentTime scrubbing — the canvases are hidden, the videos play.
-    [cv0, cv1, cv2].forEach(c => { c.style.display = 'none'; });
-    console.warn('[mirage] frame bank unavailable, using element scrubbing:', err.message);
-  }
-}
-
-/* Keep metadata-driven duration in sync for element-scrubbing mode */
-[vid0, vid1, vid2].forEach(v => {
-  v.addEventListener('loadedmetadata', () => {
-    if (v.duration && isFinite(v.duration)) videoDuration = v.duration;
-  }, { once: true });
-});
+// The <video> elements have no src now (see the HTML above) — nothing to
+// download or hide-on-ready. Frame 0 is warmed immediately so the stage
+// layer has something to draw the moment the page settles.
+requestFrame(0); requestFrame(1); requestFrame(2);
 
 /* ─── Main drive function ───────────────────────────────────────────────────
    Accepts progress p in [0,1]. Exposed on window.__mirage.drive() so you can
@@ -1051,11 +917,6 @@ function drive(p) {
     renderToCanvas(times[0], cv0, ctx0);
     renderToCanvas(times[1], cv1, ctx1);
     renderToCanvas(times[2], cv2, ctx2);
-  } else if (permanentFallback) {
-    // Element scrubbing: directly seek each <video> element
-    if (vid0.readyState >= 2) vid0.currentTime = clamp01(times[0] / videoDuration) * (vid0.duration || videoDuration);
-    if (vid1.readyState >= 2) vid1.currentTime = clamp01(times[1] / videoDuration) * (vid1.duration || videoDuration);
-    if (vid2.readyState >= 2) vid2.currentTime = clamp01(times[2] / videoDuration) * (vid2.duration || videoDuration);
   }
 }
 
@@ -1105,28 +966,19 @@ if (document.fonts && document.fonts.ready) {
   }, { once: true });
 }
 
-/* ─── Video preload ────────────────────────────────────────────────────────── */
-// Mute + play all three elements so they buffer;
-// we use currentTime scrubbing only in fallback mode.
-[vid0, vid1, vid2].forEach(v => {
-  v.muted = true;
-  v.pause(); // don't auto-play — we scrub manually
-  v.load();
-});
+// The <video> elements are now inert placeholders (no src — see the HTML
+// above) kept only so the surrounding layout/CSS that targets #vid0 etc.
+// still has something to select without erroring.
 
 /* ─── Boot sequence ────────────────────────────────────────────────────────── */
-// Start RAF loop, then kick off frame-bank build.
-// Skip bank entirely for reduced-motion users (scrub is equivalent, less CPU).
+// Start the RAF loop. No async bank build to kick off any more — frames load
+// on demand as renderToCanvas asks for them. Reduced-motion users still get
+// static frames drawn (cheap, small requests), just no scroll-driven motion
+// since the rest of the page's transforms are already reduced-motion-aware.
 const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+if (prefersReduced) { useBankMode = false; [cv0, cv1, cv2].forEach(c => { c.style.display = 'none'; }); }
 
 rafId = requestAnimationFrame(onRAF);
-
-if (!prefersReduced) {
-  initFrameBank().catch(() => { permanentFallback = true; });
-} else {
-  permanentFallback = true;
-  [cv0, cv1, cv2].forEach(c => { c.style.display = 'none'; });
-}
 
 /* ─── Diagnostic object ─────────────────────────────────────────────────────
    window.__mirage is read-only and safe to inspect in DevTools.
@@ -1135,7 +987,7 @@ window.__mirage = Object.freeze({
   drive,
   get p()          { return getP(); },
   get videoDuration() { return videoDuration; },
-  get bankFrames() { return frameBank ? frameBank.length : 0; },
+  get bankFrames() { return bitmapCache.size; },
   get useBankMode(){ return useBankMode; },
   scrollMap: Object.freeze({ A, B, TITLE_Q, WIPE_LEAD, TITLE_OUT_END, TITLE_IN_START }),
   clips: Object.freeze({
