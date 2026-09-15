@@ -10,20 +10,16 @@
   <!-- React 18 UMD (stable, proven UMD builds) -->
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script>
-    // Register a preset that forces the classic JSX runtime (React.createElement)
-    Babel.registerPreset('react-classic', {
-      plugins: [
-        [Babel.availablePlugins['transform-react-jsx'], {
-          runtime: 'classic',
-          pragma: 'React.createElement',
-          pragmaFrag: 'React.Fragment',
-        }]
-      ]
-    });
-  </script>
+  <!-- Precompiled Tailwind (was the cdn.tailwindcss.com JIT engine, which ships
+       a runtime compiler and rescans the DOM live) and precompiled JSX (was
+       @babel/standalone, an entire in-browser JS-to-JS compiler that had to
+       finish transpiling this page's ~30KB of JSX before React could render
+       a single frame). Both are now build-time steps instead of a page-load
+       cost -- see scripts/build-mercer.md for how to regenerate assets/*.
+       Same visual output, same Tailwind config (see the @theme block that
+       used to be the inline tailwind.config script below), just done once
+       ahead of time instead of on every visitor's device. -->
+  <link rel="stylesheet" href="assets/tailwind.css" />
   <style>
     html, body {
       display: grid; margin: 0; padding: 0; overflow: hidden;
@@ -62,18 +58,14 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
 }
 </script>
-<script>
-  tailwind.config = {
-    theme: {
-      extend: {
-        fontFamily: {
-          sans:  ['Geist','Inter Tight','sans-serif'],
-          serif: ['Newsreader','serif'],
-        }
-      }
-    }
-  };
-</script>
+<script src="assets/app.js"></script>
+</body>
+</html>
+<!--
+The original inline JSX (below, never executed -- kept only so the source is
+still readable in one file) used to be compiled live by @babel/standalone on
+every page load. assets/app.js is that exact same code, pre-transpiled with a
+real Babel build, and is what actually runs now.
 <script type="text/babel" data-presets="react-classic">
   const {
     useState, useEffect, useRef, useCallback,
@@ -838,5 +830,5 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
 
   createRoot(document.getElementById('root')).render(<App />);
 </script>
-</body>
-</html>
+-->
+
