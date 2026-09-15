@@ -1,13 +1,15 @@
 // ── External template galleries ─────────────────────────────────────────────
 // A DIFFERENT kind of entry from everything in data/sites.ts. Everything there
 // is a scroll-driven build this library actually shipped, with source you can
-// open under /sites and a spec you can copy. Nothing here is that: these are
-// OTHER PEOPLE's directories of OTHER PEOPLE's templates, and this file exists
-// only to link out to them with attribution — never to mirror, screenshot-farm,
-// or re-host their template catalogues. If a gallery's own footer disclaims
-// ownership of what it displays (as lovable-templates does), copying its
-// content into this library would just add a third layer of "not actually
-// ours" on top of two that already exist.
+// open under /sites and a spec you can copy. Nothing here is that: every entry
+// is SOMEONE ELSE's site, and this file exists only to link out to it with
+// attribution — never to mirror, screenshot-farm, or re-host its content.
+// That holds even for an entry whose own footer says its work is original and
+// free to reuse (webstudio-backgrounds does) — "free to copy from the source"
+// is not the same thing as "ours to re-host," and the discipline here doesn't
+// bend per-entry. For a gallery that displays OTHER people's work on top of
+// that (lovable-templates screenshots third-party templates it doesn't own
+// either), copying it in would stack a third layer of "not actually ours."
 //
 // So the asset convention is different too: galleryThumbOf points at
 // /galleries/<id>.svg — SVG, not a raster crop of the target's own page.
@@ -47,6 +49,17 @@ export const GALLERIES: Gallery[] = [
     url: 'https://lovable-templates.vercel.app/',
     by: 'Vibe Code Automators',
     stat: '131 templates · 9 categories',
+    tools: ['Readdy.ai', 'Lovable', 'Bolt', 'Cursor', 'Claude Code'],
+    added: '2026-09-15',
+  },
+  {
+    id: 'webstudio-backgrounds',
+    title: 'Jaw-Dropping Animated Backgrounds',
+    description:
+      '50 original WebGL-shader and Canvas 2D backgrounds running live on the page — no video, no GIFs, no libraries. Copy the prompt or take the code straight from the source.',
+    url: 'https://webstudio-backgrounds.vercel.app/',
+    by: 'Web Studio',
+    stat: '50 backgrounds · 0 dependencies · free for commercial use',
     tools: ['Readdy.ai', 'Lovable', 'Bolt', 'Cursor', 'Claude Code'],
     added: '2026-09-15',
   },

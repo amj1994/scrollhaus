@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 280" role="img" aria-label="Jaw-Dropping Animated Backgrounds">
+  <!--
+    Hand-authored, not a screenshot — same discipline as lovable-templates.svg
+    (see data/galleries.ts for why). This target's own footer says its 50
+    backgrounds are original work, free to reuse with no attribution required;
+    that licence covers copying FROM the source page, not this library
+    re-hosting a capture of it, so the same rule applies regardless.
+    Palette matches this target's own stated tokens (cream / terracotta / ink
+    — the same family as lovable-templates, same creator).
+  -->
+  <rect width="640" height="280" fill="#F4F3EE" />
+  <text x="40" y="70" font-family="ui-monospace, monospace" font-size="12" letter-spacing="2" fill="#C15F3C">50 BACKGROUNDS · NEW ONES ADDED WEEKLY</text>
+  <text x="40" y="118" font-family="Georgia, serif" font-size="40" fill="#1E1B18">Jaw-dropping animated</text>
+  <text x="40" y="164" font-family="Georgia, serif" font-size="40" font-style="italic" fill="#C15F3C">backgrounds.</text>
+  <g font-family="ui-monospace, monospace" font-size="12" fill="#8A857C">
+    <text x="40" y="216">50 BACKGROUNDS</text>
+    <text x="220" y="216">0 DEPENDENCIES</text>
+    <text x="400" y="216">FREE COMMERCIAL USE</text>
+  </g>
+  <line x1="40" y1="232" x2="600" y2="232" stroke="#1E1B18" stroke-opacity="0.12" />
+  <text x="40" y="258" font-family="ui-sans-serif, system-ui, sans-serif" font-size="12" fill="#8A857C">webstudio-backgrounds.vercel.app — original work, free to reuse at the source</text>
+</svg>
