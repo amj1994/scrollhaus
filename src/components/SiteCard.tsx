@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { githubOf, previewOf, thumbOf, type Site } from '@/data/sites'
 import { observe, observeVisible } from '@/lib/inview'
-import { register, setHovered, setVisible, unregister } from '@/lib/playback'
+import { isScrolling, register, setHovered, setVisible, unregister, whenSettled } from '@/lib/playback'
 import { clearSpecCache, loadSpec } from '@/lib/specs'
 
 export default function SiteCard({
@@ -50,11 +50,19 @@ export default function SiteCard({
     if (!box) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
     let release: number | undefined
+    let cancelMount: (() => void) | undefined
     const stop = observe(box, inView => {
       inViewRef.current = inView
       if (inView) {
         window.clearTimeout(release)
-        setNear(true)
+        // Mounting is deferred out of the gesture. Creating a <video> costs an
+        // element, a network request and a decoder init on the main thread, and
+        // a single scroll pass used to mount ~30 of them (41 -> 71 elements).
+        // The thumbnail is already painted underneath, so waiting for the
+        // 140ms settle costs nothing visually and hands the whole gesture to
+        // the scroll. whenSettled() runs synchronously when nothing is moving.
+        cancelMount?.()
+        cancelMount = whenSettled(() => setNear(true))
 
         if (!revealedRef.current && rootRef.current) {
           revealedRef.current = true
@@ -76,7 +84,7 @@ export default function SiteCard({
         release = window.setTimeout(() => { setNear(false); setReady(false) }, 4000)
       }
     })
-    return () => { window.clearTimeout(release); stop() }
+    return () => { window.clearTimeout(release); cancelMount?.(); stop() }
   }, [index])
 
   // A light magnetic tilt on hover — quickTo keeps this cheap even with many
@@ -198,12 +206,17 @@ export default function SiteCard({
           alt=""
           aria-hidden="true"
           decoding="async"
+          /* Without this every one of the ~70 thumbnails is fetched and decoded
+             on first paint. The browser's own lazy heuristic still loads
+             anything near the viewport eagerly, so nothing visible pops in. */
+          loading="lazy"
           className={`absolute inset-0 h-full w-full object-contain transition-opacity duration-500 ${ready ? 'opacity-0' : 'opacity-100'}`}
         />
         {near && (
           <video
             ref={videoRef}
             src={previewOf(site.id, site.previewV)}
+            poster={thumbOf(site.id)}
             /* No autoPlay: playback is arbitrated by lib/playback.ts. With the
                attribute set, every mounted preview starts decoding the moment
                it enters the 1500px mount radius, which is precisely the

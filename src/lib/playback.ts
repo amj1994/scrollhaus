@@ -60,6 +60,12 @@ let scrolling = false
 let settleTimer: number | undefined
 let reconcileQueued = false
 
+// Work that must not happen mid-gesture. Mounting a <video> is the expensive
+// one: element creation, a network request and decoder init, all on the main
+// thread. Measured on the live grid, a single scroll pass mounted ~30 previews
+// (41 -> 71 elements), which is felt as friction even with decode suppressed.
+const settleWaiters = new Set<() => void>()
+
 function safePlay(el: HTMLVideoElement) {
   if (!el.paused) return
   // play() rejects for autoplay-policy reasons and on a torn-down element;
@@ -130,6 +136,12 @@ if (typeof window !== 'undefined') {
       window.clearTimeout(settleTimer)
       settleTimer = window.setTimeout(() => {
         scrolling = false
+        // Flush deferred mounts first, then re-pick playback slots.
+        if (settleWaiters.size) {
+          const waiting = Array.from(settleWaiters)
+          settleWaiters.clear()
+          for (const cb of waiting) cb()
+        }
         schedule()
       }, SETTLE_MS)
     },
@@ -172,6 +184,22 @@ export function setHovered(el: HTMLVideoElement, hovered: boolean) {
   if (!slot || slot.hovered === hovered) return
   slot.hovered = hovered
   schedule()
+}
+
+/** True while the user is actively scrolling. */
+export function isScrolling() {
+  return scrolling
+}
+
+/** Run `cb` once scrolling settles — or immediately if nothing is moving.
+ *  Returns a cancel function so a card that unmounts first can withdraw. */
+export function whenSettled(cb: () => void): () => void {
+  if (!scrolling) {
+    cb()
+    return () => {}
+  }
+  settleWaiters.add(cb)
+  return () => settleWaiters.delete(cb)
 }
 
 /** Exposed for tests and for the dev overlay. */
