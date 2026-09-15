@@ -27,6 +27,17 @@ body {
   contain-intrinsic-size: auto 260px;
 }
 
+/* The tilt target is promoted to its own compositor layer only while it is
+   actually being tilted. `will-change: transform` sitting permanently on every
+   card meant ~40 promoted layers on the library page — GPU memory spent on
+   cards that are not moving, which on smaller GPUs is itself a source of
+   stutter. Scoping it to hover keeps the tilt just as smooth (the layer is
+   created before the first pointermove tween runs) and costs nothing at rest. */
+.card-tilt { will-change: auto; }
+@media (hover: hover) and (pointer: fine) {
+  .group:hover .card-tilt { will-change: transform; }
+}
+
 /* Chrome wordmark, matched to the brand mark. Pure CSS — costs nothing. */
 .brandmark {
   background: linear-gradient(180deg, #ffffff 0%, #e6ecf4 38%, #9fb0c4 72%, #ffffff 100%);

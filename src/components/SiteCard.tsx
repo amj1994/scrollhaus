@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import gsap from 'gsap'
 import { githubOf, previewOf, thumbOf, type Site } from '@/data/sites'
-import { observe } from '@/lib/inview'
+import { observe, observeVisible } from '@/lib/inview'
+import { register, setHovered, setVisible, unregister } from '@/lib/playback'
 import { clearSpecCache, loadSpec } from '@/lib/specs'
 
 export default function SiteCard({
@@ -51,13 +52,9 @@ export default function SiteCard({
     let release: number | undefined
     const stop = observe(box, inView => {
       inViewRef.current = inView
-      const v = videoRef.current
       if (inView) {
         window.clearTimeout(release)
         setNear(true)
-        // v is still null on the FIRST intersection - the element has not been
-        // rendered yet. The effect below is what actually starts playback then.
-        v?.play().catch(() => {})
 
         if (!revealedRef.current && rootRef.current) {
           revealedRef.current = true
@@ -75,7 +72,6 @@ export default function SiteCard({
           )
         }
       } else {
-        v?.pause()
         window.clearTimeout(release)
         release = window.setTimeout(() => { setNear(false); setReady(false) }, 4000)
       }
@@ -106,24 +102,50 @@ export default function SiteCard({
       rotX(0)
       rotY(0)
       scale(1)
+      const v = videoRef.current
+      if (v) setHovered(v, false)
+    }
+    const onEnter = () => {
+      const v = videoRef.current
+      if (v) setHovered(v, true)
     }
 
     gsap.set(box, { transformPerspective: 700 })
+    box.addEventListener('pointerenter', onEnter)
     box.addEventListener('pointermove', onMove)
     box.addEventListener('pointerleave', onLeave)
     return () => {
+      box.removeEventListener('pointerenter', onEnter)
       box.removeEventListener('pointermove', onMove)
       box.removeEventListener('pointerleave', onLeave)
     }
   }, [])
 
-  // Start playback once the <video> actually exists. Without this the first
-  // intersection calls play() on a null ref, the element mounts a tick later,
-  // and every card sits frozen on frame 0 forever.
+  // Hand the <video> to the playback governor as soon as it exists, and watch
+  // it with the TIGHT observer. The governor decides what actually decodes:
+  // nothing while the finger is moving, then the few previews nearest the
+  // viewport centre (see lib/playback.ts for the measurements behind this).
+  //
+  // This replaces a plain v.play() here. Playing every mounted preview is what
+  // held the library page at ~11 fps — the elements within the 1500px mount
+  // radius are far more numerous than the ones actually worth decoding.
   useEffect(() => {
     if (!near) return
     const v = videoRef.current
-    if (v && inViewRef.current) v.play().catch(() => {})
+    const box = boxRef.current
+    if (!v || !box) return
+
+    // Registered as NOT yet decodable: inViewRef reflects the 1500px MOUNT
+    // radius, which is true for cards far below the fold. The tight observer
+    // below establishes the real answer on its first callback a frame later.
+    // Seeding from inViewRef instead would let a burst of off-screen previews
+    // play for one frame on mount — the exact cost this governor removes.
+    register(v, false)
+    const stop = observeVisible(box, inView => setVisible(v, inView))
+    return () => {
+      stop()
+      unregister(v)
+    }
   }, [near])
 
   // Warm the spec on hover / touch-down, so the click itself is synchronous and
@@ -168,7 +190,7 @@ export default function SiteCard({
         onClick={onOpen ? () => onOpen(site.id) : undefined}
         onKeyDown={onOpen ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(site.id) } } : undefined}
         aria-label={onOpen ? `Open ${site.title} — live preview and build spec` : undefined}
-        className={`relative shrink-0 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 will-change-transform ${onOpen ? 'cursor-pointer' : ''}`}
+        className={`relative shrink-0 overflow-hidden rounded-lg bg-neutral-900 ring-1 ring-white/10 card-tilt ${onOpen ? 'cursor-pointer' : ''}`}
         style={{ aspectRatio: ratio }}
       >
         <img
@@ -182,7 +204,10 @@ export default function SiteCard({
           <video
             ref={videoRef}
             src={previewOf(site.id, site.previewV)}
-            autoPlay
+            /* No autoPlay: playback is arbitrated by lib/playback.ts. With the
+               attribute set, every mounted preview starts decoding the moment
+               it enters the 1500px mount radius, which is precisely the
+               behaviour that pinned this page at ~11 fps. */
             muted
             loop
             playsInline
