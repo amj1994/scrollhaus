@@ -34,7 +34,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Playball&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js" defer></script>
 
 <style>
 @layer reset, tokens, base, layout, components, motion, utilities;
@@ -582,33 +581,50 @@ const v1 = document.getElementById('v1'), c1 = document.getElementById('c1');
 const v2 = document.getElementById('v2'), c2 = document.getElementById('c2');
 const stageEl = document.getElementById('stage'), layerB = document.getElementById('layerB');
 
-const SRC_V1 = 'https://d8j0ntlcm91z4.cloudfront.net/user_3GJaYKPxdnQG0Q9O26lu6DPmcHu/hf_20260912_155845_0dc2a196-b8a2-414c-94bb-80854ed49125.mp4';
-const SRC_V2 = 'https://d8j0ntlcm91z4.cloudfront.net/user_3GJaYKPxdnQG0Q9O26lu6DPmcHu/hf_20260912_150800_16535fd3-9669-4a4e-bc00-c844ef487bd9.mp4';
-v1.src = SRC_V1; v2.src = SRC_V2;
+// These two videos used to be fetched from an external CloudFront/HyperFrames
+// distribution -- fine for <video src> playback (browsers exempt media
+// fetch from CORS), but it meant the WebCodecs frame-bank build below had
+// to fetch() the same bytes again itself, across the network, before ANY
+// scroll-scrub could start. Both clips are 6.04s/145 frames; downloaded
+// once, re-encoded into local WebP sequences (see assets/sequence-1,
+// assets/sequence-2), and neither video element gets a src at all now.
 
-function createClip(video, canvas) {
+function createClip(video, canvas, seqDir, seqCount, dur) {
   const ctx = canvas.getContext('2d', { alpha: false });
-  const clip = { v: video, c: canvas, ctx, dur: 0, current: 0, target: 0,
-    bank: [], lru: new Map(), drawnIndex: -1, ready: false, reverted: false, painted: false, building: false };
-
-  video.addEventListener('loadedmetadata', () => { clip.dur = video.duration || 0; });
-  video.pause();
-
-  clip.render = t => {
-    if (clip.ready) {
-      const i = nearestIndex(clip, t);
-      const bm = clip.lru.get(i);
-      if (bm && i !== clip.drawnIndex) {
-        ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
-        clip.drawnIndex = i;
-        if (!clip.painted && !clip.reverted) { clip.painted = true; canvas.classList.add('is-live'); }
-      }
-      return;
+  const clip = { v: video, c: canvas, ctx, dur, current: 0, target: 0,
+    bank: [], lru: new Map(), drawnIndex: -1, ready: true, reverted: false, painted: false, building: false };
+  const cache = new Map(), pending = new Map();
+  function seqUrl(i) { return seqDir + '/' + String(i + 1).padStart(3, '0') + '.webp'; }
+  function nearestIdx(t) { return Math.max(0, Math.min(seqCount - 1, Math.round((t / dur) * (seqCount - 1)))); }
+  function evictFar(center) {
+    if (cache.size <= 24) return;
+    const idxs = Array.from(cache.keys()).sort((a, b) => Math.abs(b - center) - Math.abs(a - center));
+    while (cache.size > 24 && idxs.length) { const i = idxs.shift(), bm = cache.get(i); if (bm && bm.close) bm.close(); cache.delete(i); }
+  }
+  function load(i) {
+    if (i < 0 || i >= seqCount || cache.has(i) || pending.has(i)) return;
+    pending.set(i, true);
+    fetch(seqUrl(i))
+      .then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+      .then(b => createImageBitmap(b))
+      .then(bm => { pending.delete(i); cache.set(i, bm); if (i === nearestIdx(clip.current)) drawFrame(clip.current); })
+      .catch(() => pending.delete(i));
+  }
+  function warm(i) { for (let d = -1; d <= 2; d++) load(i + d); }
+  function drawFrame(t) {
+    clip.current = t;
+    const i = nearestIdx(t), bm = cache.get(i);
+    if (bm && i !== clip.drawnIndex) {
+      ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
+      clip.drawnIndex = i;
+      if (!clip.painted && !clip.reverted) { clip.painted = true; canvas.classList.add('is-live'); }
     }
-    if (!video.seeking && Math.abs(video.currentTime - t) > 0.01) {
-      try { video.currentTime = t; } catch (e) {}
-    }
-  };
+    if (!bm) load(i);
+    warm(i);
+    evictFar(i);
+  }
+  clip.render = t => drawFrame(t);
+  drawFrame(0);
   return clip;
 }
 function nearestIndex(clip, t) {
@@ -617,8 +633,8 @@ function nearestIndex(clip, t) {
   return lo;
 }
 
-const clip1 = createClip(v1, c1);
-const clip2 = createClip(v2, c2);
+const clip1 = createClip(v1, c1, 'assets/sequence-1', 73, 6.041667);
+const clip2 = createClip(v2, c2, 'assets/sequence-2', 73, 6.041667);
 
 // NOTE: canvas 'is-live' is set only inside clip.render's frame-bank branch,
 // once a real bitmap has actually been drawn — never on a bare 'seeked'
@@ -751,8 +767,7 @@ function loadAheadWindow(clip, t) {
     }).catch(() => clip.lru.delete(j));
   }
 }
-if (document.readyState === 'complete') buildFrameBank(clip1, SRC_V1).then(() => buildFrameBank(clip2, SRC_V2));
-else addEventListener('load', () => buildFrameBank(clip1, SRC_V1).then(() => buildFrameBank(clip2, SRC_V2)));
+// buildFrameBank no longer called -- progressive WebP fetch replaces it entirely, see createClip above.
 
 /* ─── scroll → progress map ───────────────────────────────────── */
 let S1 = 0, S2 = 0, max = 1;
