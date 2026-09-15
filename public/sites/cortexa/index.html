@@ -215,6 +215,22 @@ function createSequence(C, count, urlOf, onLive){
     seq.drawnIndex = i;
     if (!seq.painted){ seq.painted = true; C.classList.add('is-live'); if (onLive) onLive(); }
   }
+  // Under a fast flick the target index moves every single rAF (the outer
+  // lerp is still converging), so an exact-match draw almost never fires —
+  // whatever frame is in flight when the target moves on gets cancelled
+  // before it lands. Draw the CLOSEST frame actually in cache instead of
+  // demanding an exact match: the canvas always shows the best available
+  // approximation and keeps refining as more frames land, rather than
+  // freezing on frame 0 until the scroll finally settles.
+  function drawNearest(){
+    if (!seq.cache.size) return;
+    var best = -1, bestDist = Infinity;
+    seq.cache.forEach(function(_, i){
+      var d = Math.abs(i - seq.current);
+      if (d < bestDist){ bestDist = d; best = i; }
+    });
+    if (best >= 0) draw(best);
+  }
   function load(i){
     if (i<0 || i>=count || seq.cache.has(i) || seq.pending.has(i)) return;
     var ac = new AbortController();
@@ -226,7 +242,7 @@ function createSequence(C, count, urlOf, onLive){
         seq.pending.delete(i);
         seq.cache.set(i, bm);
         evict(seq.current);
-        if (i === seq.current) draw(i);
+        drawNearest();
       })
       .catch(function(){ seq.pending.delete(i); });
   }
@@ -242,6 +258,7 @@ function createSequence(C, count, urlOf, onLive){
     var i = Math.max(0, Math.min(count-1, Math.round((t/SEQ_DURATION)*(count-1))));
     seq.current = i;
     draw(i);
+    if (!seq.cache.has(i)) drawNearest();
     // Nearest-first priority window: the frame under the playhead loads
     // before its neighbours, neighbours before anything further out.
     for (var d=0; d<=WINDOW; d++){ load(i+d); if (d) load(i-d); }

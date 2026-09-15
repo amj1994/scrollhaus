@@ -869,6 +869,30 @@ function createClip(V, C, scene) {
     }
   }
 
+  // Under a fast flick the target index moves every rAF while the outer
+  // lerp converges, so an exact-index draw almost never fires — whatever
+  // frame is in flight when the target moves on lands too late to matter.
+  // Draw the CLOSEST cached frame instead of demanding an exact match: the
+  // canvas always shows the best available approximation and keeps
+  // refining as more frames land, instead of freezing until scroll settles.
+  function drawNearest(){
+    if (!cache.size) return;
+    var target = clip.nearestIndex(clip.current), best = -1, bestDist = Infinity;
+    cache.forEach(function(_, i){
+      var d = Math.abs(i - target);
+      if (d < bestDist){ bestDist = d; best = i; }
+    });
+    if (best >= 0 && best !== clip.drawnIndex) {
+      var bm = cache.get(best);
+      ctx.drawImage(bm, 0, 0, C.width, C.height);
+      clip.drawnIndex = best;
+      if (!clip.painted && !clip.reverted) {
+        clip.painted = true;
+        C.classList.add('is-live');
+        scene.classList.add('is-canvas-live');
+      }
+    }
+  }
   function load(i){
     if (i < 0 || i >= SEQ_COUNT || cache.has(i) || pending.has(i)) return;
     pending.set(i, true);
@@ -879,7 +903,7 @@ function createClip(V, C, scene) {
         pending.delete(i);
         cache.set(i, bm);
         evict(clip.nearestIndex(clip.current));
-        if (i === clip.nearestIndex(clip.current)) drawFromBank(clip.current);
+        drawNearest();
       })
       .catch(function(){ pending.delete(i); });
   }
@@ -896,6 +920,8 @@ function createClip(V, C, scene) {
         C.classList.add('is-live');
         scene.classList.add('is-canvas-live');
       }
+    } else if (!bm) {
+      drawNearest();
     }
     if (!bm) load(i);
     warm(i);

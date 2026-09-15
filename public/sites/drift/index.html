@@ -724,6 +724,26 @@ function createClip(V, C){
     return Math.max(0, Math.min(SEQ_COUNT - 1, Math.round((t / SEQ_DUR) * (SEQ_COUNT - 1))));
   };
 
+  // Under a fast flick the target index moves every rAF while the outer
+  // lerp converges, so an exact-index draw almost never fires — draw the
+  // closest sharedCache frame instead so the canvas keeps refining toward
+  // the target rather than freezing until scroll settles.
+  function drawNearest(){
+    if (!sharedCache.size) return;
+    var target = clip.nearestIndex(clip.current), best = -1, bestDist = Infinity;
+    sharedCache.forEach(function(_, i){
+      var d = Math.abs(i - target);
+      if (d < bestDist){ bestDist = d; best = i; }
+    });
+    if (best >= 0 && best !== clip.drawnIndex){
+      ctx.drawImage(sharedCache.get(best), 0, 0, C.width, C.height);
+      clip.drawnIndex = best;
+      if (!clip.painted && !clip.reverted){
+        clip.painted = true;
+        C.classList.add('is-live');
+      }
+    }
+  }
   function drawFromBank(t){
     var i = clip.nearestIndex(t), bm = sharedCache.get(i);
     if (bm && i !== clip.drawnIndex){
@@ -733,10 +753,10 @@ function createClip(V, C){
         clip.painted = true;
         C.classList.add('is-live');
       }
+    } else if (!bm) {
+      drawNearest();
     }
-    for (var k = -1; k <= 2; k++) requestFrame(i + k, function(arrived){
-      if (arrived === clip.nearestIndex(clip.current)) drawFromBank(clip.current);
-    });
+    for (var k = -1; k <= 2; k++) requestFrame(i + k, function(){ drawNearest(); });
     evictFar(i);
   }
 
