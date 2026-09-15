@@ -81,16 +81,11 @@ function onResize() {
 window.addEventListener('resize', onResize);
 window.addEventListener('orientationchange', onResize);
 
-// loadedmetadata
-function onMetadata() {
-  duration = Math.min(video.duration, MAX_TIME);
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  video.pause();
-}
-
-video.addEventListener('loadedmetadata', onMetadata);
-if (video.readyState >= 1) onMetadata();
+// Used to run from the video's loadedmetadata event; that never fires now
+// that the video has no src (frames come from the sequence cache instead).
+duration = Math.min(8, MAX_TIME);
+canvas.width = 1280;
+canvas.height = 720;
 
 // Section switching
 function updateSections(prog) {
@@ -107,95 +102,58 @@ function updateSections(prog) {
   overlay.style.display = pastEnd ? 'none' : '';
 }
 
-// Binary search nearest frame index in bank
+// Progressive WebP frame sequence -- used to be a WebCodecs decode-once
+// bank (fetch the whole hero.mp4, decode every sample), now on-demand
+// per-frame fetches into a shared LRU cache. Same idea as Cortexa/Drift/
+// KILN. SEQ_DUR is the source clip's real duration (8s); MAX_TIME above
+// is a separate, pre-existing cap on how far into the clip scroll ever
+// scrubs (7.5s) -- kept as-is, just no longer tied to video.duration.
+const SEQ_COUNT = 96, SEQ_DUR = 8;
+function seqUrl(i) { return 'assets/sequence/' + String(i + 1).padStart(3, '0') + '.webp'; }
+
 function nearestIndex(t) {
-  const tUs = t * 1e6;
-  let lo = 0, hi = bank.length - 1;
-  while (lo < hi) {
-    const m = (lo + hi) >> 1;
-    if (bank[m].ts < tUs) lo = m + 1;
-    else hi = m;
-  }
-  if (lo > 0 && Math.abs(bank[lo - 1].ts - tUs) < Math.abs(bank[lo].ts - tUs)) {
-    return lo - 1;
-  }
-  return lo;
+  return Math.max(0, Math.min(SEQ_COUNT - 1, Math.round((t / SEQ_DUR) * (SEQ_COUNT - 1))));
 }
 
-// LRU bitmap cache
-async function getBitmap(idx) {
-  if (bitmapCache.has(idx)) {
-    // Move to end (most recently used)
-    bitmapOrder = bitmapOrder.filter(i => i !== idx);
-    bitmapOrder.push(idx);
-    return bitmapCache.get(idx);
-  }
-
-  const entry = bank[idx];
-  if (!entry) return null;
-
-  let bm;
-  try {
-    bm = await createImageBitmap(entry.blob);
-  } catch (e) {
-    return null;
-  }
-
-  // Evict if over LRU_MAX
-  while (bitmapOrder.length >= LRU_MAX) {
-    const evictIdx = bitmapOrder.shift();
-    const evicted = bitmapCache.get(evictIdx);
-    if (evicted) evicted.close();
-    bitmapCache.delete(evictIdx);
-  }
-
-  bitmapCache.set(idx, bm);
-  bitmapOrder.push(idx);
-  return bm;
+function requestFrame(idx) {
+  if (idx < 0 || idx >= SEQ_COUNT || bitmapCache.has(idx) || bitmapOrder.includes('pending:' + idx)) return;
+  bitmapOrder.push('pending:' + idx);
+  fetch(seqUrl(idx))
+    .then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+    .then(b => createImageBitmap(b))
+    .then(bm => {
+      bitmapOrder = bitmapOrder.filter(v => v !== 'pending:' + idx);
+      while (bitmapOrder.length >= LRU_MAX) {
+        const evictIdx = bitmapOrder.shift();
+        const evicted = bitmapCache.get(evictIdx);
+        if (evicted && evicted.close) evicted.close();
+        bitmapCache.delete(evictIdx);
+      }
+      bitmapCache.set(idx, bm);
+      bitmapOrder.push(idx);
+      if (idx === nearestIndex(current)) drawFromBank(current);
+    })
+    .catch(() => { bitmapOrder = bitmapOrder.filter(v => v !== 'pending:' + idx); });
 }
 
-// Warm nearby frames
 function warm(i) {
-  for (let j = Math.max(0, i - 1); j <= Math.min(bank.length - 1, i + 2); j++) {
-    if (!bitmapCache.has(j)) {
-      getBitmap(j); // fire-and-forget
-    }
-  }
+  for (let j = Math.max(0, i - 1); j <= Math.min(SEQ_COUNT - 1, i + 2); j++) requestFrame(j);
 }
 
-// Draw from bank
-async function drawFromBank(t) {
-  if (!bankReady || bank.length === 0) return false;
-
+function drawFromBank(t) {
   const idx = nearestIndex(t);
-  warm(idx);
-
-  const bm = await getBitmap(idx);
-  if (!bm) return false;
-
-  if (idx !== lastDrawnIndex) {
+  const bm = bitmapCache.get(idx);
+  if (bm && idx !== lastDrawnIndex) {
     ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
     canvas.classList.add('is-live');
     lastDrawnIndex = idx;
   }
-  return true;
+  if (!bm) requestFrame(idx);
+  warm(idx);
 }
 
-// Render: bank first, fallback to video.currentTime
 function render(t) {
-  if (!bankFailed && bankReady && bank.length > 0) {
-    drawFromBank(t); // async, updates canvas async
-    return;
-  }
-
-  // Fallback: seek video element
-  if (!video.seeking && Math.abs(video.currentTime - t) > 0.01) {
-    try {
-      video.currentTime = t;
-    } catch (e) {
-      // ignore
-    }
-  }
+  drawFromBank(t);
 }
 
 // rAF loop
@@ -220,152 +178,3 @@ function update(now) {
 }
 
 requestAnimationFrame(update);
-
-// ===== FRAME BANK (WebCodecs + MP4Box) =====
-async function buildFrameBank() {
-  if (prefersReducedMotion) return;
-  if (typeof VideoDecoder === 'undefined' || typeof MP4Box === 'undefined' || typeof DataStream === 'undefined') {
-    return;
-  }
-
-  const src = video.src;
-  let arrayBuffer;
-  try {
-    const resp = await fetch(src, { mode: 'cors' });
-    if (!resp.ok) throw new Error('Fetch failed: ' + resp.status);
-    arrayBuffer = await resp.arrayBuffer();
-  } catch (e) {
-    // CORS or network failure — stay on video.currentTime fallback
-    bankFailed = true;
-    return;
-  }
-
-  let decoder;
-  const samples = [];
-  let decoderConfigured = false;
-
-  try {
-    const file = MP4Box.createFile();
-
-    await new Promise((resolve, reject) => {
-      file.onReady = (info) => {
-        const track = info.videoTracks[0];
-        if (!track) return reject(new Error('No video track'));
-
-        const trakBox = file.getTrackById(track.id);
-        const sampleEntry = trakBox?.mdia?.minf?.stbl?.stsd?.entries?.[0];
-
-        let description;
-        try {
-          const descBox = sampleEntry?.avcC || sampleEntry?.hvcC || sampleEntry?.vpcC || sampleEntry?.av1C;
-          if (descBox) {
-            const s = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
-            descBox.write(s);
-            description = new Uint8Array(s.buffer, 8);
-          }
-        } catch (e) {
-          // no description
-        }
-
-        let codec = track.codec;
-
-        try {
-          decoder = new VideoDecoder({
-            output(vf) {
-              // sequential promise chain: draw -> close -> toBlob -> push
-              const ts = vf.timestamp;
-              const offscreen = new OffscreenCanvas(vf.displayWidth, vf.displayHeight);
-              const octx = offscreen.getContext('2d');
-              octx.drawImage(vf, 0, 0);
-              vf.close();
-              offscreen.convertToBlob({ type: 'image/webp', quality: 0.82 }).then(blob => {
-                bank.push({ ts, blob });
-              }).catch(() => {});
-            },
-            error(e) {
-              bankFailed = true;
-              reject(e);
-            }
-          });
-
-          decoder.configure({
-            codec,
-            codedWidth: track.video.width,
-            codedHeight: track.video.height,
-            ...(description ? { description } : {})
-          });
-          decoderConfigured = true;
-        } catch (e) {
-          bankFailed = true;
-          return reject(e);
-        }
-
-        file.setExtractionOptions(track.id, null, { nbSamples: Infinity });
-        file.start();
-      };
-
-      file.onSamples = (id, user, sampleList) => {
-        for (const s of sampleList) {
-          samples.push(s);
-        }
-      };
-
-      file.onError = (e) => {
-        bankFailed = true;
-        reject(new Error('MP4Box error: ' + e));
-      };
-
-      const buf = arrayBuffer.slice(0);
-      buf.fileStart = 0;
-      file.appendBuffer(buf);
-      file.flush();
-
-      // Give onSamples time to fire
-      setTimeout(resolve, 200);
-    });
-
-    if (bankFailed || !decoderConfigured) return;
-
-    // Pump decode
-    let cnt = 0;
-    for (let i = 0; i < samples.length; i++) {
-      const s = samples[i];
-
-      // Back-pressure: wait if too many in-flight
-      while (i - cnt > LEAD) {
-        await new Promise(r => setTimeout(r, 16));
-        cnt = decoder.decodeQueueSize !== undefined
-          ? i - decoder.decodeQueueSize
-          : cnt + 1;
-      }
-
-      try {
-        decoder.decode(new EncodedVideoChunk({
-          type: s.is_sync ? 'key' : 'delta',
-          timestamp: s.cts * 1e6 / s.timescale,
-          duration: s.duration * 1e6 / s.timescale,
-          data: s.data
-        }));
-      } catch (e) {
-        bankFailed = true;
-        return;
-      }
-    }
-
-    await decoder.flush();
-
-    // Sort bank by timestamp
-    bank.sort((a, b) => a.ts - b.ts);
-    bankReady = true;
-
-  } catch (e) {
-    bankFailed = true;
-  }
-}
-
-// Start bank build on load
-if (document.readyState === 'complete') {
-  buildFrameBank();
-} else {
-  window.addEventListener('load', buildFrameBank);
-}
