@@ -15,5 +15,86 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Progressive WebP frame-sequence loop, replacing a 4.9MB autoplay video.
+         One wrinkle here that Aegis/KeyNest/etc. didn't have: a React effect
+         in the bundle listens for the video's native "timeupdate" event to
+         detect crossing 75% through the loop (drives some UI state -- likely
+         a corner-frame indicator). Rather than touch that logic, this script
+         gives the (now src-less) video fake duration/currentTime getters and
+         dispatches real timeupdate events off the SAME clock driving the
+         canvas, so the existing effect keeps working unmodified. -->
+    <script>
+    (function () {
+      var COUNT = 96, DURATION = 8000;
+      function seqUrl(i) { return 'assets/sequence/' + String(i + 1).padStart(3, '0') + '.webp'; }
+
+      var cache = new Map(), pending = new Map(), current = -1;
+      function request(i) {
+        if (i < 0 || i >= COUNT || cache.has(i) || pending.has(i)) return;
+        pending.set(i, true);
+        fetch(seqUrl(i))
+          .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+          .then(function (b) { return createImageBitmap(b); })
+          .then(function (bm) { pending.delete(i); cache.set(i, bm); if (i === current) draw(i); })
+          .catch(function () { pending.delete(i); });
+      }
+
+      var canvas, ctx, drawnIndex = -1, sized = false;
+      function draw(i) {
+        var bm = cache.get(i);
+        if (!bm || i === drawnIndex) return;
+        if (!sized) { canvas.width = bm.width; canvas.height = bm.height; sized = true; }
+        ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
+        drawnIndex = i;
+        canvas.style.opacity = '1';
+      }
+
+      var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function mount(video) {
+        canvas = document.createElement('canvas');
+        canvas.className = video.className;
+        canvas.style.cssText = (video.getAttribute('style') || '').replace(/display:\s*none;?/g, '');
+        canvas.style.opacity = '0';
+        canvas.style.transition = 'opacity .4s ease';
+        video.parentNode.insertBefore(canvas, video.nextSibling);
+        ctx = canvas.getContext('2d', { alpha: false });
+
+        // Fake just enough of the HTMLVideoElement surface for the bundle's
+        // own timeupdate-driven effect to keep working unmodified.
+        var fakeCurrentTime = 0;
+        Object.defineProperty(video, 'duration', { get: function () { return DURATION / 1000; } });
+        Object.defineProperty(video, 'currentTime', { get: function () { return fakeCurrentTime; }, set: function () {} });
+
+        request(0); request(1); request(2);
+
+        if (reduced) { current = 0; draw(0); return; }
+
+        var start = null;
+        function tick(ts) {
+          if (start === null) start = ts;
+          var t = (ts - start) % DURATION;
+          fakeCurrentTime = t / 1000;
+          video.dispatchEvent(new Event('timeupdate'));
+          var idx = Math.min(COUNT - 1, Math.floor((t / DURATION) * COUNT));
+          if (idx !== current) {
+            current = idx;
+            draw(idx);
+            request(idx); request(idx + 1); request(idx + 2); request(idx - 1);
+          }
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      }
+
+      var found = document.getElementById('scrollhaus-hero-video');
+      if (found) { mount(found); return; }
+      var mo = new MutationObserver(function () {
+        var v = document.getElementById('scrollhaus-hero-video');
+        if (v) { mo.disconnect(); mount(v); }
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
   </body>
 </html>
