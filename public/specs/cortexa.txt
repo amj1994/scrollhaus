@@ -58,6 +58,8 @@ body{
 }
 #video-layer{position:fixed;inset:0;z-index:1;background:#000}
 #video-layer video{width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;will-change:transform,filter,opacity;display:block}
+#video-layer canvas{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;pointer-events:none;transition:opacity .3s ease}
+#video-layer canvas.is-live{opacity:1}
 #bottom-blur{position:fixed;bottom:0;left:0;right:0;height:150px;z-index:30;background:linear-gradient(to bottom,transparent,#000);-webkit-mask-image:linear-gradient(to top,#000 50%,transparent);mask-image:linear-gradient(to top,#000 50%,transparent);backdrop-filter:blur(4px);pointer-events:none}
 #main-header{position:fixed;top:0;left:0;right:0;height:80px;z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 24px;opacity:0;transition:opacity 0.6s ease}
 #main-header.visible{opacity:1}
@@ -119,10 +121,12 @@ body{
 .stat-card-footer{font-size:11px;opacity:0.5;letter-spacing:0.04em}
 .stat-card-detail{font-size:11px;line-height:1.6;opacity:0.35;border-top:1px solid rgba(255,255,255,0.06);padding-top:16px;margin-top:auto}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
 </head>
 <body>
 <div id="video-layer">
   <video id="hero-video" loop muted playsinline preload="auto" src="assets/video/hero.mp4"></video>
+  <canvas id="hero-canvas"></canvas>
 </div>
 <div id="bottom-blur"></div>
 <div class="dot-grid"></div>
@@ -202,14 +206,195 @@ const ENTRANCE_DURATION = 1400;
 function clamp01(v){return Math.max(0,Math.min(1,v))}
 function ease(t){return 1-Math.pow(1-t,3)}
 
+// ── Frame bank: decode-once WebCodecs scrub, native currentTime fallback ──
+// video.currentTime seeking has real per-seek decode cost no matter how
+// dense the keyframe interval is — under fast continuous scrolling that
+// cost piles up and visibly steps between frames. Decoding every sample
+// once into an in-memory bank and drawing whichever frame is nearest the
+// target is nearly free by comparison. Same engine DRIFT/Briar/Axiom/
+// Helixway/Mirage/KILN/Halogen use. The <video> element stays wired as the
+// fallback if WebCodecs/MP4Box aren't available.
+function createClip(V, C, onLive){
+  var ctx = C.getContext('2d', { alpha:false });
+  var url = V.getAttribute('src');
+  var LEAD = 24, LRU_MAX = 24, WATCHDOG = 60000;
+  var clip = { dur:0, current:0, target:0, bank:[], lru:new Map(), drawnIndex:-1,
+    ready:false, reverted:false, painted:false, building:false, buildRun:0 };
+
+  clip.nearestIndex = function(t){
+    var b = clip.bank, us = t*1e6, lo = 0, hi = b.length-1;
+    if (!b.length) return -1;
+    while (lo < hi){ var m = (lo+hi)>>1; if (b[m].ts < us) lo = m+1; else hi = m; }
+    return lo;
+  };
+  function decodeInto(idx){
+    var b = clip.bank, lru = clip.lru;
+    if (idx<0||idx>=b.length||lru.has(idx)) return;
+    lru.set(idx,null);
+    createImageBitmap(b[idx].blob).then(function(bm){
+      lru.set(idx,bm);
+      if (lru.size>LRU_MAX){
+        var it=lru.keys();
+        for (var n=0;n<lru.size-LRU_MAX;n++){ var key=it.next().value, old=lru.get(key); if (old&&old.close) old.close(); lru.delete(key); }
+      }
+      // A scroll fast enough to jump several frames per tick can outrun a
+      // narrow neighbor-only prefetch (warm() below) — redraw at whatever
+      // the LATEST requested time is once this decode lands, instead of
+      // leaving the canvas frozen on the last frame that was cached.
+      if (!clip.reverted) drawFromBank(clip.current);
+    }).catch(function(){ lru.delete(idx); });
+  }
+  function warm(i){ for (var k=-1;k<=2;k++) decodeInto(i+k); }
+  function drawFromBank(t){
+    clip.current = t;
+    var i = clip.nearestIndex(t), bm = i>=0 ? clip.lru.get(i) : null;
+    if (bm && i !== clip.drawnIndex){
+      ctx.drawImage(bm,0,0,C.width,C.height);
+      clip.drawnIndex = i;
+      if (!clip.painted && !clip.reverted){ clip.painted = true; C.classList.add('is-live'); if (onLive) onLive(); }
+    }
+    if (i>=0){
+      if (!bm) decodeInto(i);
+      warm(i);
+    }
+  }
+  clip.render = function(t){
+    if (clip.ready){ drawFromBank(t); return; }
+    if (!V.seeking && Math.abs(V.currentTime - t) > 0.01){ try { V.currentTime = t; } catch(e){} }
+  };
+  function revert(){ clip.reverted=true; clip.ready=false; C.classList.remove('is-live'); }
+
+  clip.build = function(soft){
+    return new Promise(function(done){
+      if (clip.building || matchMedia('(prefers-reduced-motion: reduce)').matches) return done();
+      if (typeof VideoDecoder==='undefined' || typeof MP4Box==='undefined') return done();
+      if (typeof DataStream==='undefined') return done();
+      clip.building = true;
+      var settled=false;
+      var watchdog=setTimeout(function(){ revert(); finish(); }, WATCHDOG);
+      function finish(){ if (settled) return; settled=true; clearTimeout(watchdog); done(); }
+      function fail(){ if (settled) return; revert(); finish(); }
+      function failDecode(){
+        if (settled) return;
+        if (!soft){
+          settled=true; clearTimeout(watchdog);
+          try { decoder.close(); } catch(e){}
+          clip.building=false; clip.bank.length=0; clip.lru.clear(); clip.drawnIndex=-1;
+          clip.build(true).then(done);
+          return;
+        }
+        fail();
+      }
+      var off=document.createElement('canvas'), octx=null;
+      var chain=Promise.resolve(), samples=[], decoder, file;
+      var run=++clip.buildRun;
+      var cnt=0, waiters=[];
+      function tickDone(){ cnt++; for (var i=waiters.length-1;i>=0;i--){ if (cnt>=waiters[i].n){ waiters[i].res(); waiters.splice(i,1); } } }
+      function until(n){ if (cnt>=n) return Promise.resolve(); return new Promise(function(res){ waiters.push({n:n,res:res}); }); }
+      try { file = MP4Box.createFile(); } catch(e){ return fail(); }
+      decoder = new VideoDecoder({
+        output: function(vf){
+          var ts=vf.timestamp;
+          chain = chain.then(function(){
+            if (clip.reverted){ vf.close(); tickDone(); return; }
+            if (!octx){ off.width=vf.codedWidth||1280; off.height=vf.codedHeight||720; octx=off.getContext('2d',{alpha:false}); }
+            octx.drawImage(vf,0,0,off.width,off.height);
+            vf.close();
+            return new Promise(function(res){
+              off.toBlob(function(blob){ if (blob && run===clip.buildRun) clip.bank.push({ts:ts,blob:blob}); tickDone(); res(); }, 'image/webp', 0.82);
+            });
+          });
+        },
+        error: failDecode
+      });
+      function description(track){
+        var trak=file.getTrackById(track.id);
+        var entries=trak.mdia.minf.stbl.stsd.entries;
+        for (var i=0;i<entries.length;i++){
+          var box=entries[i].avcC||entries[i].hvcC||entries[i].vpcC||entries[i].av1C;
+          if (box){ var s=new DataStream(undefined,0,DataStream.BIG_ENDIAN); box.write(s); return new Uint8Array(s.buffer,8); }
+        }
+        return null;
+      }
+      file.onError = fail;
+      file.onReady = function(info){
+        var track = info.videoTracks && info.videoTracks[0];
+        if (!track) return fail();
+        var desc = description(track);
+        var cfg = { codec:track.codec, codedWidth:track.video.width, codedHeight:track.video.height };
+        if (desc) cfg.description=desc;
+        if (soft) cfg.hardwareAcceleration='prefer-software';
+        try { decoder.configure(cfg); } catch(e){ return failDecode(); }
+        file.setExtractionOptions(track.id, null, { nbSamples:Infinity });
+        file.start();
+      };
+      file.onSamples = function(id,user,list){ for (var i=0;i<list.length;i++) samples.push(list[i]); };
+      function pump(){
+        var i=0;
+        function step(){
+          if (clip.reverted) return Promise.resolve();
+          while (i<samples.length){
+            var s=samples[i];
+            try {
+              decoder.decode(new EncodedVideoChunk({ type: s.is_sync?'key':'delta', timestamp: s.cts*1e6/s.timescale, duration: s.duration*1e6/s.timescale, data: s.data }));
+            } catch(e){ failDecode(); return Promise.resolve(); }
+            i++;
+            if (i-cnt>LEAD) return until(i-LEAD).then(step);
+          }
+          return Promise.resolve();
+        }
+        return step();
+      }
+      fetch(url)
+        .then(function(r){ if (!r.ok) throw new Error('http '+r.status); return r.arrayBuffer(); })
+        .catch(fail)
+        .then(function(buf){
+          if (!buf || clip.reverted) return;
+          try { buf.fileStart=0; file.appendBuffer(buf); file.flush(); } catch(e){ return fail(); }
+          if (!samples.length) return fail();
+          pump()
+            .then(function(){ return clip.reverted ? null : decoder.flush(); })
+            .then(function(){ return chain; })
+            .then(function(){
+              if (clip.reverted || !clip.bank.length) return finish();
+              clip.bank.sort(function(a,b){ return a.ts-b.ts; });
+              var i0 = clip.nearestIndex(clip.current);
+              return createImageBitmap(clip.bank[i0].blob).then(function(bm){
+                if (clip.reverted) return;
+                clip.lru.set(i0,bm);
+                clip.ready = true;
+                drawFromBank(clip.current);
+              }).then(finish);
+            })
+            .catch(failDecode);
+        });
+    });
+  };
+  return clip;
+}
+
 // ── Video setup ──────────────────────────────────────────────────────────────
 const video = document.getElementById('hero-video');
+const heroCanvas = document.getElementById('hero-canvas');
 video.autoplay = false;
 let videoReady = false, isSeeking = false, nextSeekTime = null;
-video.addEventListener('loadedmetadata', function(){video.pause(); videoReady=true; if(video.readyState>=3)tryStartEntrance();});
+let heroClip = null;
+video.addEventListener('loadedmetadata', function(){
+  video.pause(); videoReady=true;
+  if (heroCanvas && !heroClip){
+    heroCanvas.width = video.videoWidth || 1920;
+    heroCanvas.height = video.videoHeight || 1080;
+    heroClip = createClip(video, heroCanvas, function(){ heroCanvas.classList.add('is-live'); });
+    heroClip.build();
+  }
+  if(video.readyState>=3)tryStartEntrance();
+});
 video.addEventListener('canplay', function(){if(video.readyState>=3)tryStartEntrance();});
 video.addEventListener('seeked', function(){isSeeking=false; if(nextSeekTime!=null){var t=nextSeekTime;nextSeekTime=null;seekTo(t);}});
-function seekTo(t){if(isSeeking){nextSeekTime=t;return;} isSeeking=true; video.currentTime=t;}
+function seekTo(t){
+  if (heroClip && heroClip.ready){ heroClip.render(t); return; }
+  if(isSeeking){nextSeekTime=t;return;} isSeeking=true; video.currentTime=t;
+}
 
 // ── Entrance ─────────────────────────────────────────────────────────────────
 function tryStartEntrance(){
@@ -312,9 +497,18 @@ function rafLoop(ts){
   else smoothScrollProgress=scrollProgress;
   var p=smoothScrollProgress;
 
-  // Seek video
-  if(videoReady&&video.duration&&Math.abs(delta)>0.008){
-    seekTo(p*video.duration);
+  // Seek video — gated on how far the video's own currentTime is from the
+  // smoothed target, not on the outer scroll-lerp delta. The lerp above
+  // settles (delta < 0.0001) well before smoothScrollProgress actually
+  // reaches scrollProgress, and gating on that delta stopped seeking the
+  // instant the lerp looked "close enough" even though p was still moving
+  // toward its target — the video visibly froze while every other
+  // scroll-driven effect on the page kept animating.
+  if(videoReady&&video.duration){
+    var targetT=p*video.duration;
+    if(Math.abs(video.currentTime-targetT)>0.01){
+      seekTo(targetT);
+    }
   }
 
   // Video blur/scale
