@@ -16,5 +16,77 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Progressive WebP frame-sequence loop, replacing a 2.0MB autoplay video (was fine size-wise but this keeps every site on one consistent, lighter-weight-and-progressive architecture). -->
+    <script>
+    (function () {
+      var COUNT = 96, DURATION = 8000; // ms, matches the original clip's loop length
+      function seqUrl(i) { return 'assets/sequence/' + String(i + 1).padStart(3, '0') + '.webp'; }
+
+      var cache = new Map(), pending = new Map(), current = -1;
+      function request(i) {
+        if (i < 0 || i >= COUNT || cache.has(i) || pending.has(i)) return;
+        pending.set(i, true);
+        fetch(seqUrl(i))
+          .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+          .then(function (b) { return createImageBitmap(b); })
+          .then(function (bm) { pending.delete(i); cache.set(i, bm); if (i === current) draw(i); })
+          .catch(function () { pending.delete(i); });
+      }
+
+      var canvas, ctx, drawnIndex = -1, sized = false;
+      function draw(i) {
+        var bm = cache.get(i);
+        if (!bm || i === drawnIndex) return;
+        // Canvas defaults to 300x150 (truthy!), so a "has this been sized
+        // yet" check can't just test canvas.width -- needs its own flag.
+        if (!sized) { canvas.width = bm.width; canvas.height = bm.height; sized = true; }
+        ctx.drawImage(bm, 0, 0, canvas.width, canvas.height);
+        drawnIndex = i;
+        canvas.style.opacity = '1';
+      }
+
+      var reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      function mount(video) {
+        canvas = document.createElement('canvas');
+        canvas.className = video.className;
+        canvas.style.cssText = video.getAttribute('style') ? video.getAttribute('style').replace('display:none','').replace('display: none','') : '';
+        canvas.style.opacity = '0';
+        canvas.style.transition = 'opacity .4s ease';
+        video.parentNode.insertBefore(canvas, video.nextSibling);
+        ctx = canvas.getContext('2d', { alpha: false });
+
+        request(0); request(1); request(2);
+
+        if (reduced) { current = 0; draw(0); return; } // static frame, no loop
+
+        var start = null;
+        function tick(ts) {
+          if (start === null) start = ts;
+          var t = (ts - start) % DURATION;
+          var idx = Math.min(COUNT - 1, Math.floor((t / DURATION) * COUNT));
+          if (idx !== current) {
+            current = idx;
+            draw(idx);
+            request(idx); request(idx + 1); request(idx + 2); request(idx - 1);
+          }
+          requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      }
+
+      // The <video> is inside a React lazy/async-mounted tree in most of
+      // these bundles, so it doesn't reliably exist at parse time -- wait
+      // for it rather than assuming it's mounted.
+      var found = document.getElementById('scrollhaus-hero-video');
+      if (found) { mount(found); return; }
+      var mo = new MutationObserver(function () {
+        var v = document.getElementById('scrollhaus-hero-video');
+        if (v) { mo.disconnect(); mount(v); }
+      });
+      mo.observe(document.body, { childList: true, subtree: true });
+    })();
+    </script>
+
   </body>
 </html>
