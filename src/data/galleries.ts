@@ -10,11 +10,16 @@
 // ours" on top of two that already exist.
 //
 // So the asset convention is different too: galleryThumbOf points at
-// /galleries/<id>.webp, and that file must be a crop of the target's OWN
-// masthead/hero — never a crop that includes any of the third-party template
-// thumbnails the directory itself displays further down the page.
+// /galleries/<id>.svg — SVG, not a raster crop of the target's own page.
+// Two reasons: it keeps this firmly a reference-by-name rather than a
+// reproduction of anything on the target's page (see the file's own
+// comments for why that distinction matters), and this repo's GitHub push
+// path only transports text content — a binary asset written through it
+// lands corrupted (confirmed empirically: it arrives as literal base64
+// text, not decoded bytes), so SVG is also the only format that survives
+// the tooling available to author it.
 export type Gallery = {
-  /** stable slug — filename for /galleries/<id>.webp */
+  /** stable slug — filename for /galleries/<id>.svg */
   id: string
   /** the gallery's own name, not ours */
   title: string
@@ -31,7 +36,7 @@ export type Gallery = {
   added: string
 }
 
-export const galleryThumbOf = (id: string) => `/galleries/${id}.webp`
+export const galleryThumbOf = (id: string) => `/galleries/${id}.svg`
 
 export const GALLERIES: Gallery[] = [
   {
