@@ -3,6 +3,7 @@ import { ALL_SITES, CATEGORIES } from '@/data/sites'
 import SiteCard from '@/components/SiteCard'
 import SiteDetail from '@/components/SiteDetail'
 import Creative from '@/components/Creative'
+import Templates from '@/components/Templates'
 import Pricing from '@/components/Pricing'
 import AuthModal from '@/components/AuthModal'
 import { bentoSpan } from '@/lib/bento'
@@ -22,7 +23,7 @@ const AI_TOOLS = [
 
 export default function App() {
   const { session, entitled, passwordRecovery, signOut } = useAuth()
-  const [view, setView] = useState<'library' | 'creative' | 'pricing'>('library')
+  const [view, setView] = useState<'library' | 'creative' | 'templates' | 'pricing'>('library')
   const [active, setActive] = useState<string>('All')
   const [q, setQ] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
@@ -103,6 +104,13 @@ export default function App() {
               className={`text-[13px] transition-colors ${view === 'creative' ? 'text-white' : 'text-white/45 hover:text-white'}`}
             >
               Creative
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('templates')}
+              className={`text-[13px] transition-colors ${view === 'templates' ? 'text-white' : 'text-white/45 hover:text-white'}`}
+            >
+              Templates
             </button>
             <button
               type="button"
@@ -279,6 +287,8 @@ export default function App() {
         </>
       ) : view === 'creative' ? (
         <Creative />
+      ) : view === 'templates' ? (
+        <Templates />
       ) : (
         <Pricing />
       )}
@@ -317,6 +327,7 @@ export default function App() {
               <ul className="mt-3 flex flex-col gap-2 text-[12px] text-white/50">
                 <li><button type="button" onClick={() => setView('library')} className="hover:text-white">Library</button></li>
                 <li><button type="button" onClick={() => setView('creative')} className="hover:text-white">Creative</button></li>
+                <li><button type="button" onClick={() => setView('templates')} className="hover:text-white">Templates</button></li>
                 <li><button type="button" onClick={() => setView('pricing')} className="hover:text-white">Pricing</button></li>
               </ul>
             </div>
