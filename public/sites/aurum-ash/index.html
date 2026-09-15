@@ -9,5 +9,67 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Progressive WebP frame-sequence, replacing two scroll-scrubbed
+         autoplay videos. The bundle's own scroll-progress math (smoothing,
+         phase mapping) is untouched -- window.__shR1/__shR2 are called with
+         the exact same lerped target-time value the bundle used to assign
+         to video.currentTime (see the patched assets/*.js), just drawing a
+         frame instead of seeking a video. -->
+    <script>
+    (function () {
+      function makePlayer(seqDir, count, videoId) {
+        var cache = new Map(), pending = new Map(), current = -1;
+        function seqUrl(i) { return seqDir + '/' + String(i + 1).padStart(3, '0') + '.webp'; }
+        function request(i) {
+          if (i < 0 || i >= count || cache.has(i) || pending.has(i)) return;
+          pending.set(i, true);
+          fetch(seqUrl(i))
+            .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+            .then(function (b) { return createImageBitmap(b); })
+            .then(function (bm) { pending.delete(i); cache.set(i, bm); if (i === current) draw(i); })
+            .catch(function () { pending.delete(i); });
+        }
+        var canvas = null, ctx = null, sized = false, drawnIndex = -1, video = null;
+        function draw(i) {
+          var bm = cache.get(i);
+          if (!bm || !canvas) return;
+          if (!sized) { canvas.width = bm.width; canvas.height = bm.height; sized = true; }
+          if (i !== drawnIndex) { ctx.drawImage(bm, 0, 0, canvas.width, canvas.height); drawnIndex = i; canvas.style.opacity = video ? video.style.opacity : '1'; }
+        }
+        function mount(v) {
+          video = v;
+          canvas = document.createElement('canvas');
+          canvas.className = v.className;
+          canvas.style.cssText = (v.getAttribute('style') || '').replace(/display:\s*none;?/g, '');
+          v.parentNode.insertBefore(canvas, v.nextSibling);
+          ctx = canvas.getContext('2d', { alpha: false });
+          request(0); request(1); request(2);
+          // Keep the canvas's opacity mirroring the (hidden) video's own
+          // opacity every frame, since the bundle's React state still
+          // drives that crossfade on the original element.
+          (function sync() { if (canvas && video) canvas.style.opacity = video.style.opacity; requestAnimationFrame(sync); })();
+        }
+        var found = document.getElementById(videoId);
+        if (found) mount(found);
+        else {
+          var mo = new MutationObserver(function () {
+            var v = document.getElementById(videoId);
+            if (v) { mo.disconnect(); mount(v); }
+          });
+          mo.observe(document.body, { childList: true, subtree: true });
+        }
+        return function render(t) {
+          var idx = Math.max(0, Math.min(count - 1, Math.round((t / 8) * (count - 1))));
+          if (idx === current) return;
+          current = idx;
+          draw(idx);
+          request(idx); request(idx + 1); request(idx + 2); request(idx - 1);
+        };
+      }
+
+      window.__shR1 = makePlayer('assets/sequence-1', 96, 'sh-video-1');
+      window.__shR2 = makePlayer('assets/sequence-2', 96, 'sh-video-2');
+    })();
+    </script>
   </body>
 </html>
