@@ -29,7 +29,17 @@ export default function Templates() {
                   title={t.title}
                   className="h-full w-full"
                   loading="lazy"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock"
+                  // allow-popups (+ -to-escape-sandbox) is load-bearing here: this
+                  // page's whole job is "click a template card to open it," which
+                  // opens lovable.dev in a new tab. Without allow-popups the browser
+                  // silently swallows that click — no error, no navigation, nothing
+                  // visibly happens, which is exactly the bug this fixes. Escaping
+                  // the sandbox means the new tab isn't itself crippled by these
+                  // restrictions once it opens.
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups allow-popups-to-escape-sandbox"
+                  // Some cards copy code to the clipboard instead of navigating —
+                  // sandbox tokens don't gate that, Permissions Policy does.
+                  allow="clipboard-write"
                 />
               </div>
             </section>

@@ -26,7 +26,12 @@ export default function Effects() {
                   title={e.title}
                   className="h-full w-full"
                   loading="lazy"
-                  sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock"
+                  // Matches Templates.tsx: allow-popups so any link this content
+                  // opens in a new tab actually opens instead of being silently
+                  // swallowed by the sandbox, and clipboard-write for the Copy
+                  // buttons on each effect card.
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-popups allow-popups-to-escape-sandbox"
+                  allow="clipboard-write"
                 />
               </div>
             </section>
