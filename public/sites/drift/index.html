@@ -531,20 +531,17 @@ canvas.plate.is-live{opacity:1}
 <body>
 
 <div class="stage" id="stage">
-  <video id="v1" muted playsinline preload="auto" aria-hidden="true" tabindex="-1"
-         src="assets/hero.mp4"></video>
+  <video id="v1" muted playsinline aria-hidden="true" tabindex="-1"></video>
   <canvas id="c1" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
 </div>
 
 <div class="reveal reveal--a" id="ra" aria-hidden="true">
-  <video id="v2" muted playsinline preload="metadata" tabindex="-1"
-         src="assets/hero.mp4"></video>
+  <video id="v2" muted playsinline tabindex="-1"></video>
   <canvas id="c2" class="plate" width="1280" height="720"></canvas>
 </div>
 
 <div class="reveal reveal--b" id="rb" aria-hidden="true">
-  <video id="v3" muted playsinline preload="metadata" tabindex="-1"
-         src="assets/hero.mp4"></video>
+  <video id="v3" muted playsinline tabindex="-1"></video>
   <canvas id="c3" class="plate" width="1280" height="720"></canvas>
 </div>
 
@@ -611,7 +608,6 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
 }
 </script>
-<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
 <script>
 /* DRIFT — scroll engine, frame banks and every scroll-driven writer.
    ES module: own scope, strict by default, deferred automatically. */
@@ -678,252 +674,74 @@ if (document.fonts && document.fonts.ready) document.fonts.ready.then(showPage);
 else addEventListener('load', showPage);
 setTimeout(showPage, 2500);   // failsafe: never leave the page blank
 
-/* ── clip: one scrubbed video + its frame bank ───────────────────
-   Never a replacement for the <video>. The element scrub stays wired and
-   the canvas is invisible until the bank paints for real, so any failure
-   (no VideoDecoder, no CORS, bad fetch) just leaves the page as it was.
-   ──────────────────────────────────────────────────────────────── */
+/* ── clip: progressive WebP frame sequence, one shared cache ──────
+   Used to be: decode the whole hero.mp4 once via WebCodecs, share that
+   one in-memory bank across all three wipe layers (shareBank, below).
+   Same idea, different mechanism -- one shared Map of ImageBitmaps,
+   populated by on-demand fetch instead of a single big decode. Nothing
+   downloads until a layer actually asks for that frame; first paint on
+   any layer doesn't wait for the other two, or for the file to finish
+   arriving at all. */
+var SEQ_COUNT = 121, SEQ_DUR = 10.041667;
+function seqUrl(i){ return 'assets/sequence/' + String(i + 1).padStart(3, '0') + '.webp'; }
+var sharedCache = new Map(), sharedPending = new Map();
+function evictFar(center){
+  if (sharedCache.size <= LRU_MAX) return;
+  var idxs = Array.from(sharedCache.keys()).sort(function(a,b){ return Math.abs(b-center) - Math.abs(a-center); });
+  while (sharedCache.size > LRU_MAX && idxs.length){
+    var i = idxs.shift(), bm = sharedCache.get(i);
+    if (bm && bm.close) bm.close();
+    sharedCache.delete(i);
+  }
+}
+function requestFrame(i, onArrive){
+  if (i < 0 || i >= SEQ_COUNT) return;
+  // Already-cached frames are a no-op: the caller (drawFromBank) already
+  // reads sharedCache directly for whatever index it actually wants to draw,
+  // so there's nothing new to report here. Calling onArrive synchronously
+  // for a cache hit is what caused a real bug caught in testing: it drove
+  // drawFromBank -> requestFrame -> drawFromBank recursion with no async
+  // boundary in between, overflowing the call stack. onArrive only ever
+  // fires now when a fetch actually completes later, on its own microtask.
+  if (sharedCache.has(i) || sharedPending.has(i)) return;
+  sharedPending.set(i, true);
+  fetch(seqUrl(i))
+    .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+    .then(function(b){ return createImageBitmap(b); })
+    .then(function(bm){ sharedPending.delete(i); sharedCache.set(i, bm); onArrive && onArrive(i); })
+    .catch(function(){ sharedPending.delete(i); });
+}
+
 function createClip(V, C){
   var ctx = C.getContext('2d', { alpha:false });
-  var url = V.getAttribute('src');      // read from markup: the two can never disagree
   var clip = {
-    v:V, c:C, dur:0, current:0, target:0,
-    bank:[], lru:new Map(), drawnIndex:-1,
-    ready:false, reverted:false, painted:false, building:false, buildRun:0
+    v:V, c:C, dur:SEQ_DUR, current:0, target:0,
+    bank:[], drawnIndex:-1,
+    ready:true, reverted:false, painted:false
   };
-
-  function prime(){
-    clip.dur = V.duration || 0;
-    try { V.currentTime = 0.001; } catch(e){}
-  }
-  if (V.readyState >= 1) prime();       // metadata already arrived before this ran
-  V.addEventListener('loadedmetadata', prime);
-  V.pause();
 
   clip.nearestIndex = function(t){
-    var b = clip.bank, us = t * 1e6, lo = 0, hi = b.length - 1;
-    while (lo < hi){ var m = (lo + hi) >> 1; if (b[m].ts < us) lo = m + 1; else hi = m; }
-    return lo;
+    return Math.max(0, Math.min(SEQ_COUNT - 1, Math.round((t / SEQ_DUR) * (SEQ_COUNT - 1))));
   };
 
-  function warm(i){
-    var b = clip.bank, lru = clip.lru;
-    for (var k = -1; k <= 2; k++){
-      var j = i + k;
-      if (j < 0 || j >= b.length || lru.has(j)) continue;
-      lru.set(j, null);
-      (function(idx){
-        createImageBitmap(b[idx].blob).then(function(bm){
-          lru.set(idx, bm);
-          if (lru.size > LRU_MAX){
-            var it = lru.keys();
-            for (var n = 0; n < lru.size - LRU_MAX; n++){
-              var key = it.next().value, old = lru.get(key);
-              if (old && old.close) old.close();
-              lru.delete(key);
-            }
-          }
-        }).catch(function(){ lru.delete(idx); });
-      })(j);
-    }
-  }
-
   function drawFromBank(t){
-    var i = clip.nearestIndex(t), bm = clip.lru.get(i);
+    var i = clip.nearestIndex(t), bm = sharedCache.get(i);
     if (bm && i !== clip.drawnIndex){
       ctx.drawImage(bm, 0, 0, C.width, C.height);
       clip.drawnIndex = i;
-      // Reveal on the first REAL paint, never on a timer: a timed fade-in
-      // can uncover an empty canvas and black out the whole plate.
       if (!clip.painted && !clip.reverted){
         clip.painted = true;
         C.classList.add('is-live');
       }
     }
-    warm(i);
-  }
-
-  clip.render = function(t){
-    if (clip.ready){ drawFromBank(t); return; }
-    if (!V.seeking && Math.abs(V.currentTime - t) > 0.01){
-      try { V.currentTime = t; } catch(e){}
-    }
-  };
-
-  function revert(){
-    clip.reverted = true;
-    clip.ready = false;
-    C.classList.remove('is-live');
-  }
-
-  clip.build = function(soft){
-    return new Promise(function(done){
-      if (clip.building || reduced) return done();
-      if (typeof VideoDecoder === 'undefined' || typeof MP4Box === 'undefined') return done();
-      if (typeof DataStream === 'undefined') return done();  // global, NOT MP4Box.DataStream
-      clip.building = true;
-
-      var settled  = false;
-      var watchdog = setTimeout(function(){ revert(); finish(); }, WATCHDOG);
-      function finish(){ if (settled) return; settled = true; clearTimeout(watchdog); done(); }
-      // settled guard matters: after a soft retry starts, stale rejections from
-      // the abandoned hardware run must not revert (and so poison) the new one.
-      function fail(){ if (settled) return; revert(); finish(); }
-
-      /* Decoder-stage failures get ONE retry with software decoding before the
-         permanent revert. Measured: in a hidden tab Chrome refuses the hardware
-         decoder ("Decoding error." after 0 frames) while prefer-software decodes
-         all 193 — so anyone loading the page in a background tab would otherwise
-         lose the bank forever. Only decoder failures retry; fetch/MP4Box
-         failures still revert outright, and the retry itself reverts if it
-         fails, so "after a revert, do not resurrect" still holds. */
-      function failDecode(){
-        if (settled) return;
-        if (!soft){
-          settled = true; clearTimeout(watchdog);
-          try { decoder.close(); } catch(e){}
-          clip.building = false;
-          clip.bank.length = 0; clip.lru.clear(); clip.drawnIndex = -1;
-          clip.build(true).then(done);
-          return;
-        }
-        fail();
-      }
-
-      var off = document.createElement('canvas'), octx = null;
-      var chain = Promise.resolve(), samples = [], decoder, file;
-      // run token: a late toBlob from an abandoned hardware run must not push
-      // stale frames into the retry's bank
-      var run = ++clip.buildRun;
-
-      // backpressure: never hold more than LEAD live VideoFrames.
-      // Each is ~1.4MB of GPU memory; 193 at once is ~270MB.
-      var cnt = 0, waiters = [];
-      function tickDone(){
-        cnt++;
-        for (var i = waiters.length - 1; i >= 0; i--){
-          if (cnt >= waiters[i].n){ waiters[i].res(); waiters.splice(i, 1); }
-        }
-      }
-      function until(n){
-        if (cnt >= n) return Promise.resolve();
-        return new Promise(function(res){ waiters.push({ n:n, res:res }); });
-      }
-
-      try { file = MP4Box.createFile(); } catch(e){ return fail(); }
-
-      decoder = new VideoDecoder({
-        output: function(vf){
-          var ts = vf.timestamp;
-          chain = chain.then(function(){
-            if (clip.reverted){ vf.close(); tickDone(); return; }
-            if (!octx){
-              off.width  = vf.codedWidth  || 1280;
-              off.height = vf.codedHeight || 720;
-              octx = off.getContext('2d', { alpha:false });
-            }
-            octx.drawImage(vf, 0, 0, off.width, off.height);
-            vf.close();
-            return new Promise(function(res){
-              off.toBlob(function(blob){
-                if (blob && run === clip.buildRun) clip.bank.push({ ts:ts, blob:blob });
-                tickDone(); res();
-              }, 'image/webp', 0.82);
-            });
-          });
-        },
-        error: failDecode
-      });
-
-      function description(track){
-        var trak = file.getTrackById(track.id);
-        var entries = trak.mdia.minf.stbl.stsd.entries;
-        for (var i = 0; i < entries.length; i++){
-          var box = entries[i].avcC || entries[i].hvcC || entries[i].vpcC || entries[i].av1C;
-          if (box){
-            var s = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
-            box.write(s);
-            return new Uint8Array(s.buffer, 8);
-          }
-        }
-        return null;
-      }
-
-      file.onError = fail;
-
-      // configure SYNCHRONOUSLY. isConfigSupported() is a promise, and awaiting
-      // it leaves the decoder unconfigured when flush() runs a microtask later.
-      file.onReady = function(info){
-        var track = info.videoTracks && info.videoTracks[0];
-        if (!track) return fail();
-        var desc = description(track);
-        var cfg = { codec:track.codec, codedWidth:track.video.width, codedHeight:track.video.height };
-        if (desc) cfg.description = desc;
-        if (soft) cfg.hardwareAcceleration = 'prefer-software';
-        try { decoder.configure(cfg); } catch(e){ return failDecode(); }
-        file.setExtractionOptions(track.id, null, { nbSamples:Infinity });
-        file.start();
-      };
-
-      // collect only. pump() drives the decode so it can apply backpressure.
-      file.onSamples = function(id, user, list){
-        for (var i = 0; i < list.length; i++) samples.push(list[i]);
-      };
-
-      function pump(){
-        var i = 0;
-        function step(){
-          if (clip.reverted) return Promise.resolve();
-          while (i < samples.length){
-            var s = samples[i];
-            try {
-              decoder.decode(new EncodedVideoChunk({
-                type: s.is_sync ? 'key' : 'delta',
-                timestamp: s.cts * 1e6 / s.timescale,
-                duration: s.duration * 1e6 / s.timescale,
-                data: s.data
-              }));
-            } catch(e){ failDecode(); return Promise.resolve(); }
-            i++;
-            if (i - cnt > LEAD) return until(i - LEAD).then(step);
-          }
-          return Promise.resolve();
-        }
-        return step();
-      }
-
-      // Two separate catches. A DataStream/appendBuffer throw is SYNCHRONOUS
-      // and would otherwise surface here and get blamed on the network.
-      fetch(url)
-        .then(function(r){ if (!r.ok) throw new Error('http ' + r.status); return r.arrayBuffer(); })
-        .catch(fail)
-        .then(function(buf){
-          if (!buf || clip.reverted) return;
-          try { buf.fileStart = 0; file.appendBuffer(buf); file.flush(); }
-          catch(e){ return fail(); }
-          if (!samples.length) return fail();
-
-          pump()
-            .then(function(){ return clip.reverted ? null : decoder.flush(); })
-            .then(function(){ return chain; })
-            .then(function(){
-              if (clip.reverted || !clip.bank.length) return finish();
-              clip.bank.sort(function(a,b){ return a.ts - b.ts; });  // decode order != display order
-              var i0 = clip.nearestIndex(clip.current);
-              // paint one frame BEFORE flipping ready, so the canvas is never
-              // uncovered empty even if RAF happens to be throttled
-              return createImageBitmap(clip.bank[i0].blob).then(function(bm){
-                if (clip.reverted) return;
-                clip.lru.set(i0, bm);
-                clip.ready = true;
-                drawFromBank(clip.current);
-              }).then(finish);
-            })
-            .catch(failDecode);   // flush() rejects here on decoder death — retry-worthy
-        });
+    for (var k = -1; k <= 2; k++) requestFrame(i + k, function(arrived){
+      if (arrived === clip.nearestIndex(clip.current)) drawFromBank(clip.current);
     });
-  };
+    evictFar(i);
+  }
 
+  clip.render = function(t){ drawFromBank(t); };
+  clip.build = function(){ return Promise.resolve(); };
   return clip;
 }
 
@@ -932,24 +750,6 @@ var clips = [
   createClip(document.getElementById('v2'), document.getElementById('c2')),
   createClip(document.getElementById('v3'), document.getElementById('c3'))
 ];
-
-/* One continuous plate: decode once, share the bank across the three wipe
-   layers so the same frame is on every canvas at the same scroll time. */
-function shareBank(from, to){
-  to.bank = from.bank;
-  to.dur = from.dur;
-  to.ready = from.ready;
-  to.reverted = from.reverted;
-  to.drawnIndex = -1;
-}
-function buildAll(){
-  clips[0].build().then(function(){
-    shareBank(clips[0], clips[1]);
-    shareBank(clips[0], clips[2]);
-  });
-}
-if (document.readyState === 'complete') buildAll();
-else addEventListener('load', buildAll);
 
 /* ── scroll map ──────────────────────────────────────────────────
      0.000 → 0.083   title exits
