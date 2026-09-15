@@ -68,9 +68,31 @@ export function useMasonry(containerRef: React.RefObject<HTMLElement | null>, de
       ro.observe(el, { box: 'border-box' })
     }
 
+    // Same class of bug as the remount case above, different trigger: switching
+    // browser tabs away and back was observed to collapse every card to a thin
+    // sliver. ResizeObserver doesn't reliably re-fire just because the tab
+    // regained focus — if nothing changed the box's *size* while hidden, there's
+    // no resize to report, so a bad measurement taken right at the visibility
+    // edge (or inherited from whatever the layout engine had cached for a
+    // backgrounded document) can sit there uncorrected indefinitely. Re-running
+    // the same rAF-deferred re-measure used on mount whenever the tab becomes
+    // visible again costs nothing while hidden (visibilitychange only fires the
+    // work on the transition, not on a timer) and self-heals regardless of the
+    // exact underlying cause.
+    const onVisible = () => {
+      if (document.hidden) return
+      requestAnimationFrame(() => {
+        for (const el of contents) {
+          apply(el, el.getBoundingClientRect().height)
+        }
+      })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+
     return () => {
       cancelAnimationFrame(raf)
       ro.disconnect()
+      document.removeEventListener('visibilitychange', onVisible)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps)

@@ -16,16 +16,25 @@ body {
 ::-webkit-scrollbar-thumb { background: #262626; border-radius: 99px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
 
-/* Offscreen cards are skipped by the renderer entirely — no style, layout or
-   paint work for anything not on screen. This is what keeps a thousand-card
-   grid scrolling at full rate. It is NOT lazy loading: every card is in the DOM
-   from the first paint, the scrollbar is correct, and Cmd-F still finds them.
-   contain-intrinsic-size: auto ... makes the browser remember each card's real
-   height once measured, so nothing jumps as you scroll back up. */
-.card-cv {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 260px;
-}
+/* REMOVED: content-visibility: auto + contain-intrinsic-size used to sit here.
+   It skipped layout/paint for offscreen cards, which was fine while the actual
+   expensive cost (video decode) was unbounded. Now that lib/playback.ts caps
+   concurrent decode at a handful of videos, the only per-card cost left when
+   offscreen is a lazy-loaded poster <img> and some text — cheap at the scale
+   this library runs at today, and not worth what content-visibility cost:
+   switching browser tabs away and back reliably collapsed every card to a
+   thin sliver (reported live, reproduced from the description below).
+   Root cause: content-visibility: auto content gets "unrendered" while a tab
+   is backgrounded, and there is a window right after the tab regains focus
+   where it reports a wrong/collapsed size before fully re-promoting — this
+   is a documented Chromium interaction, not specific to this page. It landed
+   on the exact element lib/masonry.ts measures to compute each card's grid
+   row-span (.card-cv and .masonry-item were the SAME div), so a mistimed read
+   during that window baked in the 1-row-minimum collapse masonry.ts's own
+   comments already warned about for a different trigger (a grid remount).
+   If the library grows enough that offscreen layout cost becomes real again,
+   reintroduce this paired with the visibilitychange re-measure in
+   lib/masonry.ts, not alone. */
 
 /* The tilt target is promoted to its own compositor layer only while it is
    actually being tilted. `will-change: transform` sitting permanently on every
