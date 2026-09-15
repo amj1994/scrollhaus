@@ -115,283 +115,68 @@ setTimeout(function () {
   }
 }, 2500);
 
-// ── frame bank ────────────────────────────────────────────────────────────────
-function createClip(video, canvas) {
+// ── frame sequence: progressive per-frame WebP fetch, one cache per clip ──
+// Used to be: fetch the whole clip, decode via WebCodecs into a bank, then
+// scrub. Same idea as Cortexa/Drift/KILN/Helixway, applied here per-clip
+// since v1/v2/v3 are three genuinely different source videos (not one clip
+// shown at three time offsets). No monolithic download blocks any layer's
+// first paint; frames stream in as each layer's scroll position asks for
+// them. dur is the source clip's real duration (ffprobe), matching the
+// d1/d2/d3 fallback constants the render loop below already used.
+function createClip(video, canvas, seqDir, seqCount, dur) {
   var ctx = canvas.getContext('2d', { alpha: false });
-  var url = video.getAttribute('src');
-  var dur = 0, current = 0, target = 0;
-  var bank = [], lru = [], drawnIndex = -1;
-  var ready = false, reverted = false, painted = false, building = false;
-  var buildRun = 0;
+  var current = 0, target = 0;
+  var cache = new Map(), pending = new Map(), drawnIndex = -1, painted = false;
+  var LRU_MAX = 24;
 
-  function prime() {
-    dur = video.duration || 0;
-    video.currentTime = 0.001;
-    video.pause();
-  }
-
-  if (video.readyState >= 1) { prime(); }
-  video.addEventListener('loadedmetadata', prime);
-
+  function seqUrl(i) { return seqDir + '/' + String(i + 1).padStart(3, '0') + '.webp'; }
   function nearestIndex(t) {
-    var us = t * 1e6;
-    var lo = 0, hi = bank.length - 1;
-    while (lo < hi) {
-      var mid = (lo + hi) >> 1;
-      if (bank[mid].ts < us) lo = mid + 1; else hi = mid;
-    }
-    return lo;
+    return Math.max(0, Math.min(seqCount - 1, Math.round((t / dur) * (seqCount - 1))));
   }
-
-  function evict(bmp) {
-    if (bmp && bmp.close) bmp.close();
-  }
-
-  function warm(i) {
-    for (var d = -1; d <= 2; d++) {
-      var idx = i + d;
-      if (idx < 0 || idx >= bank.length) continue;
-      if (bank[idx].bmp) continue;
-      (function (entry) {
-        createImageBitmap(entry.blob).then(function (bmp) {
-          if (lru.length >= LRU_MAX) { evict(lru.shift().bmp); }
-          entry.bmp = bmp;
-          lru.push(entry);
-        });
-      })(bank[idx]);
+  function evictFar(center) {
+    if (cache.size <= LRU_MAX) return;
+    var idxs = Array.from(cache.keys()).sort(function (a, b) { return Math.abs(b - center) - Math.abs(a - center); });
+    while (cache.size > LRU_MAX && idxs.length) {
+      var i = idxs.shift(), bm = cache.get(i);
+      if (bm && bm.close) bm.close();
+      cache.delete(i);
     }
   }
+  function load(i) {
+    if (i < 0 || i >= seqCount || cache.has(i) || pending.has(i)) return;
+    pending.set(i, true);
+    fetch(seqUrl(i))
+      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+      .then(function (b) { return createImageBitmap(b); })
+      .then(function (bm) { pending.delete(i); cache.set(i, bm); })
+      .catch(function () { pending.delete(i); });
+  }
+  function warm(i) { for (var d = -1; d <= 2; d++) load(i + d); }
 
   function drawFromBank(t) {
     var i = nearestIndex(t);
-    if (i === drawnIndex) return;
-    drawnIndex = i;
+    if (i !== drawnIndex) {
+      var bm = cache.get(i);
+      if (bm) {
+        drawnIndex = i;
+        ctx.drawImage(bm, 0, 0, 1280, 720);
+        if (!painted) { painted = true; canvas.classList.add('is-live'); }
+      }
+    }
+    if (!cache.has(i)) load(i);
     warm(i);
-    var entry = bank[i];
-    if (!entry || !entry.bmp) return;
-    ctx.drawImage(entry.bmp, 0, 0, 1280, 720);
-    if (!painted) {
-      painted = true;
-      canvas.classList.add('is-live');
-    }
-  }
-
-  function drawFallback(t) {
-    if (video.seeking) return;
-    if (Math.abs(video.currentTime - t) > 0.01) {
-      video.currentTime = t;
-    }
-    if (video.readyState >= 2) {
-      ctx.drawImage(video, 0, 0, 1280, 720);
-      if (!painted) {
-        painted = true;
-        canvas.classList.add('is-live');
-      }
-    }
-  }
-
-  function render(t) {
-    if (ready) {
-      drawFromBank(t);
-    } else {
-      drawFallback(t);
-    }
-  }
-
-  function revert() {
-    reverted = true;
-    ready = false;
-    canvas.classList.remove('is-live');
-  }
-
-  function build(soft) {
-    if (building) return;
-    if (reduced) return;
-    if (typeof VideoDecoder === 'undefined') return;
-    if (typeof MP4Box === 'undefined') return;
-    if (typeof DataStream === 'undefined') return;
-
-    building = true;
-    reverted = false;
-    var run = ++buildRun;
-    var frames = [];
-    var decoder, file, sampleQueue = [], pumping = false, done = false;
-    var wdTimer = setTimeout(function () { fail('watchdog'); }, WATCHDOG);
-    var hw = true;
-
-    function finish() {
-      if (!finish.called) {
-        finish.called = true;
-        clearTimeout(wdTimer);
-        building = false;
-      }
-    }
-
-    function fail(reason) {
-      if (fail.called) return;
-      fail.called = true;
-      finish();
-      if (hw) {
-        hw = false;
-        setTimeout(function () { build(true); }, 100);
-      } else {
-        revert();
-      }
-    }
-
-    function failDecode(e) {
-      fail('decode:' + (e && e.message || e));
-    }
-
-    var codecStr = '', descBytes = null;
-
-    function configureDecoder() {
-      try {
-        decoder = new VideoDecoder({
-          output: function (frame) {
-            if (run !== buildRun) { frame.close(); return; }
-            frames.push(frame);
-            pump();
-          },
-          error: failDecode
-        });
-        decoder.configure({
-          codec: codecStr,
-          description: descBytes,
-          hardwareAcceleration: hw ? 'prefer-hardware' : 'prefer-software'
-        });
-      } catch (e) { failDecode(e); }
-    }
-
-    function pump() {
-      if (pumping || done) return;
-      pumping = true;
-      while (sampleQueue.length && decoder && decoder.decodeQueueSize < LEAD) {
-        var s = sampleQueue.shift();
-        try {
-          decoder.decode(new EncodedVideoChunk({
-            type: s.is_sync ? 'key' : 'delta',
-            timestamp: s.cts * 1e6 / s.timescale,
-            duration: s.duration * 1e6 / s.timescale,
-            data: s.data
-          }));
-        } catch (e) { failDecode(e); return; }
-      }
-      pumping = false;
-      if (sampleQueue.length === 0 && done) {
-        try {
-          decoder.flush().then(function () {
-            if (run !== buildRun) return;
-            // convert frames to blobs
-            var pending = frames.length;
-            if (pending === 0) { finish(); revert(); return; }
-            frames.forEach(function (frame) {
-              var offscreen = new OffscreenCanvas(frame.displayWidth, frame.displayHeight);
-              var oc = offscreen.getContext('2d');
-              oc.drawImage(frame, 0, 0);
-              var ts = frame.timestamp;
-              frame.close();
-              offscreen.convertToBlob({ type: 'image/jpeg', quality: 0.85 }).then(function (blob) {
-                if (run !== buildRun) return;
-                bank.push({ ts: ts, blob: blob, bmp: null });
-                pending--;
-                if (pending === 0) {
-                  bank.sort(function (a, b) { return a.ts - b.ts; });
-                  // draw first frame
-                  if (bank[0]) {
-                    createImageBitmap(bank[0].blob).then(function (bmp) {
-                      bank[0].bmp = bmp;
-                      ctx.drawImage(bmp, 0, 0, 1280, 720);
-                      ready = true;
-                      finish();
-                    }).catch(function () { ready = true; finish(); });
-                  } else {
-                    ready = true;
-                    finish();
-                  }
-                }
-              }).catch(function () { pending--; if (pending === 0) { ready = true; finish(); } });
-            });
-            frames = [];
-          }).catch(failDecode);
-        } catch (e) { failDecode(e); }
-      }
-    }
-
-    file = MP4Box.createFile();
-    file.onReady = function (info) {
-      var track = info.videoTracks[0];
-      if (!track) { fail('no-video-track'); return; }
-
-      // extract codec description
-      var trak = file.getTrackById(track.id);
-      var entry = trak && trak.mdia && trak.mdia.minf && trak.mdia.minf.stbl &&
-                  trak.mdia.minf.stbl.stsd && trak.mdia.minf.stbl.stsd.entries &&
-                  trak.mdia.minf.stbl.stsd.entries[0];
-      var boxNames = ['avcC', 'hvcC', 'vpcC', 'av1C'];
-      var descBox = null;
-      for (var bi = 0; bi < boxNames.length; bi++) {
-        if (entry && entry[boxNames[bi]]) { descBox = entry[boxNames[bi]]; break; }
-      }
-      if (descBox) {
-        var ds = new DataStream(undefined, 0, DataStream.BIG_ENDIAN);
-        descBox.write(ds);
-        descBytes = new Uint8Array(ds.buffer, 8);
-      }
-
-      codecStr = track.codec;
-      configureDecoder();
-      file.setExtractionOptions(track.id, null, { nbSamples: Infinity });
-      file.start();
-    };
-    file.onSamples = function (id, user, samples) {
-      for (var i = 0; i < samples.length; i++) {
-        samples[i].data = samples[i].data.slice();
-        sampleQueue.push(samples[i]);
-      }
-      pump();
-    };
-    file.onError = function (e) { fail('mp4box:' + e); };
-
-    // fetch with range requests
-    var offset = 0;
-    function fetchChunk() {
-      fetch(url, {
-        headers: { Range: 'bytes=' + offset + '-' + (offset + 1024 * 1024 - 1) }
-      }).then(function (res) {
-        return res.arrayBuffer();
-      }).then(function (buf) {
-        if (run !== buildRun) return;
-        buf.fileStart = offset;
-        offset += buf.byteLength;
-        var next = file.appendBuffer(buf);
-        if (buf.byteLength > 0 && next !== null) {
-          fetchChunk();
-        } else if (buf.byteLength > 0) {
-          done = true;
-          pump();
-        } else {
-          done = true;
-          pump();
-        }
-      }).catch(function (e) {
-        if (run !== buildRun) return;
-        done = true;
-        pump();
-      });
-    }
-    fetchChunk();
+    evictFar(i);
   }
 
   return {
-    get dur() { return dur || (bank.length > 1 ? (bank[bank.length-1].ts - bank[0].ts + (bank[1].ts - bank[0].ts)) / 1e6 : 0); },
+    get dur() { return dur; },
     get drawnIndex() { return drawnIndex; },
     get painted() { return painted; },
-    get ready() { return ready; },
-    render: render,
-    build: build,
-    revert: revert,
-    prime: prime,
+    get ready() { return true; },
+    render: drawFromBank,
+    build: function () {},
+    revert: function () {},
+    prime: function () {},
     current: function () { return current; },
     setTarget: function (t) { target = t; },
     lerp: function (dt) {
@@ -403,9 +188,9 @@ function createClip(video, canvas) {
 }
 
 var clips = [
-  createClip(v1, c1),
-  createClip(v2, c2),
-  createClip(v3, c3)
+  createClip(v1, c1, 'assets/sequence-1', 96, 8),
+  createClip(v2, c2, 'assets/sequence-2', 121, 10.041667),
+  createClip(v3, c3, 'assets/sequence-3', 97, 8.041667)
 ];
 
 // ── build sequentially ────────────────────────────────────────────────────────

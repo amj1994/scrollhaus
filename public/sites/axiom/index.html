@@ -24,17 +24,17 @@
 </header>
 
 <div class="stage pol" id="stage">
-  <video id="v1" class="plate" src="assets/video/v1.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+  <video id="v1" class="plate" muted playsinline aria-hidden="true"></video>
   <canvas id="c1" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
 </div>
 
 <div class="reveal reveal--a pol" id="ra">
-  <video id="v2" class="plate" src="assets/video/v2.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+  <video id="v2" class="plate" muted playsinline aria-hidden="true"></video>
   <canvas id="c2" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
 </div>
 
 <div class="reveal reveal--b pol" id="rb">
-  <video id="v3" class="plate" src="assets/video/v3.mp4" muted playsinline preload="metadata" aria-hidden="true"></video>
+  <video id="v3" class="plate" muted playsinline aria-hidden="true"></video>
   <canvas id="c3" class="plate" width="1280" height="720" aria-hidden="true"></canvas>
 </div>
 
@@ -145,5 +145,4 @@ if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
   requestAnimationFrame(function raf(time) { lenis.raf(time); requestAnimationFrame(raf); });
 }
 </script>
-<script defer src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
 <script type="module" src="main.js"></script>
