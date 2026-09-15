@@ -22,9 +22,34 @@ const AI_TOOLS = [
   { name: 'Readdy', logo: '/logos/readdy.webp' },
 ]
 
+type View = 'library' | 'creative' | 'templates' | 'effects' | 'pricing'
+
+// Real paths, not just in-memory tab state: /templates and /effects are
+// their own pages now (landing directly there shows the actual content, not
+// a click-through), so they need to survive a hard refresh and be linkable.
+// Netlify's catch-all redirect (see netlify.toml) already sends any path to
+// index.html, so this is the only piece needed for client-side routing.
+const VIEW_PATH: Record<View, string> = {
+  library: '/',
+  creative: '/creative',
+  templates: '/templates',
+  effects: '/effects',
+  pricing: '/pricing',
+}
+const PATH_VIEW: Record<string, View> = Object.fromEntries(
+  Object.entries(VIEW_PATH).map(([v, p]) => [p, v as View]),
+)
+function viewFromPath(pathname: string): View {
+  // Strip a trailing slash before lookup ('/templates/' must resolve the
+  // same as '/templates') but leave the bare root alone — stripping there
+  // would turn '/' into '' and miss the map entirely.
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, '') : pathname
+  return PATH_VIEW[normalized] ?? 'library'
+}
+
 export default function App() {
   const { session, entitled, passwordRecovery, signOut } = useAuth()
-  const [view, setView] = useState<'library' | 'creative' | 'templates' | 'effects' | 'pricing'>('library')
+  const [view, _setView] = useState<View>(() => viewFromPath(window.location.pathname))
   const [active, setActive] = useState<string>('All')
   const [q, setQ] = useState('')
   const [authOpen, setAuthOpen] = useState(false)
@@ -34,8 +59,28 @@ export default function App() {
   const [openId, setOpenId] = useState<string | null>(
     () => new URLSearchParams(window.location.search).get('site'),
   )
+
+  // Every navigation between sections pushes a real URL, so /templates and
+  // /effects are bookmarkable and survive a refresh instead of resetting to
+  // the library. Also drops any open site-detail pane: without this, tabbing
+  // away from Library with a detail view open leaves `openId` set in React
+  // state even though the URL and visible nav both say you've left it, and
+  // tabbing back to Library resurrects a detail pane nothing on screen
+  // pointed at. Kept as a plain function (not useCallback) — it closes over
+  // nothing that changes, and every call site below is a plain onClick.
+  const setView = (v: View) => {
+    if (window.location.pathname !== VIEW_PATH[v]) {
+      window.history.pushState({}, '', VIEW_PATH[v])
+    }
+    setOpenId(null)
+    _setView(v)
+  }
+
   useEffect(() => {
-    const onPop = () => setOpenId(new URLSearchParams(window.location.search).get('site'))
+    const onPop = () => {
+      setOpenId(new URLSearchParams(window.location.search).get('site'))
+      _setView(viewFromPath(window.location.pathname))
+    }
     window.addEventListener('popstate', onPop)
     return () => window.removeEventListener('popstate', onPop)
   }, [])
